@@ -11,23 +11,23 @@ Compared to the implemenation proposed by Aho and Corasick, this one adds three 
   This can be used as a unique identifiant of a keyword for a given machine state.
 
 Usage:
-1- Define the type ACM_SYMBOL with the type of symbols that constitute keywords. char or int should match most needs.
+1. Define the type ACM_SYMBOL with the type of symbols that constitute keywords. char or int should match most needs.
    Either define ACM_SYMBOL direcly in the user program or include a user defines aho_corasick_symbol.h file.
    E.g.:
    - #define ACM_SYMBOL char (simple choice if the algorithm is compiled as a private module).
    - #include "aho_corasick_symbol.h" (better choice if the algorithm is compiled as an object or library, and not as a private module).
-2- Insert "aho_corasick.h"
-3- Initialize a state machine: InitialState * M = 0;
-4- Add keywords (of type Keyword) to the state machine calling ACM_register_keyword() repeatedly.
+2. Insert "aho_corasick.h"
+3. Initialize a state machine: InitialState * M = 0;
+4. Add keywords (of type Keyword) to the state machine calling ACM_register_keyword() repeatedly.
    Notes: ACM_KEYWORD_SET can help initialize keywords with a single statement.
           ACM_nb_matches() returns the number of keywords already inserted in the state machine.
-5- Initialize an internal machine state to M: InternalState s = M;
+5. Initialize an internal machine state to M: InternalState s = M;
 
 Then, repeatedly:
-6-   Scan some text where to search for keywords, injecting symbols of the text, one at a time by calling ACM_change_state() on s.
-7-   After each insertion, call ACM_nb_matches() on the internal state s to check if the last inserted symbols match a keyword.
-8-   If matches were found, retrieve them calling ACM_get_match() for each match.
-9- After usage, release the state machine calling ACM_release() on M.
+6.   Scan some text where to search for keywords, injecting symbols of the text, one at a time by calling ACM_change_state() on s.
+7.   After each insertion, call ACM_nb_matches() on the internal state s to check if the last inserted symbols match a keyword.
+8.   If matches were found, retrieve them calling ACM_get_match() for each match.
+9. After usage, release the state machine calling ACM_release() on M.
 
 Note if ACM_SYMBOL is a structure (does not apply for basic types such as int or char):
 - An equality operator '==' with signature 'int eq (ACM_SYMBOL a, ACM_SYMBOL b)' should be defined
