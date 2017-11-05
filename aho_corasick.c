@@ -27,14 +27,23 @@
 ///
 /// @see https://en.wikipedia.org/wiki/Aho%E2%80%93Corasick_algorithm
 ///
-/// Compared to the implemenation proposed by Aho and Corasick, this one adds three small enhancements:
-/// - This implementation does not stores output keywords associated to states.
-///   It rather reconstructs matching keywords by traversing the branch of the tree backward (see ACM_get_match).
-/// - This implementation permits to search for keywords even though all keywords have not been registered yet.
-///   To achieve this, failure states are reconstructed after every registration of a next keyword
-///   (see ACM_register_keyword which alternates calls to algorithms 2 and 3.)
-/// - This implemtation keeps track of the rank of a registered keyword as returned by ACM_get_match().
-///   This can be used as a unique identifiant of a keyword for a given machine state.
+/// Compared to the implemenation proposed by Aho and Corasick, this one adds four enhancements:
+/// 1. First of all, the implementation does not define any assertion on the alphabet used. Particularly, it is not limited to 256 signs.
+///    For instance, if ACM_SYMBOL is long long int, then the number of possible signs would be 18446744073709551616.
+///    For this to be possible, the assertion "for all a such that g(0, a) = fail do g(0, a) <- 0" at the end of algorithm 2 can not be fulfilled
+///    because it would need to cover all the values of 'a' in the set of possible values.
+///    Therefore, g(0, a) is kept equal to fail (i.e. a or g(0, a) is undefined).
+///    Algorithms 1 and 3 must be adapted accordingly (modifications are tagged with [1], [2] and [3]):
+///    - g(0, a) = (resp. !=) 0 must be replaced by: g(0, a) = (resp. !=) fail               [1]
+///    - g(state, a) = fail must be replaced by: g(state, a) = fail and state != 0           [2]
+///    - <- g(state, a) must be replaced by: <- (g(state, a) if g(state, a) != fail, else 0) [3]
+/// 2. It does not stores output keywords associated to states.
+///    It rather reconstructs matching keywords by traversing the branch of the tree backward (see ACM_get_match).
+/// 3. It permits to search for keywords even though all keywords have not been registered yet, and continue to register keywords afterwards.
+///    To achieve this, failure states are reconstructed after any registration of a new keyword
+///    (see ACM_register_keyword which alternates calls to algorithms 2 and 3.)
+/// 4. This implemtation keeps track of the rank of a registered keyword as returned by ACM_get_match().
+///    This can be used as a unique identifiant of a keyword for a given state machine.
 
 #ifndef ACM_SYMBOL
 // User defined file containing the definition of ACM_SYMBOL.
@@ -248,7 +257,7 @@ state_fail_state_construct (struct _ac_state *state_0 /* state 0 */ )
   size_t queue_length = 0;
   struct _ac_state **queue = 0;
 
-  // Aho-Corasick Algorithm 3: for each a such that s != 0 [fail], where s <- g(0, a) do
+  // Aho-Corasick Algorithm 3: for each a such that s != 0 [fail], where s <- g(0, a) do   [1]
   for (size_t i = 0; i < state_0->nb_goto; i++)
   {
     struct _ac_state *s = state_0->goto_array[i].state; // [s <- g(0, a)]
@@ -286,8 +295,8 @@ state_fail_state_construct (struct _ac_state *state_0 /* state 0 */ )
       // Aho-Corasick Algorithm 3: state <- f(r)
       struct _ac_state *state = r->fail_state /* f(r) */ ;
 
-      // Aho-Corasick Algorithm 3: while g(state, a) = fail [and state != 0] do state <- f(state)
-      //                           [if g(state, a) != fail then] f(s) <- g(state, a) [else f(s) <- 0]
+      // Aho-Corasick Algorithm 3: while g(state, a) = fail [and state != 0] do state <- f(state)        [2]
+      //                           [if g(state, a) != fail then] f(s) <- g(state, a) [else f(s) <- 0]    [3]
       s->fail_state /* f(s) */  = state_goto (state, a);
 
       // Aho-Corasick Algorithm 3: output (s) <-output (s) U output (f(s))
@@ -383,8 +392,8 @@ ACM_release (struct _ac_state *state_0)
 static struct _ac_state *
 state_goto (struct _ac_state *state, ACM_SYMBOL letter /* Aho-Corasick Algorithm 1: a[i] */ )
 {
-  // Aho-Corasick Algorithm 1: while g(state, a[i]) = fail [and state != 0] do state <- f(state)
-  //                           [if g(state, a[i]) != fail then] state <- g(state, a[i]) [else state <- 0]
+  // Aho-Corasick Algorithm 1: while g(state, a[i]) = fail [and state != 0] do state <- f(state)           [2]
+  //                           [if g(state, a[i]) != fail then] state <- g(state, a[i]) [else state <- 0]  [3]
   //                           [The function returns state]
   while (1)
   {
