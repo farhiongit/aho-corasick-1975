@@ -1,6 +1,12 @@
 A small, documented, easy to use implementation of the Aho-Corasick algorithm.
 ------------------------------------------------------------------------------
 
+This implementation strictly follows step by step the pseudo-code given in the original paper from Aho and Corasick.
+
+See Aho, Alfred V.; Corasick, Margaret J. (June 1975). "Efficient string matching: An aid to bibliographic search".
+Communications of the ACM. 18 (6): 333–340.
+https://pdfs.semanticscholar.org/3547/ac839d02f6efe3f6f76a8289738a22528442.pdf
+
 Compared to the implemenation proposed by Aho and Corasick, this one adds three small enhancements:
 - This implementation does not stores output keywords associated to states.
   It rather reconstructs matching keywords by traversing the branch of the tree backward (see ACM_get_match).

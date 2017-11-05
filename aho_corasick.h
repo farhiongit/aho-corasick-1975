@@ -18,18 +18,12 @@
 *  along with this file.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-/// @see Aho, Alfred V.; Corasick, Margaret J. (June 1975). "Efficient string matching: An aid to bibliographic search". Communications of the ACM. 18 (6): 333–340.
+/// @see Aho, Alfred V.; Corasick, Margaret J. (June 1975). "Efficient string matching: An aid to bibliographic search".
+/// Communications of the ACM. 18 (6): 333–340.
+/// https://pdfs.semanticscholar.org/3547/ac839d02f6efe3f6f76a8289738a22528442.pdf
+///
 /// @see https://en.wikipedia.org/wiki/Aho%E2%80%93Corasick_algorithm
 ///
-/// Compared to the implemenation proposed by Aho and Corasick, this one adds three small enhancements:
-/// - This implementation does not stores output keywords associated to states.
-///   It rather reconstructs matching keywords by traversing the branch of the tree backward (see ACM_get_match).
-/// - This implementation permits to search for keywords even though all keywords have not been registered yet.
-///   To achieve this, failure states are reconstructed after every registration of a next keyword
-///   (see ACM_register_keyword which alternates calls to algorithms 2 and 3.)
-/// - This implemtation keeps track of the rank of a registered keyword as returned by ACM_get_match().
-///   This can be used as a unique identifiant of a keyword for a given machine state.
-
 /// Usage:
 /// 1/ Define the type ACM_SYMBOL with the type of symbols that constitute keywords. char or int should match most needs.
 ///    Either define ACM_SYMBOL direcly in the user program or include a user defines aho_corasick_symbol.h file.
