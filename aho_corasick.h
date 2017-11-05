@@ -21,7 +21,7 @@
 /// @see Aho, Alfred V.; Corasick, Margaret J. (June 1975). "Efficient string matching: An aid to bibliographic search". Communications of the ACM. 18 (6): 333–340.
 /// @see https://en.wikipedia.org/wiki/Aho%E2%80%93Corasick_algorithm
 ///
-/// Compared to the implemenation proposed by Aho and Corasick, this one adds two small enhancements:
+/// Compared to the implemenation proposed by Aho and Corasick, this one adds three small enhancements:
 /// - This implementation does not stores output keywords associated to states.
 ///   It rather reconstructs matching keywords by traversing the branch of the tree backward (see ACM_get_match).
 /// - This implementation permits to search for keywords even though all keywords have not been registered yet.
