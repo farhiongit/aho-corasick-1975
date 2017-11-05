@@ -24,6 +24,7 @@ Usage:
 5. Initialize an internal machine state to M: InternalState s = M;
 
 Then, repeatedly:
+
 6.   Scan some text where to search for keywords, injecting symbols of the text, one at a time by calling ACM_change_state() on s.
 7.   After each insertion, call ACM_nb_matches() on the internal state s to check if the last inserted symbols match a keyword.
 8.   If matches were found, retrieve them calling ACM_get_match() for each match.
