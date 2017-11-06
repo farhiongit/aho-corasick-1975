@@ -28,15 +28,18 @@
 /// @see https://en.wikipedia.org/wiki/Aho%E2%80%93Corasick_algorithm
 ///
 /// Compared to the implemenation proposed by Aho and Corasick, this one adds four enhancements:
-/// 1. First of all, the implementation does not define any assertion on the alphabet used. Particularly, it is not limited to 256 signs.
-///    For instance, if ACM_SYMBOL is long long int, then the number of possible signs would be 18446744073709551616.
+/// 1. First of all, the implementation does not define any assumption on the size of alphabet used.
+///    Particularly, the akphanet is not limited to 256 signs.
+///    For instance, if ACM_SYMBOL is defined as 'long long int', then the number of possible signs would be 18446744073709551616.
 ///    For this to be possible, the assertion "for all a such that g(0, a) = fail do g(0, a) <- 0" at the end of algorithm 2 can not be fulfilled
-///    because it would need to cover all the values of 'a' in the set of possible values.
-///    Therefore, g(0, a) is kept equal to fail (i.e. a or g(0, a) is undefined).
-///    Algorithms 1 and 3 must be adapted accordingly (modifications are tagged with [1], [2] and [3]):
-///    - g(0, a) = (resp. !=) 0 must be replaced by: g(0, a) = (resp. !=) fail               [1]
-///    - g(state, a) = fail must be replaced by: g(state, a) = fail and state != 0           [2]
-///    - <- g(state, a) must be replaced by: <- (g(state, a) if g(state, a) != fail, else 0) [3]
+///    because it would require to set g(0, a) for all the values of 'a' in the set of possible values of the alphabet,
+///    and thus allocate (if not exhaust) a lot of memory.
+///    Therefore, g(0, a) is kept equal to fail (i.e. a or g(0, a) is kept undefined) for all a not yet defined by keyword registration.
+///    Nevertheless, for the state machine to work properly, it must behave as if g(0, a) would be equal to 0 whenever g(0, a) = fail.
+///    Algorithms 1 and 3 (called after algorithm 2) must be adapted accordingly (modifications are tagged with [1], [2] and [3] in the code):
+///    - [1] g(0, a) = (resp. !=) 0 must be replaced by: g(0, a) = (resp. !=) fail
+///    - [2] g(state, a) = fail must be replaced by: g(state, a) = fail and state != 0
+///    - [3] s <- g(state, a) must be replaced by: if g(state, a) != fail then s <- g(state, a) else s <-0
 /// 2. It does not stores output keywords associated to states.
 ///    It rather reconstructs matching keywords by traversing the branch of the tree backward (see ACM_get_match).
 /// 3. It permits to search for keywords even though all keywords have not been registered yet, and continue to register keywords afterwards.
@@ -388,7 +391,7 @@ ACM_release (struct _ac_state *state_0)
   free (queue);
 }
 
-/// @see Aho-Corasick Algorithm 1: Pattern matching machine.
+/// @see Aho-Corasick Algorithm 1: Pattern matching machine - while loop.
 static struct _ac_state *
 state_goto (struct _ac_state *state, ACM_SYMBOL letter /* Aho-Corasick Algorithm 1: a[i] */ )
 {
@@ -435,12 +438,14 @@ ACM_change_state (struct _ac_state *state, ACM_SYMBOL letter)
   return state_goto (state, letter);
 }
 
+/// @see Aho-Corasick Algorithm 1: Pattern matching machine - if output (stat) != empty
 ACM_PRIVATE size_t
 ACM_nb_matches (const struct _ac_state * state)
 {
   return state->nb_sequence;
 }
 
+/// @see Aho-Corasick Algorithm 1: Pattern matching machine - print output (state) [ith element]
 ACM_PRIVATE size_t
 ACM_get_match (const struct _ac_state * state, size_t index, Keyword * match)
 {
