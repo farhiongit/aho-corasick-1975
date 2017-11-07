@@ -1,4 +1,4 @@
-CFLAGS = -Wall -O
+CFLAGS = -Wall -O -pthread
 #CFLAGS += -pedantic
 #CC = clang
 
