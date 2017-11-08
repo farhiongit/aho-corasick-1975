@@ -1,13 +1,12 @@
 **A small, documented, easy to use implementation of the Aho-Corasick algorithm.**
 ------------------------------------------------------------------------------
 
-This implementation strictly follows step by step the pseudo-code given in the original paper from Aho and Corasick.
+This implementation strictly follows acurately and step by step the pseudo-code given in the original paper from Aho and Corasick, exquisitely clear and well written.
 
-See Aho, Alfred V.; Corasick, Margaret J. (June 1975). "Efficient string matching: An aid to bibliographic search".
+See Aho, Alfred V.; Corasick, Margaret J. (June 1975). "[Efficient string matching: An aid to bibliographic search](https://pdfs.semanticscholar.org/3547/ac839d02f6efe3f6f76a8289738a22528442.pdf)".
 Communications of the ACM. 18 (6): 333–340.
-https://pdfs.semanticscholar.org/3547/ac839d02f6efe3f6f76a8289738a22528442.pdf
 
-Compared to the implemenation proposed by Aho and Corasick, this one adds four enhancements:
+Compared to the implemenation proposed by Aho and Corasick, this one adds several enhancements:
 
 1. First of all, the implementation does not define any assumption on the size of alphabet used.
    Particularly, the alphanet is not limited to 256 signs.
@@ -30,6 +29,11 @@ Compared to the implemenation proposed by Aho and Corasick, this one adds four e
    (see ACM_register_keyword which alternates calls to algorithms 2 and 3.)
 4. This implemtation keeps track of the rank of a registered keyword as returned by ACM_get_match().
    This can be used as a unique identifiant of a keyword for a given machine state.
+5. If ACM_ASSOCIATED_VALUE is defined at compile time, then values can be associated to registered keywords, and retreived with the found keywords:
+      - two arguments are added when ACM_register_keyword is called: a pointer to a previously allocated value, and a pointer to function for
+        deallocation of the associated value. This function will be called when the state machine will be release by ACM_release.
+      - one argument is added when ACM_get_match is called: the address of a pointer to an associated value.
+        The pointer to associated value is modified by ACM_get_match to the address of the value associated to the keyword.
 
 Usage:
 -----
@@ -58,6 +62,12 @@ Finally:
 9. After usage, release the state machine calling ACM_release() on M.
 
 Note if ACM_SYMBOL is a structure (does not apply for basic types such as int or char):
+---------------------------------------------------------------------------------------
+ACM_SYMBOL is the type of letters of the alphabet that constitute the keywords.
+
+ACM_SYMBOL can be any basic type (char, int, unisigned long long int for instance), or a user defined structure.
+
+If ACM_SYMBOL is a structure:
 
 - An equality operator '==' with signature 'int eq (ACM_SYMBOL a, ACM_SYMBOL b)' should be defined
   in the user program and the name of the function should be defined in macro ACM_SYMBOL_EQ_OPERATOR.
@@ -74,6 +84,7 @@ Compilation:
 The algorithm can be compiled either as an object (aho_corasick.o) or as a private module (if PRIVATE_MODULE is defined in the user program).
 If PRIVATE_MODULE is set in the user program, then:
 - the implementation of the algorithm will be compiled in the same compilation unit as the user program, therefore without requiring linkage.
+  There is no need to compile aho_corasick.c separately, the source will be include in the user program including aho_corasick.h.
 - the warning "The Aho-Corasick algorithm is compiled as a private module." is emitted during compilation.
 
 Files:

@@ -68,10 +68,14 @@
 #include <stdlib.h>
 
 #ifdef PRIVATE_MODULE
-#warning The Aho-Corasick algorithm is compiled as a private module.
+#warning The Aho-Corasick algorithm is compiled as a private module (PRIVATE_MODULE is defined).
 #define ACM_PRIVATE static __attribute__((__unused__))
 #else
 #define ACM_PRIVATE
+#endif
+
+#ifdef ACM_ASSOCIATED_VALUE
+#warning States are compiled with associated values (ACM_ASSOCIATED_VALUE is defined).
 #endif
 
 // Type of SYMBOL int is generic and suits to numerous use cases.
@@ -101,10 +105,16 @@ typedef struct _ac_state InternalState;
 /// Register a new keyword into a Aho-Corasick Machine.
 /// @param [in] machine 0 or a pointer to a Aho-Corasick Machine allocated by a previous call to ACM_register_keyword.
 /// @param [in] keyword A new keyword to register.
+/// @param [in] value A pointer to the value associated to the new keyword.
+/// @param [in] dtor A pointer to the function called to release the value associated to keyword when the state machine is release by ACM_release.
 /// @returns Pointer to the Aho-Corasick Machine or 0 if the keyword had already been registered and was not registered again.
 /// machine should be 0 on first call.
 /// Usage: InitialState is, machine = 0; if ((is = ACM_register_keyword (machine, keyword))) machine = is;
-ACM_PRIVATE InitialState *ACM_register_keyword (InitialState * machine, Keyword keyword);
+ACM_PRIVATE InitialState *ACM_register_keyword (InitialState * machine, Keyword keyword
+#ifdef ACM_ASSOCIATED_VALUE
+                                                , void *value, void (*dtor) (void *)
+#endif
+  );
 
 /// Returns the number of registered keywords in the Aho-Corasick Machine.
 /// @param [in] machine A pointer to a Aho-Corasick Machine allocated by a previous call to ACM_register_keyword.
@@ -129,11 +139,16 @@ ACM_PRIVATE size_t ACM_nb_matches (const InternalState * state);
 /// @param [in] state Internal state.
 /// @param [in] index of the requested keyword.
 /// @param [in,out] match A pointer to the keyword of rank index associated to the internal state.
+/// @param [out] value address to the pointer to the value assiociated with the keyword match.
 /// @returns The rank of insertion of the keyword when it was registered in the machine state by ACM_register_keyword().
 /// index should be less than the value returned by state_nb_keywords().
 /// match->letter should have been initialized to 0 prior to first call to ACM_get_match.
 /// match->letter should be freed by the user program after the last call to ACM_get_match.
-ACM_PRIVATE size_t ACM_get_match (const InternalState * state, size_t index, Keyword * match);
+ACM_PRIVATE size_t ACM_get_match (const InternalState * state, size_t index, Keyword * match
+#ifdef ACM_ASSOCIATED_VALUE
+                                  , void **value
+#endif
+  );
 
 /// Release allocated resources.
 /// @param [in] machine A pointer to a Aho-Corasick Machine allocated by a previous call to ACM_register_keyword.

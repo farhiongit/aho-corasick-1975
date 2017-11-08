@@ -31,6 +31,8 @@
 
 #include <string.h>
 #include <stdio.h>
+#include <assert.h>
+
 #define ACM_SYMBOL char
 
 #include "aho_corasick.h"
@@ -46,6 +48,14 @@ print_keyword (Keyword match)
     printf ("]");
   }
 }
+
+#ifdef ACM_ASSOCIATED_VALUE
+void
+value_dtor (void *v)
+{
+  free (v);
+}
+#endif
 
 // A unit test
 int
@@ -69,13 +79,19 @@ main (void)
 
 // Function applied to register a keyword in the state machine
 // We could also have more conveniently written something like keyword = {.letter = "string", .length = strlen ("string") }
+#ifdef ACM_ASSOCIATED_VALUE
+#define EXTRA ,0 ,0
+#else
+#define EXTRA
+#endif
+
 #define X(MACHINE, ...) \
   {  \
     Keyword VAR;  \
     ACM_SYMBOL _VAR[] = { __VA_ARGS__ };  \
     ACM_KEYWORD_SET (VAR, _VAR, sizeof (_VAR) / sizeof (*_VAR));  \
     InitialState * is;  \
-    if ((is = ACM_register_keyword (MACHINE, VAR)))  \
+    if ((is = ACM_register_keyword (MACHINE, VAR EXTRA)))  \
     {  \
       MACHINE = is;  \
       print_keyword (VAR);  \
@@ -108,7 +124,11 @@ main (void)
     for (size_t j = 0; j < ACM_nb_matches (s); j++)
     {
       // Get the ith matching keyword for the actual state of the machine.
-      printf ("{%zu}", ACM_get_match (s, j, &match));
+      printf ("{%zu}", ACM_get_match (s, j, &match
+#ifdef ACM_ASSOCIATED_VALUE
+                                      , 0
+#endif
+              ));
 
       // Display matching pattern
       print_keyword (match);
@@ -118,6 +138,7 @@ main (void)
   // Free keyword after usage;
   ACM_KEYWORD_RELEASE (match);
   match.length = 0;
+  match.letter = 0;
 
   printf ("\n");
 
@@ -136,16 +157,26 @@ main (void)
 
   char *line = 0;
   size_t len = 0;
+  size_t read = 0;
 
   for (int stage = 1; stage <= 2; stage++)
   {
-    for (size_t read = 0; (read < 50000 || stage == 2) && getline (&line, &len, stream) != -1; read++)
+    for (; (read < 50000 || stage == 2) && getline (&line, &len, stream) != -1; read++)
     {
       InitialState *s;
       Keyword k;
 
       ACM_KEYWORD_SET (k, line, strlen (line)); // keywords end with newline
-      if ((s = ACM_register_keyword (M, k)))
+#ifdef ACM_ASSOCIATED_VALUE
+      size_t *v = malloc (sizeof (*v));
+
+      *v = read;
+#endif
+      if ((s = ACM_register_keyword (M, k
+#ifdef ACM_ASSOCIATED_VALUE
+                                     , v, value_dtor
+#endif
+           )))
         M = s;
     }
 
@@ -154,8 +185,32 @@ main (void)
     // Internal state MUST BE set to M after a keyword has been inserted by ACM_register_keyword.
     s = M;
     for (size_t i = 0; i < strlen (message); i++)
-      if (ACM_nb_matches (s = ACM_change_state (s, message[i])))
+    {
+      size_t nb = ACM_nb_matches (s = ACM_change_state (s, message[i]));
+
+      if (nb)
+      {
         printf ("%zu ", i);
+        Keyword w = { 0 };
+        for (size_t j = 0; j < nb; j++)
+        {
+#ifdef ACM_ASSOCIATED_VALUE
+          void *v;
+#endif
+          size_t u = ACM_get_match (s, j, &w
+#ifdef ACM_ASSOCIATED_VALUE
+                                    , &v
+#endif
+            );
+
+          (void) u;
+#ifdef ACM_ASSOCIATED_VALUE
+          assert (*(size_t *) v == u);
+#endif
+        }
+        ACM_KEYWORD_RELEASE (w);
+      }
+    }
 
     printf ("\n");
   }

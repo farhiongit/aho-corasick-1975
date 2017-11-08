@@ -110,6 +110,11 @@ struct _ac_state                // [state s]
   int is_matching;              // true if the state matches a keyword.
   size_t nb_sequence;           // number of matching keywords.
   size_t rank;                  // Rank of insertion of a keyword in the machine.
+
+#ifdef ACM_ASSOCIATED_VALUE
+  void *value;                  // An optional value associated to a state.
+  void (*value_dtor) (void *);  // Destrcutor of the associated value, called a state machine release.
+#endif
 };
 
 //-----------------------------------------------------
@@ -134,12 +139,21 @@ state_init (void)
   s->fail_state = &UNSET_STATE; // f(s) is undefined and has not been computed yet
   s->rank = 0;
 
+#ifdef ACM_ASSOCIATED_VALUE
+  s->value = 0;
+  s->value_dtor = 0;
+#endif
+
   return s;
 }
 
 /// @see Aho-Corasick Algorithm 2: construction of the goto function - procedure enter(a[1] a[2] ... a[n]).
 static int
-state_goto_update (struct _ac_state *state_0, Keyword sequence /* a[1] a[2] ... a[n] */ )
+state_goto_update (struct _ac_state *state_0, Keyword sequence  /* a[1] a[2] ... a[n] */
+#ifdef ACM_ASSOCIATED_VALUE
+                   , void *value, void (*dtor) (void *)
+#endif
+  )
 {
   // Iterators
   // Aho-Corasick Algorithm 2: state <- 0
@@ -200,6 +214,13 @@ state_goto_update (struct _ac_state *state_0, Keyword sequence /* a[1] a[2] ... 
     // Aho-Corasick Algorithm 2: state <- newstate
     state = newstate;
   }
+
+#ifdef ACM_ASSOCIATED_VALUE
+  if (state->value && state->value_dtor)
+    state->value_dtor (state->value);
+  state->value = value;
+  state->value_dtor = dtor;
+#endif
 
   if (state->is_matching)
     // The keyword was already previously registered
@@ -323,7 +344,11 @@ state_fail_state_construct (struct _ac_state *state_0 /* state 0 */ )
 }
 
 ACM_PRIVATE struct _ac_state *
-ACM_register_keyword (struct _ac_state *state_0, Keyword y /* a[1] a[2] ... a[n] */ )
+ACM_register_keyword (struct _ac_state *state_0, Keyword y      /* a[1] a[2] ... a[n] */
+#ifdef ACM_ASSOCIATED_VALUE
+                      , void *value, void (*dtor) (void *)
+#endif
+  )
 {
   // Aho-Corasick Algorithm 2: newstate <- 0
   // Create state 0.
@@ -331,7 +356,11 @@ ACM_register_keyword (struct _ac_state *state_0, Keyword y /* a[1] a[2] ... a[n]
   if (!state_0)
     state_0 = state_init ();
 
-  if (!state_goto_update (state_0, y))
+  if (!state_goto_update (state_0, y
+#ifdef ACM_ASSOCIATED_VALUE
+                          , value, dtor
+#endif
+      ))
     return 0;
 
   // Aho-Corasick Algorithm 2: for all a such that g(0, a) = fail do g(0, a) <- 0
@@ -355,7 +384,7 @@ ACM_register_keyword (struct _ac_state *state_0, Keyword y /* a[1] a[2] ... a[n]
 }
 
 ACM_PRIVATE size_t
-ACM_nb_keywords (InitialState * machine)
+ACM_nb_keywords (struct _ac_state * machine)
 {
   return machine->rank;
 }
@@ -396,6 +425,11 @@ ACM_release (struct _ac_state *state_0)
 
     // Release previous
     free (r->previous);
+
+#ifdef ACM_ASSOCIATED_VALUE
+    if (r->value && r->value_dtor)
+      r->value_dtor (r->value);
+#endif
 
     // Release r
     ACM_SYMBOL_DTOR (r->letter);
@@ -461,7 +495,11 @@ ACM_nb_matches (const struct _ac_state * state)
 
 /// @see Aho-Corasick Algorithm 1: Pattern matching machine - print output (state) [ith element]
 ACM_PRIVATE size_t
-ACM_get_match (const struct _ac_state * state, size_t index, Keyword * match)
+ACM_get_match (const struct _ac_state * state, size_t index, Keyword * match
+#ifdef ACM_ASSOCIATED_VALUE
+               , void **value
+#endif
+  )
 {
   // Aho-Corasick Algorithm 1: if output(state) [ith element]
   if (index >= state->nb_sequence)
@@ -494,6 +532,11 @@ ACM_get_match (const struct _ac_state * state, size_t index, Keyword * match)
     match->letter[match->length - i - 1] = s->previous->letter;
     i++;
   }
+
+#ifdef ACM_ASSOCIATED_VALUE
+  if (value)
+    *value = state->value;
+#endif
 
   return state->rank;
 }
