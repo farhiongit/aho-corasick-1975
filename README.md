@@ -37,7 +37,7 @@ Compared to the implemenation proposed by Aho and Corasick, this one adds severa
 
 Usage:
 -----
-First, initialize the finite state machine:
+First, initialize the finite state machine with a set of keywords to be searched for:
 
 1. Define the type ACM_SYMBOL with the type of symbols that constitute keywords. char or int should match most needs.
    Either define ACM_SYMBOL direcly in the user program or include a user defines aho_corasick_symbol.h file.
@@ -47,19 +47,22 @@ First, initialize the finite state machine:
 2. Insert "aho_corasick.h"
 3. Initialize a state machine: InitialState * M = 0;
 4. Add keywords (of type Keyword) to the state machine calling ACM_register_keyword() repeatedly.
-   Notes: ACM_KEYWORD_SET can help initialize keywords with a single statement.
-          ACM_nb_matches() returns the number of keywords already inserted in the state machine.
-5. Initialize an internal machine state to M: InternalState s = M;
+      - ACM_KEYWORD_SET can be used to initialize keywords with a single statement.
+      - ACM_nb_matches() returns the number of keywords already inserted in the state machine.
 
 Then, search for keywords in an input text:
 
-6. Injecting symbols of the text, one at a time by calling ACM_change_state() on s.
-7. After each insertion of a symbol, call ACM_nb_matches() on the internal state s to check if the last inserted symbols match a keyword.
-8. If matches were found, retrieve them calling ACM_get_match() for each match.
+5. Initialize an internal machine state to M: InternalState s = M;
+6. Initialize a keyword with ACM_KEYWORD_INIT before the first use by ACM_get_match.
+7. Inject symbols of the text, one at a time by calling ACM_change_state() on s.
+8. After each insertion of a symbol, call ACM_nb_matches() on the internal state s to check if the last inserted symbols match a keyword.
+9. If matches were found, retrieve them calling ACM_get_match() for each match.
+      - ACM_KEYWORD_LENGTH and ACM_KEYWORD_SYMBOLS can be used to access the length and the content of the match found.
+10. After the last call to ACM_get_match(), release to keyword by calling ACM_KEYWORD_RELEASE.
 
 Finally:
 
-9. After usage, release the state machine calling ACM_release() on M.
+11. After usage, release the state machine calling ACM_release() on M.
 
 Note if ACM_SYMBOL is a structure (does not apply for basic types such as int or char):
 ---------------------------------------------------------------------------------------

@@ -33,18 +33,20 @@
 #include <stdio.h>
 #include <assert.h>
 
+// 1. Define the type ACM_SYMBOL with the type of symbols that constitute keywords.
 #define ACM_SYMBOL char
 
+// 2. Include "aho_corasick.h"
 #include "aho_corasick.h"
 
 static void
 print_keyword (Keyword match)
 {
-  if (match.length)
+  if (ACM_KEYWORD_LENGTH (match))
   {
     printf ("[");
-    for (size_t k = 0; k < match.length; k++)
-      printf ("%c", match.letter[k]);
+    for (size_t k = 0; k < ACM_KEYWORD_LENGTH (match); k++)
+      printf ("%c", ACM_KEYWORD_SYMBOLS (match)[k]);
     printf ("]");
   }
 }
@@ -61,7 +63,10 @@ value_dtor (void *v)
 int
 main (void)
 {
-  // The machine state is initialized with 0 before any call to ACM_register_keyword.
+
+  /****************** First test ************************/
+
+  // 3. The machine state is initialized with 0 before any call to ACM_register_keyword.
   InitialState *M = 0;
 
 // Declares all the keywords
@@ -78,7 +83,6 @@ main (void)
   X(M, 'c')  \
 
 // Function applied to register a keyword in the state machine
-// We could also have more conveniently written something like keyword = {.letter = "string", .length = strlen ("string") }
 #ifdef ACM_ASSOCIATED_VALUE
 #define EXTRA ,0 ,0
 #else
@@ -100,7 +104,7 @@ main (void)
       printf  ("X");  \
   }
 
-  // Registers all keywords in the state machine
+  // 4. Add keywords (of type Keyword) to the state machine calling ACM_register_keyword() repeatedly.
   LIST_OF_KEYWORDS;             // Ending ';' is not necessary and is only here for 'indent' to switch to correct indentation.
 #undef X
 
@@ -108,44 +112,49 @@ main (void)
   // The text where keywords are searched for.
   char text[] = "But, as he found his pencil, she could not find hers (ask ushers !!)\nabcdz\nbcz\ncz\n_abcde_";
 
+  // 5. Initialize an internal machine state to M.
   // Actual state of the machine, initialized with the machine state before any call to ACM_change_state.
   InternalState *s = M;
 
-  // Initialize keyword to 0.
-  Keyword match = { 0, 0 };
+  // 6. Initialize a keyword with ACM_KEUWORD_INIT before the first use by ACM_get_match.
+  Keyword match;
+
+  ACM_KEYWORD_INIT (match);
   for (size_t i = 0; i < strlen (text); i++)
   {
     printf ("%c", text[i]);
 
-    // Cycle on machine states
+    // 7. Inject symbols of the text, one at a time by calling ACM_change_state() on s. Cycle on machine states.
     s = ACM_change_state (s, text[i]);
 
+    // 8. After each insertion of a symbol, call ACM_nb_matches() on the internal state s to check if the last inserted symbols match a keyword.
     // Get the matching keywords for the actual state of the machine.
-    for (size_t j = 0; j < ACM_nb_matches (s); j++)
+    size_t nb_matches = ACM_nb_matches (s);
+
+    // 9. If matches were found, retrieve them calling ACM_get_match() for each match.
+    for (size_t j = 0; j < nb_matches; j++)
     {
       // Get the ith matching keyword for the actual state of the machine.
-      printf ("{%zu}", ACM_get_match (s, j, &match
-#ifdef ACM_ASSOCIATED_VALUE
-                                      , 0
+#ifndef ACM_ASSOCIATED_VALUE
+      printf ("{%zu}", ACM_get_match (s, j, &match));
+#else
+      printf ("{%zu}", ACM_get_match (s, j, &match, 0));
 #endif
-              ));
 
       // Display matching pattern
       print_keyword (match);
     }
   }
 
-  // Free keyword after usage;
+  // 10. After the last call to ACM_get_match(), release to keyword by calling ACM_KEYWORD_RELEASE.
   ACM_KEYWORD_RELEASE (match);
-  match.length = 0;
-  match.letter = 0;
 
   printf ("\n");
 
-  // Release resources allocated by the state machine after usage.
+  // 11. Release resources allocated by the state machine after usage.
   ACM_release (M);
-  // M is prepared for reuse.
-  M = 0;
+
+  /****************** Second test ************************/
 
   char message[] = "hello\n, this\nis\na\ngreat\nmessage\n, bye\n !";
 
@@ -159,6 +168,10 @@ main (void)
   size_t len = 0;
   size_t read = 0;
 
+  // 3. M is prepared for reuse.
+  M = 0;
+
+  // 4. Add keywords (of type Keyword) to the state machine calling ACM_register_keyword() repeatedly.
   for (int stage = 1; stage <= 2; stage++)
   {
     for (; (read < 50000 || stage == 2) && getline (&line, &len, stream) != -1; read++)
@@ -171,46 +184,52 @@ main (void)
       size_t *v = malloc (sizeof (*v));
 
       *v = read;
+      if ((s = ACM_register_keyword (M, k, v, value_dtor)))
+#else
+      if ((s = ACM_register_keyword (M, k)))
 #endif
-      if ((s = ACM_register_keyword (M, k
-#ifdef ACM_ASSOCIATED_VALUE
-                                     , v, value_dtor
-#endif
-           )))
         M = s;
     }
 
     printf ("{%zu}: ", ACM_nb_keywords (M));
 
+    // 5. Initialize an internal machine state to M.
     // Internal state MUST BE set to M after a keyword has been inserted by ACM_register_keyword.
     s = M;
+
+#ifdef ACM_ASSOCIATED_VALUE
+    // 6. Initialize a keyword with ACM_KEYWORD_INIT before the first use by ACM_get_match.
+    Keyword w;
+
+    ACM_KEYWORD_INIT (w);
+#endif
+
     for (size_t i = 0; i < strlen (message); i++)
     {
+      // 7. Inject symbols of the text, one at a time by calling ACM_change_state() on s.
+      // 8. After each insertion of a symbol, call ACM_nb_matches() on the internal state s to check if the last inserted symbols match a keyword.
       size_t nb = ACM_nb_matches (s = ACM_change_state (s, message[i]));
 
       if (nb)
       {
         printf ("%zu ", i);
-        Keyword w = { 0 };
+
+#ifdef ACM_ASSOCIATED_VALUE
+        // 9. If matches were found, retrieve them calling ACM_get_match() for each match.
         for (size_t j = 0; j < nb; j++)
         {
-#ifdef ACM_ASSOCIATED_VALUE
           void *v;
-#endif
-          size_t u = ACM_get_match (s, j, &w
-#ifdef ACM_ASSOCIATED_VALUE
-                                    , &v
-#endif
-            );
+          size_t u = ACM_get_match (s, j, &w, &v);
 
-          (void) u;
-#ifdef ACM_ASSOCIATED_VALUE
           assert (*(size_t *) v == u);
-#endif
         }
-        ACM_KEYWORD_RELEASE (w);
+#endif
       }
     }
+#ifdef ACM_ASSOCIATED_VALUE
+    // 10. After the last call to ACM_get_match(), release to keyword by calling ACM_KEYWORD_RELEASE.
+    ACM_KEYWORD_RELEASE (w);
+#endif
 
     printf ("\n");
   }
@@ -218,5 +237,6 @@ main (void)
   free (line);
   fclose (stream);
 
+  // 11. After usage, release the state machine calling ACM_release() on M.
   ACM_release (M);
 }

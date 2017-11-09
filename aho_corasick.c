@@ -148,12 +148,14 @@ state_init (void)
 }
 
 /// @see Aho-Corasick Algorithm 2: construction of the goto function - procedure enter(a[1] a[2] ... a[n]).
+#ifndef ACM_ASSOCIATED_VALUE
+static int
+state_goto_update (struct _ac_state *state_0, Keyword sequence /* a[1] a[2] ... a[n] */ )
+#else
 static int
 state_goto_update (struct _ac_state *state_0, Keyword sequence  /* a[1] a[2] ... a[n] */
-#ifdef ACM_ASSOCIATED_VALUE
-                   , void *value, void (*dtor) (void *)
+                   , void *value, void (*dtor) (void *))
 #endif
-  )
 {
   // Iterators
   // Aho-Corasick Algorithm 2: state <- 0
@@ -343,12 +345,14 @@ state_fail_state_construct (struct _ac_state *state_0 /* state 0 */ )
   free (queue);
 }
 
+#ifndef ACM_ASSOCIATED_VALUE
+ACM_PRIVATE struct _ac_state *
+ACM_register_keyword (struct _ac_state *state_0, Keyword y /* a[1] a[2] ... a[n] */ )
+#else
 ACM_PRIVATE struct _ac_state *
 ACM_register_keyword (struct _ac_state *state_0, Keyword y      /* a[1] a[2] ... a[n] */
-#ifdef ACM_ASSOCIATED_VALUE
-                      , void *value, void (*dtor) (void *)
+                      , void *value, void (*dtor) (void *))
 #endif
-  )
 {
   // Aho-Corasick Algorithm 2: newstate <- 0
   // Create state 0.
@@ -356,11 +360,11 @@ ACM_register_keyword (struct _ac_state *state_0, Keyword y      /* a[1] a[2] ...
   if (!state_0)
     state_0 = state_init ();
 
-  if (!state_goto_update (state_0, y
-#ifdef ACM_ASSOCIATED_VALUE
-                          , value, dtor
+#ifndef ACM_ASSOCIATED_VALUE
+  if (!state_goto_update (state_0, y))
+#else
+  if (!state_goto_update (state_0, y, value, dtor))
 #endif
-      ))
     return 0;
 
   // Aho-Corasick Algorithm 2: for all a such that g(0, a) = fail do g(0, a) <- 0
@@ -494,12 +498,13 @@ ACM_nb_matches (const struct _ac_state * state)
 }
 
 /// @see Aho-Corasick Algorithm 1: Pattern matching machine - print output (state) [ith element]
+#ifndef ACM_ASSOCIATED_VALUE
 ACM_PRIVATE size_t
-ACM_get_match (const struct _ac_state * state, size_t index, Keyword * match
-#ifdef ACM_ASSOCIATED_VALUE
-               , void **value
+ACM_get_match (const struct _ac_state * state, size_t index, Keyword * match)
+#else
+ACM_PRIVATE size_t
+ACM_get_match (const struct _ac_state * state, size_t index, Keyword * match, void **value)
 #endif
-  )
 {
   // Aho-Corasick Algorithm 1: if output(state) [ith element]
   if (index >= state->nb_sequence)
