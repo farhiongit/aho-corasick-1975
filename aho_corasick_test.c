@@ -65,14 +65,6 @@ print_keyword (Keyword match)
   }
 }
 
-#ifdef ACM_ASSOCIATED_VALUE
-void
-value_dtor (void *v)
-{
-  free (v);
-}
-#endif
-
 // A unit test
 int
 main (void)
@@ -202,8 +194,9 @@ main (void)
       *v = read;
 
       // Values can be associated registered keywords. Values are allocated in the user program.
-      // This memory will be freed by the function value_dtor that will be called for each registered keyword by ACM_release.
-      if ((s = ACM_register_keyword (M, k, v, value_dtor)))
+      // This memory will be freed by the function passed as the 4th argument (here 'free', but it could be a user defined finction).
+      // That function will be called for each registered keyword by ACM_release.
+      if ((s = ACM_register_keyword (M, k, v, free)))
 #else
       if ((s = ACM_register_keyword (M, k)))
 #endif
