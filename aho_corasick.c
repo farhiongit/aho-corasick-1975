@@ -65,10 +65,10 @@
 #undef ACM_SYMBOL_EQ
 #ifdef ACM_SYMBOL_EQ_OPERATOR
 static int (*__eqdefault) (ACM_SYMBOL a, ACM_SYMBOL b) = ACM_SYMBOL_EQ_OPERATOR;
-
-#define ACM_SYMBOL_EQ(a, b) __eqdefault(a,b)
+#warning User defined comparator function of symbols (ACM_SYMBOL_EQ_OPERATOR is defined).
+#define ACM_SYMBOL_EQ(keyword_sign, text_sign) __eqdefault((keyword_sign), (text_sign))
 #else
-#define ACM_SYMBOL_EQ(a, b) ((a) == (b))
+#define ACM_SYMBOL_EQ(keyword_sign, text_sign) ((keyword_sign) == (text_sign))
 #endif
 
 #undef ACM_SYMBOL_COPY

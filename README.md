@@ -22,7 +22,7 @@ Compared to the implemenation proposed by Aho and Corasick, this one adds severa
       - [2] g(state, a) = fail must be replaced by: g(state, a) = fail and state != 0
       - [3] s <- g(state, a) must be replaced by: if g(state, a) != fail then s <- g(state, a) else s <- 0
 
-2. This implementation does not stores output keywords associated to states.
+2. To reduce the memory footprint, this implementation does not stores output keywords associated to states.
    It rather reconstructs matching keywords by traversing the branch of the tree backward (see ACM_get_match).
 3. This implementation permits to search for keywords even though all keywords have not been registered yet.
    To achieve this, failure states are reconstructed after every registration of a next keyword
@@ -64,23 +64,38 @@ Finally:
 
 11. After usage, release the state machine calling ACM_release() on M.
 
-Note if ACM_SYMBOL is a structure (does not apply for basic types such as int or char):
----------------------------------------------------------------------------------------
-ACM_SYMBOL is the type of letters of the alphabet that constitute the keywords.
+Note on ACM_SYMBOL
+------------------
+ACM_SYMBOL is the type of letters of the alphabet that constitutes the keywords.
 
 ACM_SYMBOL can be any basic type (char, int, unisigned long long int for instance), or a user defined structure.
 
+If ACM_SYMBOL is a basic type, the default comparator operator is '=='.
+This operator can be overwritten by a unser defined function which takes two arguments of type ACM_SYMBOL and returns an int:
+
+  - the first argument is a symbol from a keyword;
+  - the second argument is a symbol from the text into which keywords are searched for.
+  - the function should return 1 if symbols are considered equal, 0 otherwise.
+
+E.g. the following code will make string matching case insensitive.
+
+    static int nocaseeq (char k, char t)
+    { return tolower (k) == tolower (t); }
+    #define ACM_SYMBOL_EQ_OPERATOR nocaseeq
+
+Note if ACM_SYMBOL is a structure (does not apply for basic types such as int or char):
+---------------------------------------------------------------------------------------
 If ACM_SYMBOL is a structure:
 
-- An equality operator '==' with signature 'int eq (ACM_SYMBOL a, ACM_SYMBOL b)' should be defined
-  in the user program and the name of the function should be defined in macro ACM_SYMBOL_EQ_OPERATOR.
-  E.g.: #define ACM_SYMBOL_EQ_OPERATOR myequalityoperaor
-- Keywords are passed by value to ACM_register_keyword().
-  Therefore, if ACM_SYBOL contains pointers to allocated memory,
-    - a copy operator '=' with signature 'ACM_SYMBOL copy (ACM_SYMBOL a)' should be defined in the user program and
-      the name of the function should be defined in macro ACM_SYMBOL_COPY_OPERATOR.
-    - a destructor operator with signature 'void dtor (ACM_SYMBOL a)' should be defined in the user program and
-      the name of the function should be defined in macro ACM_SYMBOL_DTOR_OPERATOR.
+  - An equality operator '==' with signature 'int eq (ACM_SYMBOL a, ACM_SYMBOL b)' should be defined
+    in the user program and the name of the function should be defined in macro ACM_SYMBOL_EQ_OPERATOR.
+    E.g.: #define ACM_SYMBOL_EQ_OPERATOR myequalityoperaor
+  - Keywords are passed by value to ACM_register_keyword().
+    Therefore, if ACM_SYBOL contains pointers to allocated memory,
+      - a copy operator '=' with signature 'ACM_SYMBOL copy (ACM_SYMBOL a)' should be defined in the user program and
+        the name of the function should be defined in macro ACM_SYMBOL_COPY_OPERATOR.
+      - a destructor operator with signature 'void dtor (ACM_SYMBOL a)' should be defined in the user program and
+        the name of the function should be defined in macro ACM_SYMBOL_DTOR_OPERATOR.
 
 Compilation:
 ------------

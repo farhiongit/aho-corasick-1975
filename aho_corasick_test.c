@@ -32,12 +32,26 @@
 #include <string.h>
 #include <stdio.h>
 #include <assert.h>
+#include <ctype.h>
 
 // 1. Define the type ACM_SYMBOL with the type of symbols that constitute keywords.
 #define ACM_SYMBOL char
 
+// A comparator of symbols can be user defined instead of the standard '==' operator.
+static int nocaseeq (char k, char t);
+#define ACM_SYMBOL_EQ_OPERATOR nocaseeq
+
 // 2. Include "aho_corasick.h"
 #include "aho_corasick.h"
+
+static int nocase;
+static int nocaseeq (char k, char t)
+{
+  if (nocase)
+    return k == tolower(t);
+  else
+    return k == t;
+}
 
 static void
 print_keyword (Keyword match)
@@ -65,6 +79,7 @@ main (void)
 {
 
   /****************** First test ************************/
+  nocase = 1;
 
   // 3. The machine state is initialized with 0 before any call to ACM_register_keyword.
   InitialState *M = 0;
@@ -110,7 +125,7 @@ main (void)
 
   printf (" {%zu}\n", ACM_nb_keywords (M));
   // The text where keywords are searched for.
-  char text[] = "But, as he found his pencil, she could not find hers (ask ushers !!)\nabcdz\nbcz\ncz\n_abcde_";
+  char text[] = "He found his pencil, but she could not find hers (ask ushers !!)\nabcdz\nbcz\ncz\n_abcde_";
 
   // 5. Initialize an internal machine state to M.
   // Actual state of the machine, initialized with the machine state before any call to ACM_change_state.
@@ -155,6 +170,7 @@ main (void)
   ACM_release (M);
 
   /****************** Second test ************************/
+  nocase = 0;
 
   char message[] = "hello\n, this\nis\na\ngreat\nmessage\n, bye\n !";
 
@@ -184,6 +200,9 @@ main (void)
       size_t *v = malloc (sizeof (*v));
 
       *v = read;
+
+      // Values can be associated registered keywords. Values are allocated in the user program.
+      // This memory will be freed by the function value_dtor that will be called for each registered keyword by ACM_release.
       if ((s = ACM_register_keyword (M, k, v, value_dtor)))
 #else
       if ((s = ACM_register_keyword (M, k)))
@@ -206,13 +225,15 @@ main (void)
 
     for (size_t i = 0; i < strlen (message); i++)
     {
+      if (message[i] != '\n')
+        printf ("%c", message[i]);
       // 7. Inject symbols of the text, one at a time by calling ACM_change_state() on s.
       // 8. After each insertion of a symbol, call ACM_nb_matches() on the internal state s to check if the last inserted symbols match a keyword.
       size_t nb = ACM_nb_matches (s = ACM_change_state (s, message[i]));
 
       if (nb)
       {
-        printf ("%zu ", i);
+        printf ("< ");
 
 #ifdef ACM_ASSOCIATED_VALUE
         // 9. If matches were found, retrieve them calling ACM_get_match() for each match.
@@ -238,5 +259,6 @@ main (void)
   fclose (stream);
 
   // 11. After usage, release the state machine calling ACM_release() on M.
+  // ACM_release also frees the values associated to registered keywords.
   ACM_release (M);
 }
