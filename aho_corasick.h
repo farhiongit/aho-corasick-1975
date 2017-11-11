@@ -68,14 +68,9 @@
 #include <stdlib.h>
 
 #ifdef PRIVATE_MODULE
-#warning The Aho-Corasick algorithm is compiled as a private module (PRIVATE_MODULE is defined).
 #define ACM_PRIVATE static __attribute__((__unused__))
 #else
 #define ACM_PRIVATE
-#endif
-
-#ifdef ACM_ASSOCIATED_VALUE
-#warning States are compiled with associated values (ACM_ASSOCIATED_VALUE is defined).
 #endif
 
 // Type of SYMBOL int is generic and suits to numerous use cases.

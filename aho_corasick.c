@@ -55,7 +55,16 @@
 // User defined file containing the definition of ACM_SYMBOL.
 #include "aho_corasick_symbol.h"
 #endif
+
 #include "aho_corasick.h"
+
+#ifdef PRIVATE_MODULE
+#warning The Aho-Corasick algorithm is compiled as a private module (PRIVATE_MODULE is defined).
+#endif
+
+#ifdef ACM_ASSOCIATED_VALUE
+#warning States are compiled with associated values (ACM_ASSOCIATED_VALUE is defined).
+#endif
 
 #define ASSERT(cond) do { if (!(cond)) {  \
       fprintf(stderr, "FATAL ERROR: !(%1$s) in function %2$s at %3$s:%4$i)\n", #cond, __func__, __FILE__, __LINE__);\
@@ -64,8 +73,11 @@
 
 #undef ACM_SYMBOL_EQ
 #ifdef ACM_SYMBOL_EQ_OPERATOR
+#ifndef PRIVATE_MODULE
+extern int ACM_SYMBOL_EQ_OPERATOR (ACM_SYMBOL a, ACM_SYMBOL b);
+#endif
 static int (*__eqdefault) (ACM_SYMBOL a, ACM_SYMBOL b) = ACM_SYMBOL_EQ_OPERATOR;
-#warning User defined comparator function of symbols (ACM_SYMBOL_EQ_OPERATOR is defined).
+#warning User defined equality function of symbols (ACM_SYMBOL_EQ_OPERATOR is defined).
 #define ACM_SYMBOL_EQ(keyword_sign, text_sign) __eqdefault((keyword_sign), (text_sign))
 #else
 #define ACM_SYMBOL_EQ(keyword_sign, text_sign) ((keyword_sign) == (text_sign))

@@ -58,10 +58,10 @@ print_keyword (Keyword match)
 {
   if (ACM_KEYWORD_LENGTH (match))
   {
-    printf ("[");
+    printf ("{");
     for (size_t k = 0; k < ACM_KEYWORD_LENGTH (match); k++)
       printf ("%c", ACM_KEYWORD_SYMBOLS (match)[k]);
-    printf ("]");
+    printf ("}");
   }
 }
 
@@ -115,7 +115,7 @@ main (void)
   LIST_OF_KEYWORDS;             // Ending ';' is not necessary and is only here for 'indent' to switch to correct indentation.
 #undef X
 
-  printf (" {%zu}\n", ACM_nb_keywords (M));
+  printf (" [%zu]\n", ACM_nb_keywords (M));
   // The text where keywords are searched for.
   char text[] = "He found his pencil, but she could not find hers (ask ushers !!)\nabcdz\nbcz\ncz\n_abcde_";
 
@@ -143,9 +143,9 @@ main (void)
     {
       // Get the ith matching keyword for the actual state of the machine.
 #ifndef ACM_ASSOCIATED_VALUE
-      printf ("{%zu}", ACM_get_match (s, j, &match));
+      printf ("[%zu]", ACM_get_match (s, j, &match));
 #else
-      printf ("{%zu}", ACM_get_match (s, j, &match, 0));
+      printf ("[%zu]", ACM_get_match (s, j, &match, 0));
 #endif
 
       // Display matching pattern
@@ -203,7 +203,7 @@ main (void)
         M = s;
     }
 
-    printf ("{%zu}: ", ACM_nb_keywords (M));
+    printf ("[%zu]: ", ACM_nb_keywords (M));
 
     // 5. Initialize an internal machine state to M.
     // Internal state MUST BE set to M after a keyword has been inserted by ACM_register_keyword.

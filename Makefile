@@ -1,4 +1,4 @@
-CFLAGS = -Wall -O -pthread
+CFLAGS = -Wall -O -pthread -Werror -Wno-error=cpp
 #CFLAGS += -g
 #CFLAGS += -pedantic
 #CC = clang
@@ -21,4 +21,4 @@ execute:
 nmo:
 	nm --defined-only --extern-only aho_corasick.o
 
-aho_corasick.o: CFLAGS += -DACM_ASSOCIATED_VALUE
+aho_corasick.o: CFLAGS += -DACM_ASSOCIATED_VALUE -DACM_SYMBOL='long long int'
