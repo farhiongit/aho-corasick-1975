@@ -66,7 +66,7 @@
 #warning States are compiled with associated values (ACM_ASSOCIATED_VALUE is defined).
 #endif
 
-#define ASSERT(cond) do { if (!(cond)) {  \
+#define ACM_ASSERT(cond) do { if (!(cond)) {  \
       fprintf(stderr, "FATAL ERROR: !(%1$s) in function %2$s at %3$s:%4$i)\n", #cond, __func__, __FILE__, __LINE__);\
       pthread_exit(0) ;\
 } } while (0)
@@ -137,7 +137,7 @@ state_init (void)
 {
   struct _ac_state *s = malloc (sizeof (*s));   /* [state s] */
 
-  ASSERT (s);
+  ACM_ASSERT (s);
 
   // [g(s, a) is undefined (= fail) for all input symbol a]
   s->goto_array = 0;
@@ -210,7 +210,7 @@ state_goto_update (struct _ac_state *state_0, Keyword sequence  /* a[1] a[2] ...
   for (size_t p = j; p < sequence.length /* [m] */ ; p++)
   {
     state->nb_goto++;
-    ASSERT (state->goto_array = realloc (state->goto_array, sizeof (*state->goto_array) * state->nb_goto));
+    ACM_ASSERT (state->goto_array = realloc (state->goto_array, sizeof (*state->goto_array) * state->nb_goto));
 
     // Creation of a new state
     // Aho-Corasick Algorithm 2: newstate <- newstate + 1
@@ -221,7 +221,7 @@ state_goto_update (struct _ac_state *state_0, Keyword sequence  /* a[1] a[2] ...
     state->goto_array[state->nb_goto - 1].letter = ACM_SYMBOL_COPY (sequence.letter[p]);
 
     // Backward link: previous(newstate, a[p]) <- state
-    ASSERT (newstate->previous = malloc (sizeof (*newstate->previous)));
+    ACM_ASSERT (newstate->previous = malloc (sizeof (*newstate->previous)));
     newstate->previous->state = state;
     newstate->previous->letter = state->goto_array[state->nb_goto - 1].letter;
 
@@ -259,7 +259,7 @@ state_reset_output (struct _ac_state *state_0)
   size_t queue_length = 1;
   struct _ac_state **queue = malloc (sizeof (*queue));
 
-  ASSERT (queue);
+  ACM_ASSERT (queue);
 
   // queue <- {0}
   queue[0] = state_0;
@@ -274,7 +274,7 @@ state_reset_output (struct _ac_state *state_0)
     // queue <- queue - {r}
     queue_read_pos++;
 
-    ASSERT (queue = realloc (queue, sizeof (*queue) * (queue_length + r->nb_goto)));
+    ACM_ASSERT (queue = realloc (queue, sizeof (*queue) * (queue_length + r->nb_goto)));
     for (size_t i = 0; i < r->nb_goto; i++)
     {
       struct _ac_state *s = r->goto_array[i].state;     // [s <- g(r, a)]
@@ -307,7 +307,7 @@ state_fail_state_construct (struct _ac_state *state_0 /* state 0 */ )
   size_t queue_length = 0;
   struct _ac_state **queue = 0;
 
-  ASSERT (queue = realloc (queue, sizeof (*queue) * (queue_length + state_0->nb_goto)));
+  ACM_ASSERT (queue = realloc (queue, sizeof (*queue) * (queue_length + state_0->nb_goto)));
   // Aho-Corasick Algorithm 3: for each a such that s != 0 [fail], where s <- g(0, a) do   [1]
   for (size_t i = 0; i < state_0->nb_goto; i++)
   {
@@ -331,7 +331,7 @@ state_fail_state_construct (struct _ac_state *state_0 /* state 0 */ )
 
     // Aho-Corasick Algorithm 3: queue <- queue - {r}
     queue_read_pos++;
-    ASSERT (queue = realloc (queue, sizeof (*queue) * (queue_length + r->nb_goto)));
+    ACM_ASSERT (queue = realloc (queue, sizeof (*queue) * (queue_length + r->nb_goto)));
     // Aho-Corasick Algorithm 3: for each a such that s != fail, where s <- g(r, a)
     for (size_t i = 0; i < r->nb_goto; i++)
     {
@@ -411,7 +411,7 @@ ACM_release (struct _ac_state *state_0)
   size_t queue_length = 1;
   struct _ac_state **queue = malloc (sizeof (*queue));
 
-  ASSERT (queue);
+  ACM_ASSERT (queue);
 
   // queue <- {0}
   queue[0] = state_0;
@@ -426,7 +426,7 @@ ACM_release (struct _ac_state *state_0)
     // queue <- queue - {r}
     queue_read_pos++;
 
-    ASSERT (queue = realloc (queue, sizeof (*queue) * (queue_length + r->nb_goto)));
+    ACM_ASSERT (queue = realloc (queue, sizeof (*queue) * (queue_length + r->nb_goto)));
     for (size_t i = 0; i < r->nb_goto; i++)
     {
       struct _ac_state *s = r->goto_array[i].state;     // [s <- g(r, a)]
@@ -519,8 +519,7 @@ ACM_get_match (const struct _ac_state * state, size_t index, Keyword * match, vo
 #endif
 {
   // Aho-Corasick Algorithm 1: if output(state) [ith element]
-  if (index >= state->nb_sequence)
-    return 0;
+  ACM_ASSERT (index < state->nb_sequence);
 
   size_t i = 0;
 
@@ -534,23 +533,28 @@ ACM_get_match (const struct _ac_state * state, size_t index, Keyword * match, vo
       break;
   }
 
-  // Aho-Corasick Algorithm 1: [print i]
-  // Aho-Corasick Algorithm 1: print output(state) [ith element]
-  // Reconstruct the matching keyword moving backward from the matching state to the state 0.
-  match->length = 0;
-  for (const struct _ac_state * s = state; s && s->previous; s = s->previous->state)
-    match->length++;
-
-  // Reallocation of match->letter. match->letter should be freed by the user after the last call to ACM_get_match on match.
-  ASSERT (match->letter = realloc (match->letter, sizeof (*match->letter) * match->length));
-  i = 0;
-  for (const struct _ac_state * s = state; s && s->previous; s = s->previous->state)
+  // Argument match could be passed to 0 if only value or rank is needed.
+  if (match)
   {
-    match->letter[match->length - i - 1] = s->previous->letter;
-    i++;
+    // Aho-Corasick Algorithm 1: [print i]
+    // Aho-Corasick Algorithm 1: print output(state) [ith element]
+    // Reconstruct the matching keyword moving backward from the matching state to the state 0.
+    match->length = 0;
+    for (const struct _ac_state * s = state; s && s->previous; s = s->previous->state)
+      match->length++;
+
+    // Reallocation of match->letter. match->letter should be freed by the user after the last call to ACM_get_match on match.
+    ACM_ASSERT (match->letter = realloc (match->letter, sizeof (*match->letter) * match->length));
+    i = 0;
+    for (const struct _ac_state * s = state; s && s->previous; s = s->previous->state)
+    {
+      match->letter[match->length - i - 1] = s->previous->letter;
+      i++;
+    }
   }
 
 #ifdef ACM_ASSOCIATED_VALUE
+  // Argument value could passed to 0 if the associated value is not needed.
   if (value)
     *value = state->value;
 #endif

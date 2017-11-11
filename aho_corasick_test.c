@@ -209,13 +209,6 @@ main (void)
     // Internal state MUST BE set to M after a keyword has been inserted by ACM_register_keyword.
     s = M;
 
-#ifdef ACM_ASSOCIATED_VALUE
-    // 6. Initialize a keyword with ACM_KEYWORD_INIT before the first use by ACM_get_match.
-    Keyword w;
-
-    ACM_KEYWORD_INIT (w);
-#endif
-
     for (size_t i = 0; i < strlen (message); i++)
     {
       if (message[i] != '\n')
@@ -233,17 +226,13 @@ main (void)
         for (size_t j = 0; j < nb; j++)
         {
           void *v;
-          size_t u = ACM_get_match (s, j, &w, &v);
+          size_t u = ACM_get_match (s, j, 0, &v);
 
           assert (*(size_t *) v == u);
         }
 #endif
       }
     }
-#ifdef ACM_ASSOCIATED_VALUE
-    // 10. After the last call to ACM_get_match(), release to keyword by calling ACM_KEYWORD_RELEASE.
-    ACM_KEYWORD_RELEASE (w);
-#endif
 
     printf ("\n");
   }

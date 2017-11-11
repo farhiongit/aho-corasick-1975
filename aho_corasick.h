@@ -135,8 +135,9 @@ ACM_PRIVATE size_t ACM_nb_matches (const InternalState * state);
 /// Get the ith keyword associate to the internal state.
 /// @param [in] state Internal state.
 /// @param [in] index of the requested keyword.
-/// @param [in,out] match A pointer to the keyword of rank index associated to the internal state.
-/// @param [out] value address to the pointer to the value assiociated with the keyword match.
+/// @param [out] match 0 or a pointer to a keyword.
+///                       *match is modified to the keyword of rank 'index' associated to the internal state.
+/// @param [out] value 0 or the address of the pointer to the value assiociated with the keyword match.
 /// @returns The rank of insertion of the keyword when it was registered in the machine state by ACM_register_keyword().
 /// index should be less than the value returned by state_nb_keywords().
 /// match->letter should have been initialized to 0 prior to first call to ACM_get_match.
