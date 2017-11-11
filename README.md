@@ -47,8 +47,10 @@ First, initialize the finite state machine with a set of keywords to be searched
 2. Insert "aho_corasick.h"
 3. Initialize a state machine: InitialState * M = 0;
 4. Add keywords (of type Keyword) to the state machine calling ACM_register_keyword() repeatedly.
+      - The rank of insertion of a keyword is registered together with the keyword.
       - ACM_KEYWORD_SET can be used to initialize keywords with a single statement.
       - ACM_nb_matches() returns the number of keywords already inserted in the state machine.
+      - If a keywords was already registered in the machine, its rank (and possibly associated value) is left unchanged.
 
 Then, search for keywords in an input text:
 

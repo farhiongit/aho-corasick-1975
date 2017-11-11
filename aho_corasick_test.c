@@ -39,16 +39,18 @@
 
 // A comparator of symbols can be user defined instead of the standard '==' operator.
 static int nocaseeq (char k, char t);
+
 #define ACM_SYMBOL_EQ_OPERATOR nocaseeq
 
 // 2. Include "aho_corasick.h"
 #include "aho_corasick.h"
 
 static int nocase;
-static int nocaseeq (char k, char t)
+static int
+nocaseeq (char k, char t)
 {
   if (nocase)
-    return k == tolower(t);
+    return k == tolower (t);
   else
     return k == t;
 }
@@ -191,7 +193,7 @@ main (void)
 #ifdef ACM_ASSOCIATED_VALUE
       size_t *v = malloc (sizeof (*v));
 
-      *v = read;
+      *v = ACM_nb_keywords (M);
 
       // Values can be associated registered keywords. Values are allocated in the user program.
       // This memory will be freed by the function passed as the 4th argument (here 'free', but it could be a user defined finction).

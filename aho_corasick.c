@@ -77,6 +77,7 @@
 extern int ACM_SYMBOL_EQ_OPERATOR (ACM_SYMBOL a, ACM_SYMBOL b);
 #endif
 static int (*__eqdefault) (ACM_SYMBOL a, ACM_SYMBOL b) = ACM_SYMBOL_EQ_OPERATOR;
+
 #warning User defined equality function of symbols (ACM_SYMBOL_EQ_OPERATOR is defined).
 #define ACM_SYMBOL_EQ(keyword_sign, text_sign) __eqdefault((keyword_sign), (text_sign))
 #else
@@ -229,16 +230,16 @@ state_goto_update (struct _ac_state *state_0, Keyword sequence  /* a[1] a[2] ...
     state = newstate;
   }
 
+  // If the keyword was already previously registered, its rank and associated value are left unchanged.
+  if (state->is_matching)
+    return 0;
+
 #ifdef ACM_ASSOCIATED_VALUE
   if (state->value && state->value_dtor)
     state->value_dtor (state->value);
   state->value = value;
   state->value_dtor = dtor;
 #endif
-
-  if (state->is_matching)
-    // The keyword was already previously registered
-    return 0;
 
   // Aho-Corasick Algorithm 2: output (state) <- { a[1] a[2] ... a[n] }
   // Aho-Corasick Algorithm 2: "We assume output(s) is empty when state s is first created."
@@ -402,12 +403,15 @@ ACM_register_keyword (struct _ac_state *state_0, Keyword y      /* a[1] a[2] ...
 ACM_PRIVATE size_t
 ACM_nb_keywords (struct _ac_state * machine)
 {
-  return machine->rank;
+  return machine ? machine->rank : 0;
 }
 
 ACM_PRIVATE void
 ACM_release (struct _ac_state *state_0)
 {
+  if (!state_0)
+    return;
+
   size_t queue_length = 1;
   struct _ac_state **queue = malloc (sizeof (*queue));
 
@@ -490,6 +494,9 @@ state_goto (struct _ac_state *state, ACM_SYMBOL letter /* Aho-Corasick Algorithm
 ACM_PRIVATE struct _ac_state *
 ACM_change_state (struct _ac_state *state, ACM_SYMBOL letter)
 {
+  if (!state)
+    return 0;
+
   // N.B.: In Aho-Corasick, algorithm 3 is executed after all sequences have been inserted
   //       in the goto graph one after the other by algorithm 2.
   //       As a slight enhancement: the fail state chains are rebuilted from scratch when needed,
@@ -506,7 +513,7 @@ ACM_change_state (struct _ac_state *state, ACM_SYMBOL letter)
 ACM_PRIVATE size_t
 ACM_nb_matches (const struct _ac_state * state)
 {
-  return state->nb_sequence;
+  return state ? state->nb_sequence : 0;
 }
 
 /// @see Aho-Corasick Algorithm 1: Pattern matching machine - print output (state) [ith element]
@@ -519,7 +526,7 @@ ACM_get_match (const struct _ac_state * state, size_t index, Keyword * match, vo
 #endif
 {
   // Aho-Corasick Algorithm 1: if output(state) [ith element]
-  ACM_ASSERT (index < state->nb_sequence);
+  ACM_ASSERT (index < ACM_nb_matches (state));
 
   size_t i = 0;
 
