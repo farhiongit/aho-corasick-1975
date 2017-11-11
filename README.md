@@ -8,31 +8,36 @@ Communications of the ACM. 18 (6): 333–340.
 
 Compared to the implemenation proposed by Aho and Corasick, this one adds several enhancements:
 
-1. First of all, the implementation does not define any assumption on the size of alphabet used.
+1. First of all, the implementation does not make any assumption on the size of the alphabet used.
    Particularly, the alphanet is not limited to 256 signs.
-   For instance, if ACM_SYMBOL is defined as 'long long int', then the number of possible signs would be 18446744073709551616.
-   For this to be possible, the assertion "for all a such that g(0, a) = fail do g(0, a) <- 0" at the end of algorithm 2 can not be fulfilled
-   because it would require to set g(0, a) for all the values of 'a' in the set of possible values of the alphabet,
-   and thus allocate (if not exhaust) a lot of memory.
-   Therefore, g(0, a) is kept equal to fail (i.e. a or g(0, a) is kept undefined) for all a not yet defined by keyword registration.
-   Nevertheless, for the state machine to work properly, it must behave as if g(0, a) would be equal to 0 whenever g(0, a) = fail.
-   Algorithms 1 and 3 (called after algorithm 2) must be adapted accordingly (modifications are tagged with [1], [2] and [3] in the code):
+   For instance, if ACM_SYMBOL would be defined as 'long long int', then the number of possible signs would be 18446744073709551616.
 
-      - [1] g(0, a) = (resp. !=) 0 must be replaced by: g(0, a) = (resp. !=) fail
-      - [2] g(state, a) = fail must be replaced by: g(state, a) = fail and state != 0
-      - [3] s <- g(state, a) must be replaced by: if g(state, a) != fail then s <- g(state, a) else s <- 0
+      - For this to be possible, the assertion "for all a such that g(0, a) = fail do g(0, a) <- 0" in the Aho-Corasick paper,
+        at the end of algorithm 2 can not be fulfilled because it would require to set g(0, a) for all the values of 'a'
+        in the set of possible values of the alphabet,
+        and thus allocate (if not exhaust) a lot of memory.
+      - Therefore, g(0, a) is kept equal to fail (i.e. a or g(0, a) is kept undefined) for all 'a' not part of a registered keyword.
+      - Nevertheless, for the state machine to work properly, it must behave as if g(0, a) would be equal to 0 whenever g(0, a) = fail
+        after algorithm 2 has ended: thus, algorithms 1 and 3 (called after algorithm 2) must be adapted accordingly
+        (modifications are tagged with [1], [2] and [3] in the code):
+
+         - [1] g(0, a) = (resp. !=) 0 must be replaced by: g(0, a) = (resp. !=) fail
+         - [2] g(state, a) = fail must be replaced by: g(state, a) = fail and state != 0
+         - [3] s <- g(state, a) must be replaced by: if g(state, a) != fail then s <- g(state, a) else s <- 0
 
 2. To reduce the memory footprint, this implementation does not stores output keywords associated to states.
    It rather reconstructs matching keywords by traversing the branch of the tree backward (see ACM_get_match).
 3. This implementation permits to search for keywords even though all keywords have not been registered yet.
-   To achieve this, failure states are reconstructed after every registration of a next keyword
+   To achieve this, failure states are reconstructed after every registration of a new keyword
    (see ACM_register_keyword which alternates calls to algorithms 2 and 3.)
-4. This implemtation keeps track of the rank of a registered keyword as returned by ACM_get_match().
-   This can be used as a unique identifiant of a keyword for a given machine state.
-5. If ACM_ASSOCIATED_VALUE is defined at compile time, then values can be associated to registered keywords, and retreived with the found keywords:
-      - two arguments are added when ACM_register_keyword is called: a pointer to a previously allocated value, and a pointer to function for
-        deallocation of the associated value. This function will be called when the state machine will be release by ACM_release.
-      - one argument is added when ACM_get_match is called: the address of a pointer to an associated value.
+4. This implemtation keeps track of the rank of each registered keyword as returned by ACM_get_match().
+   This rank can be used, together with the state machine, as a unique identifiant of a keyword.
+5. If ACM_ASSOCIATED_VALUE is defined at compile time, then user allocated and defined values can also be associated to registered keywords,
+   and retreived with the found keywords:
+      - a third and fourth arguments are passed to ACM_register_keyword calls: a pointer to a previously allocated value,
+        and a pointer to function for deallocation of the associated value. This function will be called when the state machine will be release
+        by ACM_release.
+      - a fourth argument is passed to ACM_get_match calls: the address of a pointer to an associated value.
         The pointer to associated value is modified by ACM_get_match to the address of the value associated to the keyword.
 
 Usage:
@@ -66,18 +71,21 @@ Finally:
 
 11. After usage, release the state machine calling ACM_release() on M.
 
-Note on ACM_SYMBOL
+Note on ACM_SYMBOL:
 ------------------
 ACM_SYMBOL is the type of letters of the alphabet that constitutes the keywords.
 
 ACM_SYMBOL can be any basic type (char, int, unisigned long long int for instance), or a user defined structure.
 
-If ACM_SYMBOL is a basic type, the default comparator operator is '=='.
-This operator can be overwritten by a unser defined function which takes two arguments of type ACM_SYMBOL and returns an int:
+If ACM_SYMBOL is a basic type, the default equality operator is '=='.
+This operator can be overwritten by a user defined function which takes two arguments of type ACM_SYMBOL and returns an int:
 
-  - the first argument is a symbol from a keyword;
-  - the second argument is a symbol from the text into which keywords are searched for.
+  - the first argument is a symbol taken from a keyword;
+  - the second argument is a symbol taken from the text into which keywords are searched for.
   - the function should return 1 if symbols are considered equal, 0 otherwise.
+
+The equality operator '==' with signature 'int eq (ACM_SYMBOL a, ACM_SYMBOL b)' should be defined
+in the user program and the name of the function should be defined in macro ACM_SYMBOL_EQ_OPERATOR.
 
 E.g. the following code will make string matching case insensitive.
 
@@ -89,20 +97,19 @@ Note if ACM_SYMBOL is a structure (does not apply for basic types such as int or
 ---------------------------------------------------------------------------------------
 If ACM_SYMBOL is a structure:
 
-  - An equality operator '==' with signature 'int eq (ACM_SYMBOL a, ACM_SYMBOL b)' should be defined
-    in the user program and the name of the function should be defined in macro ACM_SYMBOL_EQ_OPERATOR.
-    E.g.: #define ACM_SYMBOL_EQ_OPERATOR myequalityoperaor
-  - Keywords are passed by value to ACM_register_keyword().
-    Therefore, if ACM_SYBOL contains pointers to allocated memory,
-      - a copy operator '=' with signature 'ACM_SYMBOL copy (ACM_SYMBOL a)' should be defined in the user program and
+  - Defining a user defined equality operator ACM_SYMBOL_EQ_OPERATOR is compulsory.
+  - If ACM_SYBOL contains pointers to allocated memory,
+      - an assignment operator '=' with signature 'ACM_SYMBOL *function* (ACM_SYMBOL a)' should be defined in the user program and
         the name of the function should be defined in macro ACM_SYMBOL_COPY_OPERATOR.
-      - a destructor operator with signature 'void dtor (ACM_SYMBOL a)' should be defined in the user program and
+      - a destructor operator with signature 'void *function* (ACM_SYMBOL a)' should be defined in the user program and
         the name of the function should be defined in macro ACM_SYMBOL_DTOR_OPERATOR.
 
 Compilation:
 ------------
 The algorithm can be compiled either as an object (aho_corasick.o) or as a private module (if PRIVATE_MODULE is defined in the user program).
+
 If PRIVATE_MODULE is set in the user program, then:
+
 - the implementation of the algorithm will be compiled in the same compilation unit as the user program, therefore without requiring linkage.
   There is no need to compile aho_corasick.c separately, the source will be include in the user program including aho_corasick.h.
 - the warning "The Aho-Corasick algorithm is compiled as a private module." is emitted during compilation.
@@ -118,8 +125,9 @@ Source code:
 
 Examples:
 
-- aho_corasick_test.c gives an example of use (words.gz should be gunzip'ed before use).
+- aho_corasick_test.c gives a complete and commented example (words.gz should be gunzip'ed before use).
 - words.gz is an input file used by the example.
 - aho_corasick_symbol.h is an example of a declaration of the ACM_SYMBOL.
 
+Hopes this helps.
 Have fun !
