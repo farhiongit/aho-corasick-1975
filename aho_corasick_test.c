@@ -55,8 +55,13 @@ nocaseeq (char k, char t)
     return k == t;
 }
 
+#ifndef ACM_ASSOCIATED_VALUE
 static void
 print_match (MatchHolder match)
+#else
+static void
+print_match (MatchHolder match, void * value)
+#endif
 {
   if (ACM_MATCH_LENGTH (match))
   {
@@ -83,17 +88,21 @@ main (void)
 #define LIST_OF_KEYWORDS  \
   X(M, 'h', 'e')  \
   X(M, 's', 'h', 'e')  \
+  X(M, 's', 'h', 'e', 'e', 'r', 's')  \
   X(M, 'h', 'i', 's')  \
+  X(M, 'h', 'i')  \
   X(M, 'h', 'e', 'r', 's')  \
   X(M, 'u', 's', 'h', 'e', 'r', 's')  \
   X(M, 'a', 'b', 'c', 'd', 'e')  \
   X(M, 'b', 'c', 'd')  \
   X(M, 'h', 'e', 'r', 's')  \
+  X(M, 'z', 'z')  \
   X(M, 'c')  \
+  X(M, 'p', 'e', 'n')  \
 
 // Function applied to register a keyword in the state machine
 #ifdef ACM_ASSOCIATED_VALUE
-#define EXTRA ,0 ,0
+#define EXTRA ,0
 #else
 #define EXTRA
 #endif
@@ -104,10 +113,10 @@ main (void)
     ACM_SYMBOL _VAR[] = { __VA_ARGS__ };  \
     ACM_KEYWORD_SET (VAR, _VAR, sizeof (_VAR) / sizeof (*_VAR));  \
     InitialState * is;  \
-    if ((is = ACM_register_keyword (MACHINE, VAR EXTRA)))  \
+    if ((is = ACM_register_keyword (MACHINE, VAR EXTRA EXTRA)))  \
     {  \
       MACHINE = is;  \
-      print_match (VAR);  \
+      print_match (VAR EXTRA);  \
     }  \
     else  \
       printf  ("X");  \
@@ -118,8 +127,28 @@ main (void)
 #undef X
 
   printf (" [%zu]\n", ACM_nb_keywords (M));
+  {
+    Keyword kw = {.letter = "sheers",.length = 6 };
+    ACM_unregister_keyword (M, kw);
+  }
+  {
+    Keyword kw = {.letter = "hi",.length = 2 };
+    ACM_unregister_keyword (M, kw);
+  }
+  {
+    Keyword kw = {.letter = "pen",.length = 3 };
+    ACM_unregister_keyword (M, kw);
+  }
+  {
+    Keyword kw = {.letter = "zz",.length = 2 };
+    ACM_unregister_keyword (M, kw);
+  }
+
+  ACM_foreach_keyword (M, print_match);
+  printf (" [%zu]\n", ACM_nb_keywords (M));
+
   // The text where keywords are searched for.
-  char text[] = "He found his pencil, but she could not find hers (ask ushers !!)\nabcdz\nbcz\ncz\n_abcde_";
+  char text[] = "He found his pencil, but she could not find hers (hi! ushers !!)\nabcdz\nbcz\ncz\n_abcde_";
 
   // 5. Initialize an internal machine state to M.
   // Actual state of the machine, initialized with the machine state before any call to ACM_change_state.
@@ -151,7 +180,7 @@ main (void)
 #endif
 
       // Display matching pattern
-      print_match (match);
+      print_match (match EXTRA);
     }
   }
 

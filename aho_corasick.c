@@ -406,6 +406,159 @@ ACM_nb_keywords (struct _ac_state * machine)
   return machine ? machine->rank : 0;
 }
 
+static struct _ac_state *
+get_last_state (struct _ac_state *state_0, Keyword sequence)
+{
+  if (!state_0)
+    return 0;
+
+  struct _ac_state *state = state_0;
+
+  for (size_t j = 0; j < sequence.length; j++)
+  {
+    struct _ac_state *next = 0;
+
+    for (size_t k = 0; k < state->nb_goto; k++)
+      if (ACM_SYMBOL_EQ (state->goto_array[k].letter, sequence.letter[j]))
+      {
+        next = state->goto_array[k].state;
+        break;
+      }
+    if (next)
+      state = next;
+    else
+      return 0;
+  }
+
+  return state->is_matching ? state : 0;
+}
+
+#ifndef ACM_ASSOCIATED_VALUE
+ACM_PRIVATE int
+ACM_is_registered_keyword (struct _ac_state *state_0, Keyword sequence)
+#else
+ACM_PRIVATE int
+#endif
+ACM_is_registered_keyword (struct _ac_state *state_0, Keyword sequence, void **value)
+{
+  struct _ac_state *last = get_last_state (state_0, sequence);
+
+#ifdef ACM_ASSOCIATED_VALUE
+  if (last && value)
+    *value = last->value;
+#endif
+
+  return last ? 1 : 0;
+}
+
+ACM_PRIVATE int
+ACM_unregister_keyword (struct _ac_state *state_0, Keyword y)
+{
+  struct _ac_state *last = get_last_state (state_0, y);
+
+  if (!last)
+    return 0;
+
+  state_0->fail_state = &UNSET_STATE;
+  state_0->rank--;
+
+  if (last->nb_goto)
+  {
+    last->is_matching = 0;
+    last->nb_sequence = 0;
+    last->rank = 0;
+    return 1;
+  }
+
+  struct _ac_state *prev = 0;
+
+  do
+  {
+    prev = last->previous->state;
+
+    // Release goto_array
+    free (last->goto_array);
+
+    // Remove last from prev->goto_array
+    for (size_t k = 0; k < prev->nb_goto; k++)
+      if (ACM_SYMBOL_EQ (prev->goto_array[k].letter, last->previous->letter) &&
+          ACM_SYMBOL_EQ (last->previous->letter, prev->goto_array[k].letter))
+      {
+        prev->nb_goto--;
+        for (; k < prev->nb_goto; k++)
+          prev->goto_array[k] = prev->goto_array[k + 1];
+        prev->goto_array = realloc (prev->goto_array, sizeof (*prev->goto_array) * prev->nb_goto);
+        break;
+      }
+
+    // Release previous
+    free (last->previous);
+
+#ifdef ACM_ASSOCIATED_VALUE
+    if (last->value && last->value_dtor)
+      last->value_dtor (last->value);
+#endif
+
+    // Release last
+    ACM_SYMBOL_DTOR (last->letter);
+    free (last);
+
+    last = prev;
+  }
+  while (prev && prev != state_0 && !prev->is_matching);
+
+  return 1;
+}
+
+#ifndef ACM_ASSOCIATED_VALUE
+static void
+foreach_keyword (struct _ac_state *state, ACM_SYMBOL ** letters, size_t length, void (*operator) (Keyword))
+#else
+static void
+foreach_keyword (struct _ac_state *state, ACM_SYMBOL ** letters, size_t *length, size_t depth, void (*operator) (Keyword, void *))
+#endif
+{
+  if (state->is_matching && depth)
+  {
+    Keyword k = { .letter = *letters, .length = depth };
+#ifndef ACM_ASSOCIATED_VALUE
+    operator (k);
+#else
+    operator (k, state->value);
+#endif
+  }
+
+  if (state->nb_goto && depth >= *length)
+  {
+    (*length)++;
+    *letters = realloc (*letters, sizeof (**letters) * (*length));
+  }
+
+  for (size_t i = 0; i < state->nb_goto; i++)
+  {
+    (*letters)[depth] = state->goto_array[i].letter;
+    foreach_keyword (state->goto_array[i].state, letters, length, depth + 1, operator);
+  }
+}
+
+#ifndef ACM_ASSOCIATED_VALUE
+ACM_PRIVATE void
+ACM_foreach_keyword (struct _ac_state *state_0, void (*operator) (Keyword))
+#else
+ACM_PRIVATE void
+ACM_foreach_keyword (struct _ac_state *state_0, void (*operator) (Keyword, void *))
+#endif
+{
+  if (!state_0 || !operator)
+    return;
+
+  ACM_SYMBOL* letters = 0;
+  size_t depth = 0;
+  foreach_keyword (state_0, &letters, &depth, 0, operator);
+
+  free (letters);
+}
+
 ACM_PRIVATE void
 ACM_release (struct _ac_state *state_0)
 {

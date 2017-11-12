@@ -100,10 +100,37 @@ ACM_PRIVATE InitialState *ACM_register_keyword (InitialState * machine, Keyword 
                                                 void *value, void (*dtor) (void *));
 #endif
 
+/// Check if a keyword is registered into a Aho-Corasick Machine.
+/// @param [in] machine A pointer to a Aho-Corasick Machine allocated by a previous call to ACM_register_keyword.
+/// @param [in] keyword A keyword.
+/// @param [out] value 0 or the address of the pointer to the value assiociated with the keyword match.
+/// @return 1 if the keyword is registered in the machine, 0 otherwise.
+#ifndef ACM_ASSOCIATED_VALUE
+ACM_PRIVATE int ACM_is_registered_keyword (InitialState * machine, Keyword keyword);
+#else
+ACM_PRIVATE int ACM_is_registered_keyword (InitialState * machine, Keyword keyword, void **value);
+#endif
+
+/// Unregister a keyword from a Aho-Corasick Machine.
+/// @param [in] machine A pointer to a Aho-Corasick Machine allocated by a previous call to ACM_register_keyword.
+/// @param [in] keyword A keyword.
+/// @returns 1 if the keyword was successfully unregistered, 0 otherwise.
+ACM_PRIVATE int ACM_unregister_keyword (InitialState * machine, Keyword keyword);
+
 /// Returns the number of registered keywords in the Aho-Corasick Machine.
 /// @param [in] machine A pointer to a Aho-Corasick Machine allocated by a previous call to ACM_register_keyword.
 /// @returns The number of registered keywords in the Aho-Corasick Machine.
 ACM_PRIVATE size_t ACM_nb_keywords (InitialState * machine);
+
+/// Apply operator to each of the registered keywords in the state machine.
+/// @param [in] machine A pointer to a Aho-Corasick Machine allocated by a previous call to ACM_register_keyword.
+/// @param [in] operator Operator applied to each keyword of the state machine.
+/// @note The operator is applied to keywords in unspecified order.
+#ifndef ACM_ASSOCIATED_VALUE
+ACM_PRIVATE void ACM_foreach_keyword (InitialState * machine, void (*operator) (Keyword));
+#else
+ACM_PRIVATE void ACM_foreach_keyword (InitialState * machine, void (*operator) (Keyword, void *));
+#endif
 
 /// Change internal state.
 /// @param [in] state Internal state.

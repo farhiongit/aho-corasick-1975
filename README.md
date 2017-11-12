@@ -39,6 +39,10 @@ Compared to the implemenation proposed by Aho and Corasick, this one adds severa
         by ACM_release.
       - a fourth argument is passed to ACM_get_match calls: the address of a pointer to an associated value.
         The pointer to associated value is modified by ACM_get_match to the address of the value associated to the keyword.
+6. The state machine is extended to be used as well as an indexed dictionnary of keywords:
+      - ACM_is_registered_keyword() check for the existence of a keyword in the state machine.
+      - ACM_unregister_keyword() removes a keyword from the state machine.
+      - ACM_foreach_keyword() applies a user defined operator to each keyword of the state machine.
 
 Usage:
 -----

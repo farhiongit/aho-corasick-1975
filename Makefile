@@ -22,3 +22,4 @@ nmo:
 	nm --defined-only --extern-only aho_corasick.o
 
 aho_corasick.o: CFLAGS += -DACM_ASSOCIATED_VALUE -DACM_SYMBOL='long long int'
+aho_corasick.o: aho_corasick.c aho_corasick.h
