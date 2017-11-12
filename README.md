@@ -50,26 +50,30 @@ First, initialize the finite state machine with a set of keywords to be searched
       - \#define ACM_SYMBOL char (simple choice if the algorithm is compiled as a private module).
       - \#include "aho_corasick_symbol.h" (better choice if the algorithm is compiled as an object or library, and not as a private module).
 2. Insert "aho_corasick.h"
-3. Initialize a state machine: InitialState * M = 0;
+3. Initialize a state machine initial state: InitialState * M = 0;
 4. Add keywords (of type Keyword) to the state machine calling ACM_register_keyword() repeatedly.
       - The rank of insertion of a keyword is registered together with the keyword.
-      - ACM_KEYWORD_SET can be used to initialize keywords with a single statement.
+      - The macro helper ACM_KEYWORD_SET can be used to initialize keywords with a single statement.
+      - The macro helper ACM_REGISTER_KEYWORD can be conveniently used if the result (success or failure) of the registration is not needed.
       - ACM_nb_matches() returns the number of keywords already inserted in the state machine.
       - If a keywords was already registered in the machine, its rank (and possibly associated value) is left unchanged.
 
 Then, search for keywords in an input text:
 
-5. Initialize an internal machine state to M: InternalState s = M;
-6. Initialize a keyword with ACM_KEYWORD_INIT before the first use by ACM_get_match.
+5. Initialize an internal machine state to the initial state: InternalState s = M;
+6. Initialize a match holder with ACM_MATCH_INIT before the first use by ACM_get_match.
 7. Inject symbols of the text, one at a time by calling ACM_change_state() on s.
+      - The macro helper ACM_CHANGE_STATE can be conveniently used.
 8. After each insertion of a symbol, call ACM_nb_matches() on the internal state s to check if the last inserted symbols match a keyword.
 9. If matches were found, retrieve them calling ACM_get_match() for each match.
-      - ACM_KEYWORD_LENGTH and ACM_KEYWORD_SYMBOLS can be used to access the length and the content of the match found.
-10. After the last call to ACM_get_match(), release to keyword by calling ACM_KEYWORD_RELEASE.
+      - ACM_MATCH_LENGTH and ACM_MATCH_SYMBOLS can be used to get the length and the content of the match found.
+10. After the last call to ACM_get_match(), release to match holder by calling ACM_MATCH_RELEASE.
 
 Finally:
 
 11. After usage, release the state machine calling ACM_release() on M.
+
+Look at aho_corasich.h for a detailed documentation of the interface and at aho_corasick_test.c for a fully documented example.
 
 Note on ACM_SYMBOL:
 ------------------

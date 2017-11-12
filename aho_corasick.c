@@ -519,10 +519,10 @@ ACM_nb_matches (const struct _ac_state * state)
 /// @see Aho-Corasick Algorithm 1: Pattern matching machine - print output (state) [ith element]
 #ifndef ACM_ASSOCIATED_VALUE
 ACM_PRIVATE size_t
-ACM_get_match (const struct _ac_state * state, size_t index, Keyword * match)
+ACM_get_match (const struct _ac_state * state, size_t index, MatchHolder * match)
 #else
 ACM_PRIVATE size_t
-ACM_get_match (const struct _ac_state * state, size_t index, Keyword * match, void **value)
+ACM_get_match (const struct _ac_state * state, size_t index, MatchHolder * match, void **value)
 #endif
 {
   // Aho-Corasick Algorithm 1: if output(state) [ith element]

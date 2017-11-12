@@ -23,41 +23,6 @@
 /// https://pdfs.semanticscholar.org/3547/ac839d02f6efe3f6f76a8289738a22528442.pdf
 ///
 /// @see https://en.wikipedia.org/wiki/Aho%E2%80%93Corasick_algorithm
-///
-/// Usage:
-/// 1/ Define the type ACM_SYMBOL with the type of symbols that constitute keywords. char or int should match most needs.
-///    Either define ACM_SYMBOL direcly in the user program or include a user defines aho_corasick_symbol.h file.
-///    E.g.:
-///    - #define ACM_SYMBOL char (simple choice if the algorithm is compiled as a private module).
-///    - #include "aho_corasick_symbol.h" (better choice if the algorithm is compiled as an object or library, and not as a private module).
-/// 2/ Insert "aho_corasick.h"
-/// 3/ Initialize a state machine: InitialState * M = 0;
-/// 4/ Add keywords (of type Keyword) to the state machine calling ACM_register_keyword() repeatedly.
-///    Notes: ACM_KEYWORD_SET can help initialize keywords with a single statement.
-///           ACM_nb_matches() returns the number of keywords already inserted in the state machine.
-/// 5/ Initialize an internal machine state to M: InternalState s = M;
-/// Repeatedly:
-/// 6/   Scan some text where to search for keywords, injecting symbols of the text, one at a time by calling ACM_change_state() on s.
-/// 7/   After each insertion, call ACM_nb_matches() on the internal state s to check if the last inserted symbols match a keyword.
-/// 8/   If matches were found, retrieve them calling ACM_get_match() for each match.
-/// 9/ After usage, release the state machine calling ACM_release() on M.
-///
-/// Note if ACM_SYMBOL is a structure (does not apply for basic types such as int or char):
-/// - An equality operator '==' with signature 'int eq (ACM_SYMBOL a, ACM_SYMBOL b)' should be defined
-///   in the user program and the name of the function should be defined in macro ACM_SYMBOL_EQ_OPERATOR.
-///   E.g.: #define ACM_SYMBOL_EQ_OPERATOR myequalityoperaor
-/// - Keywords are passed by value to ACM_register_keyword().
-///   Therefore, if ACM_SYBOL contains pointers to allocated memory,
-///   - a copy operator '=' with signature 'ACM_SYMBOL copy (ACM_SYMBOL a)' should be defined in the user program and
-///     the name of the function should be defined in macro ACM_SYMBOL_COPY_OPERATOR.
-///   - a destructor operator with signature 'void dtor (ACM_SYMBOL a)' should be defined in the user program and
-///     the name of the function should be defined in macro ACM_SYMBOL_DTOR_OPERATOR.
-///
-/// Compilation:
-/// The algorithm can be compiled either as an object (aho_corasick.o) or as a private module (if PRIVATE_MODULE is defined in the user program).
-/// If PRIVATE_MODULE is set in the user program, then:
-/// - the implementation of the algorithm will be compiled in the same compilation unit as the user program, therefore without requiring linkage.
-/// - the warning "The Aho-Corasick algorithm is compiled as a private module." is emitted during compilation.
 
 #pragma once
 #ifndef AHO_CORASICK
@@ -85,14 +50,36 @@ typedef struct
   ACM_SYMBOL *letter;           ///< An array of symbols
   size_t length;                ///< Length of the array
 } Keyword;
+typedef Keyword MatchHolder;
 
-/// Keyword helpers
-#define ACM_KEYWORD_LENGTH(keyword) ((keyword).length)
-#define ACM_KEYWORD_SYMBOLS(keyword) ((keyword).letter)
+/// Matches macro helpers
+// - getters: ACM_MATCH_LENGTH and ACM_MATCH_SYMBOLS
+#define ACM_MATCH_LENGTH(match) ((match).length)
+#define ACM_MATCH_SYMBOLS(match) ((match).letter)
+
+/// Keyword macro helpers
+// - setter: ACM_KEYWORD_SET
 #define ACM_KEYWORD_SET(keyword, symbols, length)  \
-  do { ACM_KEYWORD_SYMBOLS(keyword) = symbols; ACM_KEYWORD_LENGTH(keyword) = length; } while(0)
-#define ACM_KEYWORD_INIT(keyword) ACM_KEYWORD_SET(keyword, 0, 0)
-#define ACM_KEYWORD_RELEASE(keyword) do { free (ACM_KEYWORD_SYMBOLS(keyword)); ACM_KEYWORD_INIT (keyword); } while(0)
+  do { ACM_MATCH_SYMBOLS (keyword) = (symbols); ACM_MATCH_LENGTH (keyword) = (length); } while (0)
+
+/// Matches macro helpers
+// - memory managment: ACM_MATCH_INIT and ACM_MATCH_RELEASE
+#define ACM_MATCH_INIT(match) ACM_KEYWORD_SET((match), 0, 0)
+#define ACM_MATCH_RELEASE(match) do { free (ACM_MATCH_SYMBOLS (match)); ACM_MATCH_INIT (match); } while (0)
+
+// State machine macro helpers
+// - ACM_REGISTER_KEYWORD
+#ifndef ACM_ASSOCIATED_VALUE
+#define ACM_REGISTER_KEYWORD(machine, keyword)  \
+  do { InitialState * tmp = ACM_register_keyword ((machine), (keyword)); if (tmp) (machine) = tmp; } while (0)
+#else
+#define ACM_REGISTER_KEYWORD(machine, keyword, value_ptr, dtor)  \
+  do { InitialState * tmp = ACM_register_keyword ((machine), (keyword), (value_ptr), (dtor)); if (tmp) (machine) = tmp; } while (0)
+#endif
+
+// - ACM_CHANGE_STATE
+#define ACM_CHANGE_STATE(state, letter)  \
+  do { (state) = ACM_change_state ((state), (letter)) ; } while (0)
 
 struct _ac_state;               // Partially declared structure
 typedef struct _ac_state InitialState;
@@ -143,9 +130,9 @@ ACM_PRIVATE size_t ACM_nb_matches (const InternalState * state);
 /// match->letter should have been initialized to 0 prior to first call to ACM_get_match.
 /// match->letter should be freed by the user program after the last call to ACM_get_match.
 #ifndef ACM_ASSOCIATED_VALUE
-ACM_PRIVATE size_t ACM_get_match (const InternalState * state, size_t index, Keyword * match);
+ACM_PRIVATE size_t ACM_get_match (const InternalState * state, size_t index, MatchHolder * match);
 #else
-ACM_PRIVATE size_t ACM_get_match (const InternalState * state, size_t index, Keyword * match, void **value);
+ACM_PRIVATE size_t ACM_get_match (const InternalState * state, size_t index, MatchHolder * match, void **value);
 #endif
 
 /// Release allocated resources.

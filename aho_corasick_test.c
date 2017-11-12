@@ -56,13 +56,13 @@ nocaseeq (char k, char t)
 }
 
 static void
-print_keyword (Keyword match)
+print_match (MatchHolder match)
 {
-  if (ACM_KEYWORD_LENGTH (match))
+  if (ACM_MATCH_LENGTH (match))
   {
     printf ("{");
-    for (size_t k = 0; k < ACM_KEYWORD_LENGTH (match); k++)
-      printf ("%c", ACM_KEYWORD_SYMBOLS (match)[k]);
+    for (size_t k = 0; k < ACM_MATCH_LENGTH (match); k++)
+      printf ("%c", ACM_MATCH_SYMBOLS (match)[k]);
     printf ("}");
   }
 }
@@ -107,7 +107,7 @@ main (void)
     if ((is = ACM_register_keyword (MACHINE, VAR EXTRA)))  \
     {  \
       MACHINE = is;  \
-      print_keyword (VAR);  \
+      print_match (VAR);  \
     }  \
     else  \
       printf  ("X");  \
@@ -125,16 +125,16 @@ main (void)
   // Actual state of the machine, initialized with the machine state before any call to ACM_change_state.
   InternalState *s = M;
 
-  // 6. Initialize a keyword with ACM_KEUWORD_INIT before the first use by ACM_get_match.
-  Keyword match;
+  // 6. Initialize a match holder with ACM_MATCH_INIT before the first use by ACM_get_match.
+  MatchHolder match;
 
-  ACM_KEYWORD_INIT (match);
+  ACM_MATCH_INIT (match);
   for (size_t i = 0; i < strlen (text); i++)
   {
     printf ("%c", text[i]);
 
     // 7. Inject symbols of the text, one at a time by calling ACM_change_state() on s. Cycle on machine states.
-    s = ACM_change_state (s, text[i]);
+    ACM_CHANGE_STATE (s, text[i]);
 
     // 8. After each insertion of a symbol, call ACM_nb_matches() on the internal state s to check if the last inserted symbols match a keyword.
     // Get the matching keywords for the actual state of the machine.
@@ -151,12 +151,12 @@ main (void)
 #endif
 
       // Display matching pattern
-      print_keyword (match);
+      print_match (match);
     }
   }
 
-  // 10. After the last call to ACM_get_match(), release to keyword by calling ACM_KEYWORD_RELEASE.
-  ACM_KEYWORD_RELEASE (match);
+  // 10. After the last call to ACM_get_match(), release to keyword by calling ACM_MATCH_RELEASE.
+  ACM_MATCH_RELEASE (match);
 
   printf ("\n");
 
@@ -216,8 +216,9 @@ main (void)
       if (message[i] != '\n')
         printf ("%c", message[i]);
       // 7. Inject symbols of the text, one at a time by calling ACM_change_state() on s.
+      ACM_CHANGE_STATE (s, message[i]);
       // 8. After each insertion of a symbol, call ACM_nb_matches() on the internal state s to check if the last inserted symbols match a keyword.
-      size_t nb = ACM_nb_matches (s = ACM_change_state (s, message[i]));
+      size_t nb = ACM_nb_matches (s);
 
       if (nb)
       {
