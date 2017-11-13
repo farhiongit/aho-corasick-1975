@@ -60,7 +60,7 @@ static void
 print_match (MatchHolder match)
 #else
 static void
-print_match (MatchHolder match, void * value)
+print_match (MatchHolder match, void *value)
 #endif
 {
   if (ACM_MATCH_LENGTH (match))
@@ -99,6 +99,8 @@ main (void)
   X(M, 'z', 'z')  \
   X(M, 'c')  \
   X(M, 'p', 'e', 'n')  \
+  X(M, 'x', 'y', 'z')  \
+  X(M, 'x', 'y', 't')  \
 
 // Function applied to register a keyword in the state machine
 #ifdef ACM_ASSOCIATED_VALUE
@@ -129,26 +131,33 @@ main (void)
   printf (" [%zu]\n", ACM_nb_keywords (M));
   {
     Keyword kw = {.letter = "sheers",.length = 6 };
-    ACM_unregister_keyword (M, kw);
+    assert (ACM_is_registered_keyword (M, kw, 0));
+    assert (ACM_unregister_keyword (M, kw));
+    assert (!ACM_unregister_keyword (M, kw));
+    assert (!ACM_is_registered_keyword (M, kw, 0));
   }
   {
     Keyword kw = {.letter = "hi",.length = 2 };
-    ACM_unregister_keyword (M, kw);
+    assert (ACM_unregister_keyword (M, kw));
   }
   {
     Keyword kw = {.letter = "pen",.length = 3 };
-    ACM_unregister_keyword (M, kw);
+    assert (ACM_unregister_keyword (M, kw));
   }
   {
     Keyword kw = {.letter = "zz",.length = 2 };
-    ACM_unregister_keyword (M, kw);
+    assert (ACM_unregister_keyword (M, kw));
+  }
+  {
+    Keyword kw = {.letter = "xyt",.length = 3 };
+    assert (ACM_unregister_keyword (M, kw));
   }
 
   ACM_foreach_keyword (M, print_match);
   printf (" [%zu]\n", ACM_nb_keywords (M));
 
   // The text where keywords are searched for.
-  char text[] = "He found his pencil, but she could not find hers (hi! ushers !!)\nabcdz\nbcz\ncz\n_abcde_";
+  char text[] = "He found his pencil, but she could not find hers (hi! ushers !!)\nabcdz\nbcz\ncz\n_abcde_xyzxyt";
 
   // 5. Initialize an internal machine state to M.
   // Actual state of the machine, initialized with the machine state before any call to ACM_change_state.
@@ -195,7 +204,7 @@ main (void)
   /****************** Second test ************************/
   nocase = 0;
 
-  char message[] = "hello\n, this\nis\na\ngreat\nmessage\n, bye\n !";
+  char message[] = "hello\n, this\n is\n a\n great\n message\n, bye\n !";
 
   FILE *stream;
 
@@ -251,7 +260,7 @@ main (void)
 
       if (nb)
       {
-        printf ("< ");
+        printf ("<");
 
 #ifdef ACM_ASSOCIATED_VALUE
         // 9. If matches were found, retrieve them calling ACM_get_match() for each match.

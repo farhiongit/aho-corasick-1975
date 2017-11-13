@@ -99,29 +99,33 @@ static void (*__dtordefault) (ACM_SYMBOL a) = ACM_SYMBOL_DTOR_OPERATOR;
 
 #define ACM_SYMBOL_DTOR(a) __dtordefault(a)
 #else
-#define ACM_SYMBOL_DTOR(a)
+#define ACM_SYMBOL_DTOR(a) (void)(a)
 #endif
-
-/// A link between states
-struct _ac_link
-{
-  ACM_SYMBOL letter;            // [a symbol]
-  struct _ac_state *state;      // [g(s, letter)]
-};
 
 /// A state of the state machine.
 /// @note Memory usage is of the order of the size of all registered keywords.
 struct _ac_state                // [state s]
 {
-  struct _ac_link *goto_array;  // next states in the tree of the goto function
+  /// A link to the next states
+  struct
+  {
+    ACM_SYMBOL letter;          // [a symbol]
+    struct _ac_state *state;    // [g(s, letter)]
+  } *goto_array;                // next states in the tree of the goto function
   size_t nb_goto;
 
-  struct _ac_link *previous;    // previous state
+  /// A link to the previous state
+  struct
+  {
+    size_t i_letter;            // Index of the letter in the goto_array
+    // ACM_SYMBOL letter = previous.state->goto_array[previous.i_letter].letter
+    struct _ac_state *state;
+  } previous;                   // previous state
 
   struct _ac_state *fail_state; // [f(s)]
 
   int is_matching;              // true if the state matches a keyword.
-  size_t nb_sequence;           // number of matching keywords.
+  size_t nb_sequence;           // number of matching keywords (Aho-Corasick : size (output (s))
   size_t rank;                  // Rank of insertion of a keyword in the machine.
 
 #ifdef ACM_ASSOCIATED_VALUE
@@ -143,7 +147,8 @@ state_init (void)
   // [g(s, a) is undefined (= fail) for all input symbol a]
   s->goto_array = 0;
   s->nb_goto = 0;
-  s->previous = 0;
+  s->previous.state = 0;
+  s->previous.i_letter = 0;
 
   // Aho-Corasick Algorithm 2: "We assume output(s) is empty when state s is first created."
   s->nb_sequence = 0;           // number of outpur=ts in [output(s)]
@@ -222,9 +227,9 @@ state_goto_update (struct _ac_state *state_0, Keyword sequence  /* a[1] a[2] ...
     state->goto_array[state->nb_goto - 1].letter = ACM_SYMBOL_COPY (sequence.letter[p]);
 
     // Backward link: previous(newstate, a[p]) <- state
-    ACM_ASSERT (newstate->previous = malloc (sizeof (*newstate->previous)));
-    newstate->previous->state = state;
-    newstate->previous->letter = state->goto_array[state->nb_goto - 1].letter;
+    newstate->previous.state = state;
+    //state->goto_array[state->nb_goto - 1].state->previous.i_letter = state->nb_goto - 1;
+    newstate->previous.i_letter = state->nb_goto - 1;
 
     // Aho-Corasick Algorithm 2: state <- newstate
     state = newstate;
@@ -474,38 +479,36 @@ ACM_unregister_keyword (struct _ac_state *state_0, Keyword y)
 
   do
   {
-    prev = last->previous->state;
-
-    // Release goto_array
-    free (last->goto_array);
+    // last->nb_goto == 0
+    prev = last->previous.state;
 
     // Remove last from prev->goto_array
     for (size_t k = 0; k < prev->nb_goto; k++)
-      if (ACM_SYMBOL_EQ (prev->goto_array[k].letter, last->previous->letter) &&
-          ACM_SYMBOL_EQ (last->previous->letter, prev->goto_array[k].letter))
+      if (ACM_SYMBOL_EQ (prev->goto_array[k].letter, prev->goto_array[last->previous.i_letter].letter))
       {
         prev->nb_goto--;
         for (; k < prev->nb_goto; k++)
+        {
+          ACM_SYMBOL_DTOR (prev->goto_array[k].letter);
           prev->goto_array[k] = prev->goto_array[k + 1];
+          prev->goto_array[k].state->previous.i_letter = k;
+        }
         prev->goto_array = realloc (prev->goto_array, sizeof (*prev->goto_array) * prev->nb_goto);
         break;
       }
 
-    // Release previous
-    free (last->previous);
-
 #ifdef ACM_ASSOCIATED_VALUE
+    // Release associated value;
     if (last->value && last->value_dtor)
       last->value_dtor (last->value);
 #endif
 
     // Release last
-    ACM_SYMBOL_DTOR (last->letter);
     free (last);
 
     last = prev;
   }
-  while (prev && prev != state_0 && !prev->is_matching);
+  while (prev && prev != state_0 && !prev->is_matching && !prev->nb_goto);
 
   return 1;
 }
@@ -515,16 +518,17 @@ static void
 foreach_keyword (struct _ac_state *state, ACM_SYMBOL ** letters, size_t length, void (*operator) (Keyword))
 #else
 static void
-foreach_keyword (struct _ac_state *state, ACM_SYMBOL ** letters, size_t *length, size_t depth, void (*operator) (Keyword, void *))
+foreach_keyword (struct _ac_state *state, ACM_SYMBOL ** letters, size_t * length, size_t depth,
+                 void (*operator) (Keyword, void *))
 #endif
 {
   if (state->is_matching && depth)
   {
-    Keyword k = { .letter = *letters, .length = depth };
+    Keyword k = {.letter = *letters,.length = depth };
 #ifndef ACM_ASSOCIATED_VALUE
-    operator (k);
+    operator    (k);
 #else
-    operator (k, state->value);
+    operator    (k, state->value);
 #endif
   }
 
@@ -552,8 +556,9 @@ ACM_foreach_keyword (struct _ac_state *state_0, void (*operator) (Keyword, void 
   if (!state_0 || !operator)
     return;
 
-  ACM_SYMBOL* letters = 0;
+  ACM_SYMBOL *letters = 0;
   size_t depth = 0;
+
   foreach_keyword (state_0, &letters, &depth, 0, operator);
 
   free (letters);
@@ -565,51 +570,22 @@ ACM_release (struct _ac_state *state_0)
   if (!state_0)
     return;
 
-  size_t queue_length = 1;
-  struct _ac_state **queue = malloc (sizeof (*queue));
+  for (size_t i = 0; i < state_0->nb_goto; i++)
+    ACM_release (state_0->goto_array[i].state);
 
-  ACM_ASSERT (queue);
-
-  // queue <- {0}
-  queue[0] = state_0;
-
-  size_t queue_read_pos = 0;
-
-  while (queue_read_pos < queue_length)
-  {
-    // Let r be the next state in queue
-    struct _ac_state *r = queue[queue_read_pos];
-
-    // queue <- queue - {r}
-    queue_read_pos++;
-
-    ACM_ASSERT (queue = realloc (queue, sizeof (*queue) * (queue_length + r->nb_goto)));
-    for (size_t i = 0; i < r->nb_goto; i++)
-    {
-      struct _ac_state *s = r->goto_array[i].state;     // [s <- g(r, a)]
-
-      // queue <- queue U {s}
-      queue_length++;
-      queue[queue_length - 1] = s;
-    }
-
-    // Release r->goto_array
-    free (r->goto_array);
-
-    // Release previous
-    free (r->previous);
+  // Release goto_array
+  for (size_t i = 0; i < state_0->nb_goto; i++)
+    ACM_SYMBOL_DTOR (state_0->goto_array[i].letter);
+  free (state_0->goto_array);
 
 #ifdef ACM_ASSOCIATED_VALUE
-    if (r->value && r->value_dtor)
-      r->value_dtor (r->value);
+  // Release associated value
+  if (state_0->value && state_0->value_dtor)
+    state_0->value_dtor (state_0->value);
 #endif
 
-    // Release r
-    ACM_SYMBOL_DTOR (r->letter);
-    free (r);
-  }
-
-  free (queue);
+  // Release state
+  free (state_0);
 }
 
 /// @see Aho-Corasick Algorithm 1: Pattern matching machine - while loop.
@@ -700,15 +676,15 @@ ACM_get_match (const struct _ac_state * state, size_t index, MatchHolder * match
     // Aho-Corasick Algorithm 1: print output(state) [ith element]
     // Reconstruct the matching keyword moving backward from the matching state to the state 0.
     match->length = 0;
-    for (const struct _ac_state * s = state; s && s->previous; s = s->previous->state)
+    for (const struct _ac_state * s = state; s && s->previous.state; s = s->previous.state)
       match->length++;
 
     // Reallocation of match->letter. match->letter should be freed by the user after the last call to ACM_get_match on match.
     ACM_ASSERT (match->letter = realloc (match->letter, sizeof (*match->letter) * match->length));
     i = 0;
-    for (const struct _ac_state * s = state; s && s->previous; s = s->previous->state)
+    for (const struct _ac_state * s = state; s && s->previous.state; s = s->previous.state)
     {
-      match->letter[match->length - i - 1] = s->previous->letter;
+      match->letter[match->length - i - 1] = s->previous.state->goto_array[s->previous.i_letter].letter;
       i++;
     }
   }

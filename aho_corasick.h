@@ -115,6 +115,7 @@ ACM_PRIVATE int ACM_is_registered_keyword (InitialState * machine, Keyword keywo
 /// @param [in] machine A pointer to a Aho-Corasick Machine allocated by a previous call to ACM_register_keyword.
 /// @param [in] keyword A keyword.
 /// @returns 1 if the keyword was successfully unregistered, 0 otherwise.
+/// @note The rank of keywords of higher rank are kept unchanged. Ranks can then be larger than ACM_nb_keywords().
 ACM_PRIVATE int ACM_unregister_keyword (InitialState * machine, Keyword keyword);
 
 /// Returns the number of registered keywords in the Aho-Corasick Machine.
