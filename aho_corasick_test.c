@@ -84,7 +84,7 @@ main (void)
   nocase = 1;                   // not case sensitive
 
   // 3. The machine state is initialized with 0 before any call to ACM_register_keyword.
-  InitialState *M = 0;
+  ACMachine *M = 0;
 
 // Declares all the keywords
 // "hers" appears twice but will be registerd once.
@@ -119,7 +119,7 @@ main (void)
     Keyword VAR;  \
     ACM_SYMBOL _VAR[] = { __VA_ARGS__ };  \
     ACM_KEYWORD_SET (VAR, _VAR, sizeof (_VAR) / sizeof (*_VAR));  \
-    InitialState * is;  \
+    ACMachine * is;  \
     if ((is = ACM_register_keyword (MACHINE, VAR EXTRA EXTRA)))  \
     {  \
       MACHINE = is;  \
@@ -163,7 +163,7 @@ main (void)
 
   // 5. Initialize an internal machine state to M.
   // Actual state of the machine, initialized with the machine state before any call to ACM_change_state.
-  InternalState *s = M;
+  ACState *s = ACState (M);
 
   // 6. Initialize a match holder with ACM_MATCH_INIT before the first use by ACM_get_match.
   MatchHolder match;
@@ -229,7 +229,7 @@ main (void)
   {
     for (; (read < 50000 || stage == 2) && getline (&line, &len, stream) != -1; read++)
     {
-      InitialState *s;
+      ACMachine *s;
       Keyword k;
 
       ACM_KEYWORD_SET (k, line, strlen (line)); // keywords end with newline
@@ -252,7 +252,7 @@ main (void)
 
     // 5. Initialize an internal machine state to M.
     // Internal state MUST BE set to M after a keyword has been inserted by ACM_register_keyword.
-    s = M;
+    s = ACState (M);
 
     for (size_t i = 0; i < strlen (message); i++)
     {

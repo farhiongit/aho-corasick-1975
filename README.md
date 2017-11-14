@@ -60,7 +60,7 @@ First, initialize the finite state machine with a set of keywords to be searched
       - \#define ACM_SYMBOL char (simple choice if the algorithm is compiled as a private module).
       - \#include "aho_corasick_symbol.h" (better choice if the algorithm is compiled as an object or library, and not as a private module).
 2. Insert "aho_corasick.h"
-3. Initialize a state machine initial state: InitialState * M = 0;
+3. Initialize a state machine: ACMachine * M = 0;
 4. Add keywords (of type Keyword) to the state machine calling ACM_register_keyword() repeatedly.
       - The rank of insertion of a keyword is registered together with the keyword.
       - The macro helper ACM_KEYWORD_SET can be used to initialize keywords with a single statement.
@@ -70,7 +70,7 @@ First, initialize the finite state machine with a set of keywords to be searched
 
 Then, search for keywords in an input text:
 
-5. Initialize an internal machine state to the initial state: InternalState s = M;
+5. Initialize an initial machine state: ACState s = ACState (M);
 6. Initialize a match holder with ACM_MATCH_INIT before the first use by ACM_get_match.
 7. Inject symbols of the text, one at a time by calling ACM_change_state() on s.
       - The macro helper ACM_CHANGE_STATE can be conveniently used.
