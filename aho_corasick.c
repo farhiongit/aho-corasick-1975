@@ -483,19 +483,14 @@ ACM_unregister_keyword (struct _ac_state *state_0, Keyword y)
     prev = last->previous.state;
 
     // Remove last from prev->goto_array
-    for (size_t k = 0; k < prev->nb_goto; k++)
-      if (ACM_SYMBOL_EQ (prev->goto_array[k].letter, prev->goto_array[last->previous.i_letter].letter))
-      {
-        prev->nb_goto--;
-        for (; k < prev->nb_goto; k++)
-        {
-          ACM_SYMBOL_DTOR (prev->goto_array[k].letter);
-          prev->goto_array[k] = prev->goto_array[k + 1];
-          prev->goto_array[k].state->previous.i_letter = k;
-        }
-        prev->goto_array = realloc (prev->goto_array, sizeof (*prev->goto_array) * prev->nb_goto);
-        break;
-      }
+    prev->nb_goto--;
+    for (size_t k = last->previous.i_letter; k < prev->nb_goto; k++)
+    {
+      ACM_SYMBOL_DTOR (prev->goto_array[k].letter);
+      prev->goto_array[k] = prev->goto_array[k + 1];
+      prev->goto_array[k].state->previous.i_letter = k;
+    }
+    prev->goto_array = realloc (prev->goto_array, sizeof (*prev->goto_array) * prev->nb_goto);
 
 #ifdef ACM_ASSOCIATED_VALUE
     // Release associated value;
@@ -526,9 +521,9 @@ foreach_keyword (struct _ac_state *state, ACM_SYMBOL ** letters, size_t * length
   {
     Keyword k = {.letter = *letters,.length = depth };
 #ifndef ACM_ASSOCIATED_VALUE
-    operator    (k);
+    (*operator) (k);
 #else
-    operator    (k, state->value);
+    (*operator) (k, state->value);
 #endif
   }
 

@@ -1,22 +1,28 @@
 **A small, documented, easy to use implementation of the Aho-Corasick algorithm.**
 ------------------------------------------------------------------------------
 
-This implementation strictly follows acurately and step by step the pseudo-code given in the original paper from Aho and Corasick, exquisitely clear and well written.
+This implementation of the Aho-Corasick algorithm has several benefits:
 
-See Aho, Alfred V.; Corasick, Margaret J. (June 1975). "[Efficient string matching: An aid to bibliographic search](https://pdfs.semanticscholar.org/3547/ac839d02f6efe3f6f76a8289738a22528442.pdf)".
-Communications of the ACM. 18 (6): 333–340.
+- It sticks acurately and step by step to the pseudo-code given in the original paper from Aho and Corasick
+  (btw exquisitely clear and well written, see Aho, Alfred V.; Corasick, Margaret J. (June 1975).
+  "[Efficient string matching: An aid to bibliographic search](https://pdfs.semanticscholar.org/3547/ac839d02f6efe3f6f76a8289738a22528442.pdf)".
+  Communications of the ACM. 18 (6): 333–340.)
+- It is generic in the sense that it works for any kind of alphabet and not only for char.
+- The interface is minimal, complete and easy to use.
+- The implementation has low memory footprint and is fast.
 
-Compared to the implemenation proposed by Aho and Corasick, this one adds several enhancements:
+In more details, compared to the implementation proposed by Aho and Corasick, this one adds several enhancements:
 
 1. First of all, the implementation does not make any assumption on the size of the alphabet used.
    Particularly, the alphanet is not limited to 256 signs.
+   The number of possible signs is only defined by the type of symbol the user decides to use.
    For instance, if ACM_SYMBOL would be defined as 'long long int', then the number of possible signs would be 18446744073709551616.
 
       - For this to be possible, the assertion "for all a such that g(0, a) = fail do g(0, a) <- 0" in the Aho-Corasick paper,
         at the end of algorithm 2 can not be fulfilled because it would require to set g(0, a) for all the values of 'a'
         in the set of possible values of the alphabet,
         and thus allocate (if not exhaust) a lot of memory.
-      - Therefore, g(0, a) is kept equal to fail (i.e. a or g(0, a) is kept undefined) for all 'a' not part of a registered keyword.
+      - Therefore, g(0, a) is kept equal to fail (i.e. g(0, a) is kept undefined) for all 'a' not being the first sign of a registered keyword.
       - Nevertheless, for the state machine to work properly, it must behave as if g(0, a) would be equal to 0 whenever g(0, a) = fail
         after algorithm 2 has ended: thus, algorithms 1 and 3 (called after algorithm 2) must be adapted accordingly
         (modifications are tagged with [1], [2] and [3] in the code):

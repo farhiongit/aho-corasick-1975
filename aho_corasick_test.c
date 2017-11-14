@@ -78,7 +78,10 @@ main (void)
 {
 
   /****************** First test ************************/
-  nocase = 1;
+  // The text where keywords are searched for.
+  char text[] = "He found his pencil, but she could not find hers (hi! ushers !!)\nabcdz\nbcz\nczz\n_abcde_xyzxyt";
+
+  nocase = 1;                   // not case sensitive
 
   // 3. The machine state is initialized with 0 before any call to ACM_register_keyword.
   InitialState *M = 0;
@@ -98,7 +101,9 @@ main (void)
   X(M, 'h', 'e', 'r', 's')  \
   X(M, 'z', 'z')  \
   X(M, 'c')  \
+  X(M, 'z')  \
   X(M, 'p', 'e', 'n')  \
+  X(M, 'z', 'z', 'z')  \
   X(M, 'x', 'y', 'z')  \
   X(M, 'x', 'y', 't')  \
 
@@ -145,7 +150,7 @@ main (void)
     assert (ACM_unregister_keyword (M, kw));
   }
   {
-    Keyword kw = {.letter = "zz",.length = 2 };
+    Keyword kw = {.letter = "zzz",.length = 3 };
     assert (ACM_unregister_keyword (M, kw));
   }
   {
@@ -156,9 +161,6 @@ main (void)
   ACM_foreach_keyword (M, print_match);
   printf (" [%zu]\n", ACM_nb_keywords (M));
 
-  // The text where keywords are searched for.
-  char text[] = "He found his pencil, but she could not find hers (hi! ushers !!)\nabcdz\nbcz\ncz\n_abcde_xyzxyt";
-
   // 5. Initialize an internal machine state to M.
   // Actual state of the machine, initialized with the machine state before any call to ACM_change_state.
   InternalState *s = M;
@@ -167,6 +169,7 @@ main (void)
   MatchHolder match;
 
   ACM_MATCH_INIT (match);
+  printf ("%s\n", text);
   for (size_t i = 0; i < strlen (text); i++)
   {
     printf ("%c", text[i]);
@@ -202,9 +205,11 @@ main (void)
   ACM_release (M);
 
   /****************** Second test ************************/
-  nocase = 0;
-
   char message[] = "hello\n, this\n is\n a\n great\n message\n, bye\n !";
+
+  printf ("%s\n", message);
+
+  nocase = 0;                   // Case sensitive
 
   FILE *stream;
 
