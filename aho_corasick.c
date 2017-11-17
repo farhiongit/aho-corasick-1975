@@ -134,37 +134,19 @@ struct _ac_state                // [state s]
 #endif
 };
 
-// The same, again, to isolate the two types _ac_machine and _ac_state in the signatures of functions
+// The dummy type, to isolate the two types _ac_machine and _ac_state in the signatures of functions
 struct _ac_machine
 {
-  struct
-  {
-    ACM_SYMBOL letter;
-    struct _ac_state *state;
-  } *goto_array;
-  size_t nb_goto;
-  struct
-  {
-    size_t i_letter;
-    struct _ac_state *state;
-  } previous;
-  struct _ac_state *fail_state;
-  int is_matching;
-  size_t nb_sequence;
-  size_t rank;
-#ifdef ACM_ASSOCIATED_VALUE
-  void *value;
-  void (*value_dtor) (void *);
-#endif
+  int __unused__;
 };
 
 //-----------------------------------------------------
-static struct _ac_state UNSET_STATE;
+static ACState UNSET_STATE;
 
-static struct _ac_state *
+static ACState *
 state_init (void)
 {
-  struct _ac_state *s = malloc (sizeof (*s));   /* [state s] */
+  ACState *s = malloc (sizeof (*s));    /* [state s] */
 
   ACM_ASSERT (s);
 
@@ -192,16 +174,18 @@ state_init (void)
 /// @see Aho-Corasick Algorithm 2: construction of the goto function - procedure enter(a[1] a[2] ... a[n]).
 #ifndef ACM_ASSOCIATED_VALUE
 static int
-state_goto_update (struct _ac_machine *state_0, Keyword sequence /* a[1] a[2] ... a[n] */ )
+state_goto_update (ACMachine * machine, Keyword sequence /* a[1] a[2] ... a[n] */ )
 #else
 static int
-state_goto_update (struct _ac_machine *state_0, Keyword sequence        /* a[1] a[2] ... a[n] */
+state_goto_update (ACMachine * machine, Keyword sequence        /* a[1] a[2] ... a[n] */
                    , void *value, void (*dtor) (void *))
 #endif
 {
+  ACState *state_0 = (ACState *) machine;       // [state 0]
+
   // Iterators
   // Aho-Corasick Algorithm 2: state <- 0
-  struct _ac_state *state = (struct _ac_state *) state_0;       // [state 0]
+  ACState *state = state_0;
 
   // Aho-Corasick Algorithm 2: j <- 1
   size_t j = 0;
@@ -210,7 +194,7 @@ state_goto_update (struct _ac_machine *state_0, Keyword sequence        /* a[1] 
   // Iterations on i and s until a final state
   for (; j < sequence.length /* [m] */ ;)
   {
-    struct _ac_state *next = 0;
+    ACState *next = 0;
 
     // Aho-Corasick Algorithm 2: "g(s, l) = fail if l is undefined or if g(s, l) has not been defined."
     // Loop on all symbols a for which g(state, a) is defined.
@@ -244,7 +228,7 @@ state_goto_update (struct _ac_machine *state_0, Keyword sequence        /* a[1] 
 
     // Creation of a new state
     // Aho-Corasick Algorithm 2: newstate <- newstate + 1
-    struct _ac_state *newstate = state_init ();
+    ACState *newstate = state_init ();
 
     // Aho-Corasick Algorithm 2: g(state, a[p]) <- newstate
     state->goto_array[state->nb_goto - 1].state = newstate;
@@ -281,25 +265,27 @@ state_goto_update (struct _ac_machine *state_0, Keyword sequence        /* a[1] 
   return 1;
 }
 
-static struct _ac_state *state_goto (struct _ac_state *state, ACM_SYMBOL letter);
+static ACState *state_goto (ACState * state, ACM_SYMBOL letter);
 
 static void
-state_reset_output (struct _ac_machine *state_0)
+state_reset_output (ACMachine * machine)
 {
+  ACState *state_0 = (ACState *) machine;       // [state 0]
+
   size_t queue_length = 1;
-  struct _ac_state **queue = malloc (sizeof (*queue));
+  ACState **queue = malloc (sizeof (*queue));
 
   ACM_ASSERT (queue);
 
   // queue <- {0}
-  queue[0] = (struct _ac_state *) state_0;
+  queue[0] = state_0;
 
   size_t queue_read_pos = 0;
 
   while (queue_read_pos < queue_length)
   {
     // Let r be the next state in queue
-    struct _ac_state *r = queue[queue_read_pos];
+    ACState *r = queue[queue_read_pos];
 
     // queue <- queue - {r}
     queue_read_pos++;
@@ -307,7 +293,7 @@ state_reset_output (struct _ac_machine *state_0)
     ACM_ASSERT (queue = realloc (queue, sizeof (*queue) * (queue_length + r->nb_goto)));
     for (size_t i = 0; i < r->nb_goto; i++)
     {
-      struct _ac_state *s = r->goto_array[i].state;     // [s <- g(r, a)]
+      ACState *s = r->goto_array[i].state;      // [s <- g(r, a)]
 
       // queue <- queue U {s}
       queue_length++;
@@ -325,9 +311,11 @@ state_reset_output (struct _ac_machine *state_0)
 
 /// @see Aho-Corasick Algorithm 3: construction of the failure function.
 static void
-state_fail_state_construct (struct _ac_machine *state_0 /* state 0 */ )
+state_fail_state_construct (ACMachine * machine /* state 0 */ )
 {
-  state_reset_output (state_0);
+  ACState *state_0 = (ACState *) machine;       // [state 0]
+
+  state_reset_output (machine);
 
   // Aho-Corasick Algorithm: "(except state 0 for which the failure function is not defined)."
   state_0->fail_state = 0;
@@ -335,20 +323,20 @@ state_fail_state_construct (struct _ac_machine *state_0 /* state 0 */ )
   // Aho-Corasick Algorithm 3: queue <- empty
   // The first element in the queue will not be processed, therefore it can be added harmlessly.
   size_t queue_length = 0;
-  struct _ac_state **queue = 0;
+  ACState **queue = 0;
 
   ACM_ASSERT (queue = realloc (queue, sizeof (*queue) * (queue_length + state_0->nb_goto)));
   // Aho-Corasick Algorithm 3: for each a such that s != 0 [fail], where s <- g(0, a) do   [1]
   for (size_t i = 0; i < state_0->nb_goto; i++)
   {
-    struct _ac_state *s = state_0->goto_array[i].state; // [s <- g(0, a)]
+    ACState *s = state_0->goto_array[i].state;  // [s <- g(0, a)]
 
     // Aho-Corasick Algorithm 3: queue <- queue U {s}
     queue_length++;
     queue[queue_length - 1] = s /* s */ ;
 
     // Aho-Corasick Algorithm 3: f(s) <- 0
-    s->fail_state = (struct _ac_state *) state_0;
+    s->fail_state = state_0;
   }                             // for (size_t i = 0; i < state_0->nb_goto; i++)
 
   size_t queue_read_pos = 0;
@@ -357,7 +345,7 @@ state_fail_state_construct (struct _ac_machine *state_0 /* state 0 */ )
   while (queue_read_pos < queue_length)
   {
     // Aho-Corasick Algorithm 3: let r be the next state in queue
-    struct _ac_state *r = queue[queue_read_pos];
+    ACState *r = queue[queue_read_pos];
 
     // Aho-Corasick Algorithm 3: queue <- queue - {r}
     queue_read_pos++;
@@ -365,7 +353,7 @@ state_fail_state_construct (struct _ac_machine *state_0 /* state 0 */ )
     // Aho-Corasick Algorithm 3: for each a such that s != fail, where s <- g(r, a)
     for (size_t i = 0; i < r->nb_goto; i++)
     {
-      struct _ac_state *s = r->goto_array[i].state;     // [s <- g(r, a)]
+      ACState *s = r->goto_array[i].state;      // [s <- g(r, a)]
       ACM_SYMBOL a = r->goto_array[i].letter;
 
       // Aho-Corasick Algorithm 3: queue <- queue U {s}
@@ -373,7 +361,7 @@ state_fail_state_construct (struct _ac_machine *state_0 /* state 0 */ )
       queue[queue_length - 1] = s;
 
       // Aho-Corasick Algorithm 3: state <- f(r)
-      struct _ac_state *state = r->fail_state /* f(r) */ ;
+      ACState *state = r->fail_state /* f(r) */ ;
 
       // Aho-Corasick Algorithm 3: while g(state, a) = fail [and state != 0] do state <- f(state)        [2]
       //                           [if g(state, a) != fail then] f(s) <- g(state, a) [else f(s) <- 0]    [3]
@@ -388,24 +376,24 @@ state_fail_state_construct (struct _ac_machine *state_0 /* state 0 */ )
 }
 
 #ifndef ACM_ASSOCIATED_VALUE
-ACM_PRIVATE struct _ac_machine *
-ACM_register_keyword (struct _ac_machine *state_0, Keyword y /* a[1] a[2] ... a[n] */ )
+ACM_PRIVATE ACMachine *
+ACM_register_keyword (ACMachine * machine, Keyword y /* a[1] a[2] ... a[n] */ )
 #else
-ACM_PRIVATE struct _ac_machine *
-ACM_register_keyword (struct _ac_machine *state_0, Keyword y    /* a[1] a[2] ... a[n] */
+ACM_PRIVATE ACMachine *
+ACM_register_keyword (ACMachine * machine, Keyword y    /* a[1] a[2] ... a[n] */
                       , void *value, void (*dtor) (void *))
 #endif
 {
   // Aho-Corasick Algorithm 2: newstate <- 0
   // Create state 0.
   // Executed only once, when 0 is passed as root argument
-  if (!state_0)
-    state_0 = (struct _ac_machine *) state_init ();
+  if (!machine)
+    machine = (ACMachine *) state_init ();
 
 #ifndef ACM_ASSOCIATED_VALUE
-  if (!state_goto_update (state_0, y))
+  if (!state_goto_update (machine, y))
 #else
-  if (!state_goto_update (state_0, y, value, dtor))
+  if (!state_goto_update (machine, y, value, dtor))
 #endif
     return 0;
 
@@ -424,28 +412,30 @@ ACM_register_keyword (struct _ac_machine *state_0, Keyword y    /* a[1] a[2] ...
   //       Thus, the implementation slightly differs from the one proposed by Aho-Corasick.
 
   // Force reconstruction of fail_states on first call to ACM_change_state since a new keyword has been added.
-  state_0->fail_state = &UNSET_STATE;
+  ((ACState *) machine)->fail_state = &UNSET_STATE;
 
-  return state_0;
+  return machine;
 }
 
 ACM_PRIVATE size_t
-ACM_nb_keywords (struct _ac_machine * machine)
+ACM_nb_keywords (ACMachine * machine)
 {
-  return machine ? machine->rank : 0;
+  return machine ? ((ACState *) machine)->rank : 0;
 }
 
-static struct _ac_state *
-get_last_state (struct _ac_machine *state_0, Keyword sequence)
+static ACState *
+get_last_state (ACMachine * machine, Keyword sequence)
 {
+  ACState *state_0 = (ACState *) machine;       // [state 0]
+
   if (!state_0)
     return 0;
 
-  struct _ac_state *state = (struct _ac_state *) state_0;
+  ACState *state = state_0;
 
   for (size_t j = 0; j < sequence.length; j++)
   {
-    struct _ac_state *next = 0;
+    ACState *next = 0;
 
     for (size_t k = 0; k < state->nb_goto; k++)
       if (ACM_SYMBOL_EQ (state->goto_array[k].letter, sequence.letter[j]))
@@ -464,13 +454,13 @@ get_last_state (struct _ac_machine *state_0, Keyword sequence)
 
 #ifndef ACM_ASSOCIATED_VALUE
 ACM_PRIVATE int
-ACM_is_registered_keyword (struct _ac_machine *state_0, Keyword sequence)
+ACM_is_registered_keyword (ACMachine * machine, Keyword sequence)
 #else
 ACM_PRIVATE int
 #endif
-ACM_is_registered_keyword (struct _ac_machine *state_0, Keyword sequence, void **value)
+ACM_is_registered_keyword (ACMachine * machine, Keyword sequence, void **value)
 {
-  struct _ac_state *last = get_last_state (state_0, sequence);
+  ACState *last = get_last_state (machine, sequence);
 
 #ifdef ACM_ASSOCIATED_VALUE
   if (last && value)
@@ -481,9 +471,11 @@ ACM_is_registered_keyword (struct _ac_machine *state_0, Keyword sequence, void *
 }
 
 ACM_PRIVATE int
-ACM_unregister_keyword (struct _ac_machine *state_0, Keyword y)
+ACM_unregister_keyword (ACMachine * machine, Keyword y)
 {
-  struct _ac_state *last = get_last_state (state_0, y);
+  ACState *state_0 = (ACState *) machine;       // [state 0]
+
+  ACState *last = get_last_state (machine, y);
 
   if (!last)
     return 0;
@@ -499,7 +491,7 @@ ACM_unregister_keyword (struct _ac_machine *state_0, Keyword y)
     return 1;
   }
 
-  struct _ac_state *prev = 0;
+  ACState *prev = 0;
 
   do
   {
@@ -527,17 +519,17 @@ ACM_unregister_keyword (struct _ac_machine *state_0, Keyword y)
 
     last = prev;
   }
-  while (prev && prev != (struct _ac_state *) state_0 && !prev->is_matching && !prev->nb_goto);
+  while (prev && prev != state_0 && !prev->is_matching && !prev->nb_goto);
 
   return 1;
 }
 
 #ifndef ACM_ASSOCIATED_VALUE
 static void
-foreach_keyword (struct _ac_state *state, ACM_SYMBOL ** letters, size_t length, void (*operator) (Keyword))
+foreach_keyword (ACState * state, ACM_SYMBOL ** letters, size_t length, void (*operator) (Keyword))
 #else
 static void
-foreach_keyword (struct _ac_state *state, ACM_SYMBOL ** letters, size_t * length, size_t depth,
+foreach_keyword (ACState * state, ACM_SYMBOL ** letters, size_t * length, size_t depth,
                  void (*operator) (Keyword, void *))
 #endif
 {
@@ -566,36 +558,40 @@ foreach_keyword (struct _ac_state *state, ACM_SYMBOL ** letters, size_t * length
 
 #ifndef ACM_ASSOCIATED_VALUE
 ACM_PRIVATE void
-ACM_foreach_keyword (struct _ac_machine *state_0, void (*operator) (Keyword))
+ACM_foreach_keyword (ACMachine * machine, void (*operator) (Keyword))
 #else
 ACM_PRIVATE void
-ACM_foreach_keyword (struct _ac_machine *state_0, void (*operator) (Keyword, void *))
+ACM_foreach_keyword (ACMachine * machine, void (*operator) (Keyword, void *))
 #endif
 {
+  ACState *state_0 = (ACState *) machine;       // [state 0]
+
   if (!state_0 || !operator)
     return;
 
   ACM_SYMBOL *letters = 0;
   size_t depth = 0;
 
-  foreach_keyword ((struct _ac_state *) state_0, &letters, &depth, 0, operator);
+  foreach_keyword (state_0, &letters, &depth, 0, operator);
 
   free (letters);
 }
 
 ACM_PRIVATE void
-ACM_release (struct _ac_machine *state_0)
+ACM_release (ACMachine * machine)
 {
+  ACState *state_0 = (ACState *) machine;       // [state 0]
+
   if (!state_0)
     return;
 
   for (size_t i = 0; i < state_0->nb_goto; i++)
-    ACM_release ((struct _ac_machine *) state_0->goto_array[i].state);
+    ACM_release ((ACMachine *) (state_0->goto_array[i].state));
 
   // Release goto_array
-  for (size_t i = 0; i < state_0->nb_goto; i++)
-    ACM_SYMBOL_DTOR (state_0->goto_array[i].letter);
-  free (state_0->goto_array);
+  for (size_t i = 0; i < ((ACState *) state_0)->nb_goto; i++)
+    ACM_SYMBOL_DTOR (((ACState *) state_0)->goto_array[i].letter);
+  free (((ACState *) state_0)->goto_array);
 
 #ifdef ACM_ASSOCIATED_VALUE
   // Release associated value
@@ -608,8 +604,8 @@ ACM_release (struct _ac_machine *state_0)
 }
 
 /// @see Aho-Corasick Algorithm 1: Pattern matching machine - while loop.
-static struct _ac_state *
-state_goto (struct _ac_state *state, ACM_SYMBOL letter /* Aho-Corasick Algorithm 1: a[i] */ )
+static ACState *
+state_goto (ACState * state, ACM_SYMBOL letter /* Aho-Corasick Algorithm 1: a[i] */ )
 {
   // Aho-Corasick Algorithm 1: while g(state, a[i]) = fail [and state != 0] do state <- f(state)           [2]
   //                           [if g(state, a[i]) != fail then] state <- g(state, a[i]) [else state <- 0]  [3]
@@ -639,8 +635,8 @@ state_goto (struct _ac_state *state, ACM_SYMBOL letter /* Aho-Corasick Algorithm
   }
 }
 
-ACM_PRIVATE struct _ac_state *
-ACM_change_state (struct _ac_state *state, ACM_SYMBOL letter)
+ACM_PRIVATE ACState *
+ACM_change_state (ACState * state, ACM_SYMBOL letter)
 {
   if (!state)
     return 0;
@@ -652,14 +648,14 @@ ACM_change_state (struct _ac_state *state, ACM_SYMBOL letter)
   //       Therefore, algorithms 2 and 3 can be processed sequentially.
   //       but then, algorithm 3 must traverse the full goto graph every time a sequence has been added.
   if (state->fail_state == &UNSET_STATE && !state->previous.state)
-    state_fail_state_construct ((struct _ac_machine *) state);
+    state_fail_state_construct ((ACMachine *) state);
 
   return state_goto (state, letter);
 }
 
 /// @see Aho-Corasick Algorithm 1: Pattern matching machine - if output (stat) != empty
 ACM_PRIVATE size_t
-ACM_nb_matches (const struct _ac_state * state)
+ACM_nb_matches (const ACState * state)
 {
   return state ? state->nb_sequence : 0;
 }
@@ -667,10 +663,10 @@ ACM_nb_matches (const struct _ac_state * state)
 /// @see Aho-Corasick Algorithm 1: Pattern matching machine - print output (state) [ith element]
 #ifndef ACM_ASSOCIATED_VALUE
 ACM_PRIVATE size_t
-ACM_get_match (const struct _ac_state * state, size_t index, MatchHolder * match)
+ACM_get_match (const ACState * state, size_t index, MatchHolder * match)
 #else
 ACM_PRIVATE size_t
-ACM_get_match (const struct _ac_state * state, size_t index, MatchHolder * match, void **value)
+ACM_get_match (const ACState * state, size_t index, MatchHolder * match, void **value)
 #endif
 {
   // Aho-Corasick Algorithm 1: if output(state) [ith element]
@@ -695,13 +691,13 @@ ACM_get_match (const struct _ac_state * state, size_t index, MatchHolder * match
     // Aho-Corasick Algorithm 1: print output(state) [ith element]
     // Reconstruct the matching keyword moving backward from the matching state to the state 0.
     match->length = 0;
-    for (const struct _ac_state * s = state; s && s->previous.state; s = s->previous.state)
+    for (const ACState * s = state; s && s->previous.state; s = s->previous.state)
       match->length++;
 
     // Reallocation of match->letter. match->letter should be freed by the user after the last call to ACM_get_match on match.
     ACM_ASSERT (match->letter = realloc (match->letter, sizeof (*match->letter) * match->length));
     i = 0;
-    for (const struct _ac_state * s = state; s && s->previous.state; s = s->previous.state)
+    for (const ACState * s = state; s && s->previous.state; s = s->previous.state)
     {
       match->letter[match->length - i - 1] = s->previous.state->goto_array[s->previous.i_letter].letter;
       i++;
