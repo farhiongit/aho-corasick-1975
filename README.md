@@ -31,8 +31,9 @@ In more details, compared to the implementation proposed by Aho and Corasick, th
          - [2] g(state, a) = fail must be replaced by: g(state, a) = fail and state != 0
          - [3] s <- g(state, a) must be replaced by: if g(state, a) != fail then s <- g(state, a) else s <- 0
 
-2. To reduce the memory footprint, this implementation does not stores output keywords associated to states.
-   It rather reconstructs matching keywords by traversing the branch of the tree backward (see ACM_get_match).
+2. To reduce the memory footprint, this implementation does not store output keywords associated to states.
+   It rather reconstructs matching keywords by traversing the branch of the tree backward.
+   Attributes previous and is_matching are added the the state object ACState (see ACM_get_match).
 3. This implementation permits to search for keywords even though all keywords have not been registered yet.
    To achieve this, failure states are reconstructed after every registration of a new keyword
    (see ACM_register_keyword which alternates calls to algorithms 2 and 3.)

@@ -1,7 +1,7 @@
-CFLAGS = -Wall -O -pthread -Werror -Wno-error=cpp
+CFLAGS = -Wall -O -pthread -Werror
 #CFLAGS += -g
-#CFLAGS += -pedantic
-#CC = clang
+CC = cc -Wno-error=cpp
+#CC = clang -Wno-error=\#warnings
 
 all: aho_corasick_test cloc execute aho_corasick.o nmo
 
