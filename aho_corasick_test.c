@@ -18,27 +18,20 @@
 *  along with this file.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-/// @see Efficient String Matching: An Aid to Bibliographic Search - Aho and Corasick - June 1975
-/// Compared to the implemenation proposed by Aho and Corasick, this one adds two small enhancements:
-/// - This implementation does not stores output keywords associated to states.
-///   It rather reconstructs matching keywords by traversing the branch of the tree backward (see ACM_get_match).
-/// - This implementation permits to search for keywords even though all keywords have not been registered yet.
-///   To achieve this, failure states are reconstructed after every registration of a next keyword
-///   (see ACM_register_keyword which alternates calls to algorithms 2 and 3.)
-
 // The interface of aho_corasick.h will be linked as static functions, not exportable to other compilation unit.
 #define PRIVATE_MODULE
 
-#include <string.h>
 #include <stdio.h>
 #include <assert.h>
-#include <ctype.h>
+#include <wctype.h>
+#include <wchar.h>
+#include <locale.h>
 
 // 1. Define the type ACM_SYMBOL with the type of symbols that constitute keywords.
-#define ACM_SYMBOL char
+#define ACM_SYMBOL wchar_t
 
 // A comparator of symbols can be user defined instead of the standard '==' operator.
-static int nocaseeq (char k, char t);
+static int nocaseeq (wchar_t k, wchar_t t);
 
 #define ACM_SYMBOL_EQ_OPERATOR nocaseeq
 
@@ -46,11 +39,22 @@ static int nocaseeq (char k, char t);
 #include "aho_corasick.h"
 
 static int nocase;
+static int words;
 static int
-nocaseeq (char k, char t)
+nocaseeq (wchar_t k, wchar_t t)
 {
+  if (words)
+  {
+    if (!iswalpha (k) && !iswalpha (t))
+      return 1;
+    if (iswalpha (k) && !iswalpha (t))
+      return 0;
+    if (!iswalpha (k) && iswalpha (t))
+      return 0;
+  }
+
   if (nocase)
-    return k == tolower (t);
+    return k == towlower (t);
   else
     return k == t;
 }
@@ -63,11 +67,23 @@ static void
 print_match (MatchHolder match, void *value)
 #endif
 {
+#ifdef ACM_ASSOCIATED_VALUE
+  if (value && *(size_t *) value == 0)
+    return;
+#endif
   if (ACM_MATCH_LENGTH (match))
   {
     printf ("{");
     for (size_t k = 0; k < ACM_MATCH_LENGTH (match); k++)
-      printf ("%c", ACM_MATCH_SYMBOLS (match)[k]);
+      printf ("%lc", ACM_MATCH_SYMBOLS (match)[k]);
+
+#ifdef ACM_ASSOCIATED_VALUE
+    if (value)
+    {
+      printf (", ");
+      printf ("%lu", *(size_t *) value);
+    }
+#endif
     printf ("}");
   }
 }
@@ -76,10 +92,12 @@ print_match (MatchHolder match, void *value)
 int
 main (void)
 {
+  setlocale (LC_ALL, "");
 
   /****************** First test ************************/
+  // This test constructs and plays with the graph from the original paper of Aho-Corasick.
   // The text where keywords are searched for.
-  char text[] = "He found his pencil, but she could not find hers (hi! ushers !!)\nabcdz\nbcz\nczz\n_abcde_xyzxyt";
+  wchar_t text[] = L"He found his pencil, but she could not find hers (hi! ushers !!)\nabcdz\nbcz\nczz\n_abcde_xyzxyt";
 
   nocase = 1;                   // not case sensitive
 
@@ -89,29 +107,29 @@ main (void)
 // Declares all the keywords
 // "hers" appears twice but will be registerd once.
 #define LIST_OF_KEYWORDS  \
-  X(M, 'h', 'e')  \
-  X(M, 's', 'h', 'e')  \
-  X(M, 's', 'h', 'e', 'e', 'r', 's')  \
-  X(M, 'h', 'i', 's')  \
-  X(M, 'h', 'i')  \
-  X(M, 'h', 'e', 'r', 's')  \
-  X(M, 'u', 's', 'h', 'e', 'r', 's')  \
-  X(M, 'a', 'b', 'c', 'd', 'e')  \
-  X(M, 'b', 'c', 'd')  \
-  X(M, 'h', 'e', 'r', 's')  \
-  X(M, 'z', 'z')  \
-  X(M, 'c')  \
-  X(M, 'z')  \
-  X(M, 'p', 'e', 'n')  \
-  X(M, 'z', 'z', 'z')  \
-  X(M, 'x', 'y', 'z')  \
-  X(M, 'x', 'y', 't')  \
+  X(M, L'h', L'e')  \
+  X(M, L's', L'h', L'e')  \
+  X(M, L's', L'h', L'e', L'e', L'r', L's')  \
+  X(M, L'h', L'i', L's')  \
+  X(M, L'h', L'i')  \
+  X(M, L'h', L'e', L'r', L's')  \
+  X(M, L'u', L's', L'h', L'e', L'r', L's')  \
+  X(M, L'a', L'b', L'c', L'd', L'e')  \
+  X(M, L'b', L'c', L'd')  \
+  X(M, L'h', L'e', L'r', L's')  \
+  X(M, L'z', L'z')  \
+  X(M, L'c')  \
+  X(M, L'z')  \
+  X(M, L'p', L'e', L'n')  \
+  X(M, L'z', L'z', L'z')  \
+  X(M, L'x', L'y', L'z')  \
+  X(M, L'x', L'y', L't')  \
 
 // Function applied to register a keyword in the state machine
 #ifdef ACM_ASSOCIATED_VALUE
-#define EXTRA ,0
+#  define EXTRA ,0
 #else
-#define EXTRA
+#  define EXTRA
 #endif
 
 #define X(MACHINE, ...) \
@@ -135,26 +153,26 @@ main (void)
 
   printf (" [%zu]\n", ACM_nb_keywords (M));
   {
-    Keyword kw = {.letter = "sheers",.length = 6 };
-    assert (ACM_is_registered_keyword (M, kw, 0));
+    Keyword kw = {.letter = L"sheers",.length = 6 };
+    assert (ACM_is_registered_keyword (M, kw EXTRA));
     assert (ACM_unregister_keyword (M, kw));
     assert (!ACM_unregister_keyword (M, kw));
-    assert (!ACM_is_registered_keyword (M, kw, 0));
+    assert (!ACM_is_registered_keyword (M, kw EXTRA));
   }
   {
-    Keyword kw = {.letter = "hi",.length = 2 };
+    Keyword kw = {.letter = L"hi",.length = 2 };
     assert (ACM_unregister_keyword (M, kw));
   }
   {
-    Keyword kw = {.letter = "pen",.length = 3 };
+    Keyword kw = {.letter = L"pen",.length = 3 };
     assert (ACM_unregister_keyword (M, kw));
   }
   {
-    Keyword kw = {.letter = "zzz",.length = 3 };
+    Keyword kw = {.letter = L"zzz",.length = 3 };
     assert (ACM_unregister_keyword (M, kw));
   }
   {
-    Keyword kw = {.letter = "xyt",.length = 3 };
+    Keyword kw = {.letter = L"xyt",.length = 3 };
     assert (ACM_unregister_keyword (M, kw));
   }
 
@@ -163,32 +181,32 @@ main (void)
 
   // 5. Initialize an internal machine state to M.
   // Actual state of the machine, initialized with the machine state before any call to ACM_change_state.
-  ACState *s = ACState (M);
+  ACM_reset_state (M);
 
   // 6. Initialize a match holder with ACM_MATCH_INIT before the first use by ACM_get_match.
   MatchHolder match;
 
   ACM_MATCH_INIT (match);
-  printf ("%s\n", text);
-  for (size_t i = 0; i < strlen (text); i++)
+  printf ("%ls\n", text);
+  for (size_t i = 0; i < wcslen (text); i++)
   {
-    printf ("%c", text[i]);
+    printf ("%lc", text[i]);
 
     // 7. Inject symbols of the text, one at a time by calling ACM_change_state() on s. Cycle on machine states.
-    ACM_CHANGE_STATE (s, text[i]);
+    ACM_change_state (M, text[i]);
 
     // 8. After each insertion of a symbol, call ACM_nb_matches() on the internal state s to check if the last inserted symbols match a keyword.
     // Get the matching keywords for the actual state of the machine.
-    size_t nb_matches = ACM_nb_matches (s);
+    size_t nb_matches = ACM_nb_matches (M);
 
     // 9. If matches were found, retrieve them calling ACM_get_match() for each match.
     for (size_t j = 0; j < nb_matches; j++)
     {
       // Get the ith matching keyword for the actual state of the machine.
 #ifndef ACM_ASSOCIATED_VALUE
-      printf ("[%zu]", ACM_get_match (s, j, &match));
+      printf ("[%zu]", ACM_get_match (M, j, &match));
 #else
-      printf ("[%zu]", ACM_get_match (s, j, &match, 0));
+      printf ("[%zu]", ACM_get_match (M, j, &match, 0));
 #endif
 
       // Display matching pattern
@@ -205,11 +223,10 @@ main (void)
   ACM_release (M);
 
   /****************** Second test ************************/
-  char message[] = "hello\n, this\n is\n a\n great\n message\n, bye\n !";
-
-  printf ("%s\n", message);
-
+  // This test counts the number of time the words in the english dictionnary ("words") appear
+  // in the Woolf's book Mrs Dalloway ("mrs_dalloway.txt").
   nocase = 0;                   // Case sensitive
+  words = 1;
 
   FILE *stream;
 
@@ -217,74 +234,87 @@ main (void)
   if (stream == 0)
     exit (EXIT_FAILURE);
 
-  char *line = 0;
-  size_t len = 0;
-  size_t read = 0;
+  wchar_t line[100] = L" ";     // keywords start with ' '
 
   // 3. M is prepared for reuse.
   M = 0;
 
   // 4. Add keywords (of type Keyword) to the state machine calling ACM_register_keyword() repeatedly.
-  for (int stage = 1; stage <= 2; stage++)
+  while (fgetws (line + 1, sizeof (line) / sizeof (*line) - 1, stream))
   {
-    for (; (read < 50000 || stage == 2) && getline (&line, &len, stream) != -1; read++)
-    {
-      ACMachine *s;
-      Keyword k;
+    Keyword k;
 
-      ACM_KEYWORD_SET (k, line, strlen (line)); // keywords end with newline
+    line[wcslen (line) - 1] = L' ';     // keywords end with ' \0'
+    ACM_KEYWORD_SET (k, line, wcsnlen (line, sizeof (line) / sizeof (*line)));
 #ifdef ACM_ASSOCIATED_VALUE
-      size_t *v = malloc (sizeof (*v));
+    size_t *v = malloc (sizeof (*v));
 
-      *v = ACM_nb_keywords (M);
+    *v = 0;
 
-      // Values can be associated registered keywords. Values are allocated in the user program.
-      // This memory will be freed by the function passed as the 4th argument (here 'free', but it could be a user defined finction).
-      // That function will be called for each registered keyword by ACM_release.
-      if ((s = ACM_register_keyword (M, k, v, free)))
+    // Values can be associated registered keywords. Values are allocated in the user program.
+    // This memory will be freed by the function passed as the 4th argument (here 'free', but it could be a user defined finction).
+    // That function will be called for each registered keyword by ACM_release.
+    ACM_REGISTER_KEYWORD (M, k, v, free);
 #else
-      if ((s = ACM_register_keyword (M, k)))
+    ACM_REGISTER_KEYWORD (M, k);
 #endif
-        M = s;
-    }
 
-    printf ("[%zu]: ", ACM_nb_keywords (M));
-
-    // 5. Initialize an internal machine state to M.
-    // Internal state MUST BE set to M after a keyword has been inserted by ACM_register_keyword.
-    s = ACState (M);
-
-    for (size_t i = 0; i < strlen (message); i++)
+    if (1)
+      ;
+    else if (!wcscmp (L" m ", line))
     {
-      if (message[i] != '\n')
-        printf ("%c", message[i]);
-      // 7. Inject symbols of the text, one at a time by calling ACM_change_state() on s.
-      ACM_CHANGE_STATE (s, message[i]);
-      // 8. After each insertion of a symbol, call ACM_nb_matches() on the internal state s to check if the last inserted symbols match a keyword.
-      size_t nb = ACM_nb_matches (s);
-
-      if (nb)
-      {
-        printf ("<");
-
-#ifdef ACM_ASSOCIATED_VALUE
-        // 9. If matches were found, retrieve them calling ACM_get_match() for each match.
-        for (size_t j = 0; j < nb; j++)
-        {
-          void *v;
-          size_t u = ACM_get_match (s, j, 0, &v);
-
-          assert (*(size_t *) v == u);
-        }
-#endif
-      }
+      ACM_reset_state (M);
+      ACM_change_state (M, L' ');
+      printf ("[%zu]:\n", ACM_nb_keywords (M));
     }
-
-    printf ("\n");
+    else if (!wcscmp (L" n ", line))
+    {
+      ACM_reset_state (M);
+      ACM_change_state (M, L' ');
+      printf ("[%zu]:\n", ACM_nb_keywords (M));
+    }
   }
 
-  free (line);
   fclose (stream);
+
+  // 5. Initialize an internal machine state to M.
+  // Internal state MUST BE set to M after a keyword has been inserted by ACM_register_keyword.
+  ACM_reset_state (M);
+  ACM_change_state (M, L' ');
+  printf ("[%zu]:\n", ACM_nb_keywords (M));
+
+  stream = fopen ("mrs_dalloway.txt", "r");
+  if (stream == 0)
+    exit (EXIT_FAILURE);
+
+  for (wint_t wc; (wc = fgetwc (stream)) != WEOF;)
+  {
+    // 7. Inject symbols of the text, one at a time by calling ACM_change_state() on s.
+    ACM_change_state (M, wc);
+    // 8. After each insertion of a symbol, call ACM_nb_matches() on the internal state s to check if the last inserted symbols match a keyword.
+    size_t nb = ACM_nb_matches (M);
+
+    if (nb)
+    {
+#ifdef ACM_ASSOCIATED_VALUE
+      // 9. If matches were found, retrieve them calling ACM_get_match() for each match.
+      for (size_t j = 0; j < nb; j++)
+      {
+        void *v;
+        ACM_get_match (M, j, 0, &v);
+        (*(size_t *) v)++;
+      }
+#endif
+    }
+  }
+
+  fclose (stream);
+
+#ifdef ACM_ASSOCIATED_VALUE
+  ACM_foreach_keyword (M, print_match);
+#endif
+
+  printf ("\n");
 
   // 11. After usage, release the state machine calling ACM_release() on M.
   // ACM_release also frees the values associated to registered keywords.

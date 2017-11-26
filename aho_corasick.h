@@ -26,22 +26,22 @@
 
 #pragma once
 #ifndef AHO_CORASICK
-#define AHO_CORASICK
+#  define AHO_CORASICK
 
-#include <stddef.h>
-#include <inttypes.h>
-#include <stdlib.h>
+#  include <stddef.h>
+#  include <inttypes.h>
+#  include <stdlib.h>
 
-#ifdef PRIVATE_MODULE
-#define ACM_PRIVATE static __attribute__((__unused__))
-#else
-#define ACM_PRIVATE
-#endif
+#  ifdef PRIVATE_MODULE
+#    define ACM_PRIVATE static __attribute__((__unused__))
+#  else
+#    define ACM_PRIVATE
+#  endif
 
-// Type of SYMBOL int is generic and suits to numerous use cases.
-#ifndef ACM_SYMBOL
-#error Please define ACM_SYMBOL before include.
-#endif
+// Type of ACM_SYMBOL int is generic and suits to numerous use cases.
+#  ifndef ACM_SYMBOL
+#    error Please define ACM_SYMBOL before include.
+#  endif
 
 /******************** User interface ********************/
 /// Type of keywords. A keyword is a succession of symbols of user defined type ACM_SYMBOL.
@@ -54,39 +54,31 @@ typedef Keyword MatchHolder;
 
 /// Matches macro helpers
 // - getters: ACM_MATCH_LENGTH and ACM_MATCH_SYMBOLS
-#define ACM_MATCH_LENGTH(match) ((match).length)
-#define ACM_MATCH_SYMBOLS(match) ((match).letter)
+#  define ACM_MATCH_LENGTH(match) ((match).length)
+#  define ACM_MATCH_SYMBOLS(match) ((match).letter)
 
 /// Keyword macro helpers
 // - setter: ACM_KEYWORD_SET
-#define ACM_KEYWORD_SET(keyword, symbols, length)  \
+#  define ACM_KEYWORD_SET(keyword, symbols, length)  \
   do { ACM_MATCH_SYMBOLS (keyword) = (symbols); ACM_MATCH_LENGTH (keyword) = (length); } while (0)
 
 /// Matches macro helpers
 // - memory managment: ACM_MATCH_INIT and ACM_MATCH_RELEASE
-#define ACM_MATCH_INIT(match) ACM_KEYWORD_SET((match), 0, 0)
-#define ACM_MATCH_RELEASE(match) do { free (ACM_MATCH_SYMBOLS (match)); ACM_MATCH_INIT (match); } while (0)
+#  define ACM_MATCH_INIT(match) ACM_KEYWORD_SET((match), 0, 0)
+#  define ACM_MATCH_RELEASE(match) do { free (ACM_MATCH_SYMBOLS (match)); ACM_MATCH_INIT (match); } while (0)
 
 // State machine macro helpers
 // - ACM_REGISTER_KEYWORD
-#ifndef ACM_ASSOCIATED_VALUE
-#define ACM_REGISTER_KEYWORD(machine, keyword)  \
+#  ifndef ACM_ASSOCIATED_VALUE
+#    define ACM_REGISTER_KEYWORD(machine, keyword)  \
   do { ACMachine * tmp = ACM_register_keyword ((machine), (keyword)); if (tmp) (machine) = tmp; } while (0)
-#else
-#define ACM_REGISTER_KEYWORD(machine, keyword, value_ptr, dtor)  \
+#  else
+#    define ACM_REGISTER_KEYWORD(machine, keyword, value_ptr, dtor)  \
   do { ACMachine * tmp = ACM_register_keyword ((machine), (keyword), (value_ptr), (dtor)); if (tmp) (machine) = tmp; } while (0)
-#endif
-
-// - ACM_CHANGE_STATE
-#define ACM_CHANGE_STATE(state, letter)  \
-  do { (state) = ACM_change_state ((state), (letter)) ; } while (0)
+#  endif
 
 struct _ac_machine;             // Partially declared structure
 typedef struct _ac_machine ACMachine;
-struct _ac_state;               // Partially declared structure
-typedef struct _ac_state ACState;
-
-#define ACState(M) (ACState *)(M)
 
 /// Register a new keyword into a Aho-Corasick Machine.
 /// @param [in] machine 0 or a pointer to a Aho-Corasick Machine allocated by a previous call to ACM_register_keyword.
@@ -96,22 +88,22 @@ typedef struct _ac_state ACState;
 /// @returns Pointer to the Aho-Corasick Machine or 0 if the keyword had already been registered and was not registered again.
 /// machine should be 0 on first call.
 /// Usage: ACMachine is, machine = 0; if ((is = ACM_register_keyword (machine, keyword))) machine = is;
-#ifndef ACM_ASSOCIATED_VALUE
+#  ifndef ACM_ASSOCIATED_VALUE
 ACM_PRIVATE ACMachine *ACM_register_keyword (ACMachine * machine, Keyword keyword);
-#else
+#  else
 ACM_PRIVATE ACMachine *ACM_register_keyword (ACMachine * machine, Keyword keyword, void *value, void (*dtor) (void *));
-#endif
+#  endif
 
 /// Check if a keyword is registered into a Aho-Corasick Machine.
 /// @param [in] machine A pointer to a Aho-Corasick Machine allocated by a previous call to ACM_register_keyword.
 /// @param [in] keyword A keyword.
 /// @param [out] value 0 or the address of the pointer to the value assiociated with the keyword match.
 /// @return 1 if the keyword is registered in the machine, 0 otherwise.
-#ifndef ACM_ASSOCIATED_VALUE
+#  ifndef ACM_ASSOCIATED_VALUE
 ACM_PRIVATE int ACM_is_registered_keyword (ACMachine * machine, Keyword keyword);
-#else
+#  else
 ACM_PRIVATE int ACM_is_registered_keyword (ACMachine * machine, Keyword keyword, void **value);
-#endif
+#  endif
 
 /// Unregister a keyword from a Aho-Corasick Machine.
 /// @param [in] machine A pointer to a Aho-Corasick Machine allocated by a previous call to ACM_register_keyword.
@@ -129,28 +121,33 @@ ACM_PRIVATE size_t ACM_nb_keywords (ACMachine * machine);
 /// @param [in] machine A pointer to a Aho-Corasick Machine allocated by a previous call to ACM_register_keyword.
 /// @param [in] operator Operator applied to each keyword of the state machine.
 /// @note The operator is applied to keywords in unspecified order.
-#ifndef ACM_ASSOCIATED_VALUE
+#  ifndef ACM_ASSOCIATED_VALUE
 ACM_PRIVATE void ACM_foreach_keyword (ACMachine * machine, void (*operator) (Keyword));
-#else
+#  else
 ACM_PRIVATE void ACM_foreach_keyword (ACMachine * machine, void (*operator) (Keyword, void *));
-#endif
+#  endif
 
 /// Change internal state.
-/// @param [in] state Internal state.
+/// @param [in] machine State machine.
 /// @param [in] letter State transition.
-/// @returns Updated internal state.
 /// @note On first call or after a call to ACM_register_keyword(), the internal state should be initialized with value returned by
 /// the last call to ACM_register_keyword().
 /// Usage: state = ACM_change_state (state, letter);
-ACM_PRIVATE ACState *ACM_change_state (ACState * state, ACM_SYMBOL letter);
+ACM_PRIVATE void ACM_change_state (ACMachine * machine, ACM_SYMBOL letter);
+
+/// Setting or resetting the state to the initial state of the msteate machine
+/// will enforce the next letter to try to match with only the first symbol of a registered keyword (if possible).
+/// This is useful to start parsing a new text aginst registered keywords.
+/// @param [in] machine A pointer to a Aho-Corasick Machine allocated by a previous call to ACM_register_keyword.
+ACM_PRIVATE void ACM_reset_state (ACMachine * machine);
 
 /// Get the number of keywords associated to the internal state.
-/// @param [in] state Internal state.
+/// @param [in] machine State machine.
 /// @returns The number of keywords associated to the internal state.
-ACM_PRIVATE size_t ACM_nb_matches (const ACState * state);
+ACM_PRIVATE size_t ACM_nb_matches (const ACMachine * machine);
 
 /// Get the ith keyword associate to the internal state.
-/// @param [in] state Internal state.
+/// @param [in] machine State machine.
 /// @param [in] index of the requested keyword.
 /// @param [out] match 0 or a pointer to a keyword.
 ///                       *match is modified to the keyword of rank 'index' associated to the internal state.
@@ -159,11 +156,11 @@ ACM_PRIVATE size_t ACM_nb_matches (const ACState * state);
 /// index should be less than the value returned by state_nb_keywords().
 /// match->letter should have been initialized to 0 prior to first call to ACM_get_match.
 /// match->letter should be freed by the user program after the last call to ACM_get_match.
-#ifndef ACM_ASSOCIATED_VALUE
-ACM_PRIVATE size_t ACM_get_match (const ACState * state, size_t index, MatchHolder * match);
-#else
-ACM_PRIVATE size_t ACM_get_match (const ACState * state, size_t index, MatchHolder * match, void **value);
-#endif
+#  ifndef ACM_ASSOCIATED_VALUE
+ACM_PRIVATE size_t ACM_get_match (const ACMachine * machine, size_t index, MatchHolder * match);
+#  else
+ACM_PRIVATE size_t ACM_get_match (const ACMachine * machine, size_t index, MatchHolder * match, void **value);
+#  endif
 
 /// Release allocated resources.
 /// @param [in] machine A pointer to a Aho-Corasick Machine allocated by a previous call to ACM_register_keyword.
@@ -171,8 +168,8 @@ ACM_PRIVATE size_t ACM_get_match (const ACState * state, size_t index, MatchHold
 /// machine should be set to 0 before reuse.
 ACM_PRIVATE void ACM_release (ACMachine * machine);
 
-#ifdef PRIVATE_MODULE
-#include "aho_corasick.c"
-#endif
+#  ifdef PRIVATE_MODULE
+#    include "aho_corasick.c"
+#  endif
 
 #endif
