@@ -1,7 +1,6 @@
-**A small, documented, easy to use implementation of the Aho-Corasick algorithm.**
-------------------------------------------------------------------------------
+#A small, documented, easy to use implementation of the Aho-Corasick algorithm.
 
-This implementation of the Aho-Corasick algorithm has several benefits:
+This project offers an efficient implement of the Aho-Corasick algorithm which shows several benefits:
 
 - It sticks acurately and step by step to the pseudo-code given in the original paper from Aho and Corasick
   (btw exquisitely clear and well written, see Aho, Alfred V.; Corasick, Margaret J. (June 1975).
@@ -14,9 +13,9 @@ This implementation of the Aho-Corasick algorithm has several benefits:
 In more details, compared to the implementation proposed by Aho and Corasick, this one adds several enhancements:
 
 1. First of all, the implementation does not make any assumption on the size of the alphabet used.
-   Particularly, the alphanet is not limited to 256 signs.
-   The number of possible signs is only defined by the type of symbol the user decides to use.
-   For instance, if ACM_SYMBOL would be defined as 'long long int', then the number of possible signs would be 18446744073709551616.
+Particularly, the alphanet is not limited to 256 signs.
+The number of possible signs is only defined by the type of symbol the user decides to use.
+For instance, if ACM_SYMBOL would be defined as 'long long int', then the number of possible signs would be 18446744073709551616.
 
       - For this to be possible, the assertion "for all a such that g(0, a) = fail do g(0, a) <- 0" in the Aho-Corasick paper,
         at the end of algorithm 2 can not be fulfilled because it would require to set g(0, a) for all the values of 'a'
@@ -32,8 +31,8 @@ In more details, compared to the implementation proposed by Aho and Corasick, th
          - [3] s <- g(state, a) must be replaced by: if g(state, a) != fail then s <- g(state, a) else s <- 0
 
 2. To reduce the memory footprint, this implementation does not store output keywords associated to states.
-   It rather reconstructs matching keywords by traversing the branch of the tree backward.
-   Attributes previous and is_matching are added the the state object ACState (see ACM_get_match).
+   Instead, it reconstructs the matching keywords by traversing the branch of the tree backward.
+   Attributes 'previous' and 'is_matching' are added the the state object ACState (see ACM_get_match).
 3. This implementation permits to search for keywords even though all keywords have not been registered yet.
    To achieve this, failure states are reconstructed after every registration of a new keyword
    (see ACM_register_keyword which alternates calls to algorithms 2 and 3.)
@@ -51,8 +50,12 @@ In more details, compared to the implementation proposed by Aho and Corasick, th
       - ACM_unregister_keyword() removes a keyword from the state machine.
       - ACM_foreach_keyword() applies a user defined operator to each keyword of the state machine.
 
-Usage:
------
+## Implementations
+
+The implementation allows one instanciation of the Aho-Corasock machine for the type defined by ACM_SYMBOL.
+
+### Usage
+
 First, initialize the finite state machine with a set of keywords to be searched for:
 
 1. Define the type ACM_SYMBOL with the type of symbols that constitute keywords. char or int should match most needs.
@@ -71,23 +74,23 @@ First, initialize the finite state machine with a set of keywords to be searched
 
 Then, search for keywords in an input text:
 
-5. Initialize an initial machine state: ACState s = ACState (M);
-6. Initialize a match holder with ACM_MATCH_INIT before the first use by ACM_get_match.
-7. Inject symbols of the text, one at a time by calling ACM_change_state() on s.
-      - The macro helper ACM_CHANGE_STATE can be conveniently used.
-8. After each insertion of a symbol, call ACM_nb_matches() on the internal state s to check if the last inserted symbols match a keyword.
-9. If matches were found, retrieve them calling ACM_get_match() for each match.
+5. Initialize a match holder with ACM_MATCH_INIT before the first use by ACM_get_match.
+6. Inject symbols of the text, one at a time by calling ACM_change_state().
+7. After each insertion of a symbol, call ACM_nb_matches() to check if the last inserted symbols match a keyword.
+8. If matches were found, retrieve them calling ACM_get_match() for each match.
       - ACM_MATCH_LENGTH and ACM_MATCH_SYMBOLS can be used to get the length and the content of the match found.
-10. After the last call to ACM_get_match(), release to match holder by calling ACM_MATCH_RELEASE.
+      - If a new text has to be processed by the state machine, reset it to its initial state (ACM_reset_state) so that the next symbol will
+        be matched against the first letter of each keyword.
+9. After the last call to ACM_get_match(), release to match holder by calling ACM_MATCH_RELEASE.
 
 Finally:
 
-11. After usage, release the state machine calling ACM_release() on M.
+10. After usage, release the state machine calling ACM_release() on M.
 
 Look at aho_corasich.h for a detailed documentation of the interface and at aho_corasick_test.c for a fully documented example.
 
-Note on ACM_SYMBOL:
-------------------
+### Note on ACM_SYMBOL
+
 ACM_SYMBOL is the type of letters of the alphabet that constitutes the keywords.
 
 ACM_SYMBOL can be any basic type (char, int, unisigned long long int for instance), or a user defined structure.
@@ -108,8 +111,8 @@ E.g. the following code will make string matching case insensitive.
     { return tolower (k) == tolower (t); }
     #define ACM_SYMBOL_EQ_OPERATOR nocaseeq
 
-Note if ACM_SYMBOL is a structure (does not apply for basic types such as int or char):
----------------------------------------------------------------------------------------
+### Note if ACM_SYMBOL is a structure (does not apply for basic types such as int or char)
+
 If ACM_SYMBOL is a structure:
 
   - Defining a user defined equality operator ACM_SYMBOL_EQ_OPERATOR is compulsory.
@@ -119,8 +122,8 @@ If ACM_SYMBOL is a structure:
       - a destructor operator with signature 'void *function* (ACM_SYMBOL a)' should be defined in the user program and
         the name of the function should be defined in macro ACM_SYMBOL_DTOR_OPERATOR.
 
-Compilation:
-------------
+### Compilation
+
 The algorithm can be compiled either as an object (aho_corasick.o) or as a private module (if PRIVATE_MODULE is defined in the user program).
 
 If PRIVATE_MODULE is set in the user program, then:
@@ -129,8 +132,7 @@ If PRIVATE_MODULE is set in the user program, then:
   There is no need to compile aho_corasick.c separately, the source will be include in the user program including aho_corasick.h.
 - the warning "The Aho-Corasick algorithm is compiled as a private module." is emitted during compilation.
 
-Files:
-------
+### Files
 
 Source code:
 
@@ -141,7 +143,7 @@ Source code:
 Examples:
 
 - aho_corasick_test.c gives a complete and commented example (words.gz should be gunzip'ed before use).
-- words.gz is an input file used by the example.
+- words and mrs_dalloway.txt are input files used by the example.
 - aho_corasick_symbol.h is an example of a declaration of the ACM_SYMBOL.
 
 Hopes this helps.
