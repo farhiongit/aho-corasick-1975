@@ -49,6 +49,7 @@ For instance, if ACM_SYMBOL would be defined as 'long long int', then the number
       - ACM_is_registered_keyword() check for the existence of a keyword in the state machine.
       - ACM_unregister_keyword() removes a keyword from the state machine.
       - ACM_foreach_keyword() applies a user defined operator to each keyword of the state machine.
+7. Last but not least, this implementation is very fast.
 
 ## Implementations
 
@@ -75,17 +76,17 @@ First, initialize the finite state machine with a set of keywords to be searched
 Then, search for keywords in an input text:
 
 5. Initialize a match holder with ACM_MATCH_INIT before the first use by ACM_get_match.
-6. Inject symbols of the text, one at a time by calling ACM_change_state().
-7. After each insertion of a symbol, call ACM_nb_matches() to check if the last inserted symbols match a keyword.
-8. If matches were found, retrieve them calling ACM_get_match() for each match.
+6. Inject symbols of the text, one at a time by calling ACM_nb_matches(), and,
+   after each insertion of a symbol, check if the last inserted symbols match a keyword.
+7. If matches were found, retrieve them calling ACM_get_match() for each match.
       - ACM_MATCH_LENGTH and ACM_MATCH_SYMBOLS can be used to get the length and the content of the match found.
-      - If a new text has to be processed by the state machine, reset it to its initial state (ACM_reset_state) so that the next symbol will
+      - If a new text has to be processed by the state machine, reset it to its initial state (ACM_reset) so that the next symbol will
         be matched against the first letter of each keyword.
-9. After the last call to ACM_get_match(), release to match holder by calling ACM_MATCH_RELEASE.
+8. After the last call to ACM_get_match(), release to match holder by calling ACM_MATCH_RELEASE.
 
 Finally:
 
-10. After usage, release the state machine calling ACM_release() on M.
+9. After usage, release the state machine calling ACM_release() on M.
 
 Look at aho_corasich.h for a detailed documentation of the interface and at aho_corasick_test.c for a fully documented example.
 

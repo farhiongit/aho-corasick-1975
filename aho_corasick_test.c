@@ -188,14 +188,12 @@ main (void)
   {
     printf ("%lc", text[i]);
 
-    // 6. Inject symbols of the text, one at a time by calling ACM_change_state().
-    ACM_change_state (M, text[i]);
+    // 6. Inject symbols of the text, one at a time by calling ACM_nb_matches().
+    //    After each insertion of a symbol, check if the last inserted symbols match a keyword.
+    //    Get the matching keywords for the actual state of the machine.
+    size_t nb_matches = ACM_nb_matches (M, text[i]);
 
-    // 7. After each insertion of a symbol, call ACM_nb_matches() to check if the last inserted symbols match a keyword.
-    // Get the matching keywords for the actual state of the machine.
-    size_t nb_matches = ACM_nb_matches (M);
-
-    // 8. If matches were found, retrieve them calling ACM_get_match() for each match.
+    // 7. If matches were found, retrieve them calling ACM_get_match() for each match.
     for (size_t j = 0; j < nb_matches; j++)
     {
       // Get the ith matching keyword for the actual state of the machine.
@@ -210,12 +208,12 @@ main (void)
     }
   }
 
-  // 9. After the last call to ACM_get_match(), release to keyword by calling ACM_MATCH_RELEASE.
+  // 8. After the last call to ACM_get_match(), release to keyword by calling ACM_MATCH_RELEASE.
   ACM_MATCH_RELEASE (match);
 
   printf ("\n");
 
-  // 10. Release resources allocated by the state machine after usage.
+  // 9. Release resources allocated by the state machine after usage.
   ACM_release (M);
 
   /****************** Second test ************************/
@@ -259,24 +257,24 @@ main (void)
       ;
     else if (!wcscmp (L" m ", line))
     {
-      ACM_change_state (M, L' ');
+      ACM_nb_matches (M, L' ');
       printf ("[%zu]:\n", ACM_nb_keywords (M));
       // If a new text has to be processed by the state machine, reset it to its initial state so that the next symbol
       // will be matched against the first letter of each keyword.
-      ACM_reset_state (M);
+      ACM_reset (M);
     }
     else if (!wcscmp (L" n ", line))
     {
-      ACM_change_state (M, L' ');
+      ACM_nb_matches (M, L' ');
       printf ("[%zu]:\n", ACM_nb_keywords (M));
-      ACM_reset_state (M);
+      ACM_reset (M);
     }
   }
 
   fclose (stream);
 
   // 6. Inject symbols of the text, one at a time by calling ACM_change_state().
-  ACM_change_state (M, L' ');
+  ACM_nb_matches (M, L' ');
   printf ("[%zu]:\n", ACM_nb_keywords (M));
 
   stream = fopen ("mrs_dalloway.txt", "r");
@@ -285,15 +283,14 @@ main (void)
 
   for (wint_t wc; (wc = fgetwc (stream)) != WEOF;)
   {
-    // 6. Inject symbols of the text, one at a time by calling ACM_change_state().
-    ACM_change_state (M, wc);
-    // 7. After each insertion of a symbol, call ACM_nb_matches() to check if the last inserted symbols match a keyword.
-    size_t nb = ACM_nb_matches (M);
+    // 6. Inject symbols of the text, one at a time by calling ACM_nb_matches().
+    //    After each insertion of a symbol, check if the last inserted symbols match a keyword.
+    size_t nb = ACM_nb_matches (M, wc);
 
     if (nb)
     {
 #ifdef ACM_ASSOCIATED_VALUE
-      // 8. If matches were found, retrieve them calling ACM_get_match() for each match.
+      // 7. If matches were found, retrieve them calling ACM_get_match() for each match.
       for (size_t j = 0; j < nb; j++)
       {
         void *v;
@@ -312,7 +309,7 @@ main (void)
 
   printf ("\n");
 
-  // 10. After usage, release the state machine calling ACM_release() on M.
-  // ACM_release also frees the values associated to registered keywords.
+  // 9. After usage, release the state machine calling ACM_release() on M.
+  //    ACM_release also frees the values associated to registered keywords.
   ACM_release (M);
 }

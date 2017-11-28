@@ -100,9 +100,9 @@ ACM_PRIVATE ACMachine *ACM_register_keyword (ACMachine * machine, Keyword keywor
 /// @param [out] value 0 or the address of the pointer to the value assiociated with the keyword match.
 /// @return 1 if the keyword is registered in the machine, 0 otherwise.
 #  ifndef ACM_ASSOCIATED_VALUE
-ACM_PRIVATE int ACM_is_registered_keyword (ACMachine * machine, Keyword keyword);
+ACM_PRIVATE int ACM_is_registered_keyword (const ACMachine * machine, Keyword keyword);
 #  else
-ACM_PRIVATE int ACM_is_registered_keyword (ACMachine * machine, Keyword keyword, void **value);
+ACM_PRIVATE int ACM_is_registered_keyword (const ACMachine * machine, Keyword keyword, void **value);
 #  endif
 
 /// Unregister a keyword from a Aho-Corasick Machine.
@@ -115,36 +115,29 @@ ACM_PRIVATE int ACM_unregister_keyword (ACMachine * machine, Keyword keyword);
 /// Returns the number of registered keywords in the Aho-Corasick Machine.
 /// @param [in] machine A pointer to a Aho-Corasick Machine allocated by a previous call to ACM_register_keyword.
 /// @returns The number of registered keywords in the Aho-Corasick Machine.
-ACM_PRIVATE size_t ACM_nb_keywords (ACMachine * machine);
+ACM_PRIVATE size_t ACM_nb_keywords (const ACMachine * machine);
 
 /// Apply operator to each of the registered keywords in the state machine.
 /// @param [in] machine A pointer to a Aho-Corasick Machine allocated by a previous call to ACM_register_keyword.
 /// @param [in] operator Operator applied to each keyword of the state machine.
 /// @note The operator is applied to keywords in unspecified order.
 #  ifndef ACM_ASSOCIATED_VALUE
-ACM_PRIVATE void ACM_foreach_keyword (ACMachine * machine, void (*operator) (Keyword));
+ACM_PRIVATE void ACM_foreach_keyword (const ACMachine * machine, void (*operator) (Keyword));
 #  else
-ACM_PRIVATE void ACM_foreach_keyword (ACMachine * machine, void (*operator) (Keyword, void *));
+ACM_PRIVATE void ACM_foreach_keyword (const ACMachine * machine, void (*operator) (Keyword, void *));
 #  endif
 
-/// Change internal state.
+/// Get the number of keywords associated to the last provided letters.
 /// @param [in] machine State machine.
-/// @param [in] letter State transition.
-/// @note On first call or after a call to ACM_register_keyword(), the internal state should be initialized with value returned by
-/// the last call to ACM_register_keyword().
-/// Usage: state = ACM_change_state (state, letter);
-ACM_PRIVATE void ACM_change_state (ACMachine * machine, ACM_SYMBOL letter);
+/// @param [in] letter letter to match keywords with.
+/// @returns The number of keywords matching with the last letters.
+ACM_PRIVATE size_t ACM_nb_matches (ACMachine * machine, ACM_SYMBOL letter);
 
 /// Setting or resetting the state to the initial state of the msteate machine
 /// will enforce the next letter to try to match with only the first symbol of a registered keyword (if possible).
 /// This is useful to start parsing a new text aginst registered keywords.
 /// @param [in] machine A pointer to a Aho-Corasick Machine allocated by a previous call to ACM_register_keyword.
-ACM_PRIVATE void ACM_reset_state (ACMachine * machine);
-
-/// Get the number of keywords associated to the internal state.
-/// @param [in] machine State machine.
-/// @returns The number of keywords associated to the internal state.
-ACM_PRIVATE size_t ACM_nb_matches (const ACMachine * machine);
+ACM_PRIVATE void ACM_reset (ACMachine * machine);
 
 /// Get the ith keyword associate to the internal state.
 /// @param [in] machine State machine.

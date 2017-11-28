@@ -93,7 +93,7 @@ struct _ac_state                // [state s]
     struct _ac_state *state;
   } previous;                   // Previous state
 
-  struct _ac_state *fail_state; // [f(s)]
+  const struct _ac_state *fail_state;   // [f(s)]
 
   int is_matching;              // true if the state matches a keyword.
   size_t nb_sequence;           // Number of matching keywords (Aho-Corasick : size (output (s))
@@ -108,8 +108,8 @@ typedef struct _ac_state ACState;
 
 struct _ac_machine
 {
-  void *state_0;
-  void *current_state;
+  ACState *state_0;
+  const ACState *current_state;
   size_t rank;                  // Number of keywords registered in the machine.
   size_t nb_sequence;           // Number of keywords in the machine.
   int reconstruct;
@@ -247,7 +247,7 @@ state_goto_update (ACMachine * machine, Keyword sequence        /* a[1] a[2] ...
   return 1;
 }
 
-static ACState *state_goto (ACState * state, ACM_SYMBOL letter);
+static const ACState *state_goto (const ACState * state, ACM_SYMBOL letter);
 
 static void
 state_reset_output (ACState * r)
@@ -315,7 +315,7 @@ state_fail_state_construct (ACMachine * machine)
       queue[queue_length - 1] = s;
 
       // Aho-Corasick Algorithm 3: state <- f(r)
-      ACState *state = r->fail_state /* f(r) */ ;
+      const ACState *state = r->fail_state /* f(r) */ ;
 
       // Aho-Corasick Algorithm 3: while g(state, a) = fail [and state != 0] do state <- f(state)        [2]
       //                           [if g(state, a) != fail then] f(s) <- g(state, a) [else f(s) <- 0]    [3]
@@ -380,13 +380,13 @@ ACM_register_keyword (ACMachine * machine, Keyword y    /* a[1] a[2] ... a[n] */
 }
 
 ACM_PRIVATE size_t
-ACM_nb_keywords (ACMachine * machine)
+ACM_nb_keywords (const ACMachine * machine)
 {
   return machine ? machine->nb_sequence : 0;
 }
 
 static ACState *
-get_last_state (ACMachine * machine, Keyword sequence)
+get_last_state (const ACMachine * machine, Keyword sequence)
 {
   if (!machine || !sequence.length)
     return 0;
@@ -414,10 +414,10 @@ get_last_state (ACMachine * machine, Keyword sequence)
 
 #ifndef ACM_ASSOCIATED_VALUE
 ACM_PRIVATE int
-ACM_is_registered_keyword (ACMachine * machine, Keyword sequence)
+ACM_is_registered_keyword (const ACMachine * machine, Keyword sequence)
 #else
 ACM_PRIVATE int
-ACM_is_registered_keyword (ACMachine * machine, Keyword sequence, void **value)
+ACM_is_registered_keyword (const ACMachine * machine, Keyword sequence, void **value)
 #endif
 {
   ACState *last = get_last_state (machine, sequence);
@@ -490,10 +490,11 @@ ACM_unregister_keyword (ACMachine * machine, Keyword y)
 
 #ifndef ACM_ASSOCIATED_VALUE
 static void
-foreach_keyword (ACState * state, ACM_SYMBOL ** letters, size_t * length, size_t depth, void (*operator) (Keyword))
+foreach_keyword (const ACState * state, ACM_SYMBOL ** letters, size_t * length, size_t depth,
+                 void (*operator) (Keyword))
 #else
 static void
-foreach_keyword (ACState * state, ACM_SYMBOL ** letters, size_t * length, size_t depth,
+foreach_keyword (const ACState * state, ACM_SYMBOL ** letters, size_t * length, size_t depth,
                  void (*operator) (Keyword, void *))
 #endif
 {
@@ -522,10 +523,10 @@ foreach_keyword (ACState * state, ACM_SYMBOL ** letters, size_t * length, size_t
 
 #ifndef ACM_ASSOCIATED_VALUE
 ACM_PRIVATE void
-ACM_foreach_keyword (ACMachine * machine, void (*operator) (Keyword))
+ACM_foreach_keyword (const ACMachine * machine, void (*operator) (Keyword))
 #else
 ACM_PRIVATE void
-ACM_foreach_keyword (ACMachine * machine, void (*operator) (Keyword, void *))
+ACM_foreach_keyword (const ACMachine * machine, void (*operator) (Keyword, void *))
 #endif
 {
   if (!machine || !operator)
@@ -573,8 +574,8 @@ ACM_release (ACMachine * machine)
 }
 
 /// @see Aho-Corasick Algorithm 1: Pattern matching machine - while loop.
-static ACState *
-state_goto (ACState * state, ACM_SYMBOL letter /* Aho-Corasick Algorithm 1: a[i] */ )
+static const ACState *
+state_goto (const ACState * state, ACM_SYMBOL letter /* Aho-Corasick Algorithm 1: a[i] */ )
 {
   // Aho-Corasick Algorithm 1: while g(state, a[i]) = fail [and state != 0] do state <- f(state)           [2]
   //                           [if g(state, a[i]) != fail then] state <- g(state, a[i]) [else state <- 0]  [3]
@@ -602,11 +603,12 @@ state_goto (ACState * state, ACM_SYMBOL letter /* Aho-Corasick Algorithm 1: a[i]
   }
 }
 
-ACM_PRIVATE void
-ACM_change_state (ACMachine * machine, ACM_SYMBOL letter)
+/// @see Aho-Corasick Algorithm 1: Pattern matching machine - if output (stat) != empty
+ACM_PRIVATE size_t
+ACM_nb_matches (ACMachine * machine, ACM_SYMBOL letter)
 {
   if (!machine)
-    return;
+    return 0;
 
   // N.B.: In Aho-Corasick, algorithm 3 is executed after all sequences have been inserted
   //       in the goto graph one after the other by algorithm 2.
@@ -618,17 +620,7 @@ ACM_change_state (ACMachine * machine, ACM_SYMBOL letter)
     state_fail_state_construct (machine);
 
   machine->current_state = state_goto (machine->current_state, letter);
-}
-
-/// @see Aho-Corasick Algorithm 1: Pattern matching machine - if output (stat) != empty
-ACM_PRIVATE size_t
-ACM_nb_matches (const ACMachine * machine)
-{
-  if (!machine)
-    return 0;
-
-  ACState * current_state = machine->current_state;
-  return current_state->nb_sequence;
+  return machine->current_state->nb_sequence;
 }
 
 /// @see Aho-Corasick Algorithm 1: Pattern matching machine - print output (state) [ith element]
@@ -641,9 +633,9 @@ ACM_get_match (const ACMachine * machine, size_t index, MatchHolder * match, voi
 #endif
 {
   // Aho-Corasick Algorithm 1: if output(state) [ith element]
-  ACM_ASSERT (index < ACM_nb_matches (machine));
+  ACM_ASSERT (machine && index < machine->current_state->nb_sequence);
 
-  ACState *state = machine->current_state;
+  const ACState *state = machine->current_state;
   size_t i = 0;
 
   for (; state; state = state->fail_state, i++ /* skip to the next failing state */ )
@@ -686,7 +678,7 @@ ACM_get_match (const ACMachine * machine, size_t index, MatchHolder * match, voi
 }
 
 ACM_PRIVATE void
-ACM_reset_state (ACMachine * machine)
+ACM_reset (ACMachine * machine)
 {
   if (machine)
     machine->current_state = machine->state_0;
