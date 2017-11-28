@@ -73,18 +73,17 @@ print_match (MatchHolder match, void *value)
 #endif
   if (ACM_MATCH_LENGTH (match))
   {
-    printf ("{");
     for (size_t k = 0; k < ACM_MATCH_LENGTH (match); k++)
       printf ("%lc", ACM_MATCH_SYMBOLS (match)[k]);
 
 #ifdef ACM_ASSOCIATED_VALUE
     if (value)
     {
-      printf (", ");
+      printf ("=");
       printf ("%lu", *(size_t *) value);
     }
 #endif
-    printf ("}");
+    printf (";");
   }
 }
 
@@ -97,7 +96,7 @@ main (void)
   /****************** First test ************************/
   // This test constructs and plays with the graph from the original paper of Aho-Corasick.
   // The text where keywords are searched for.
-  wchar_t text[] = L"He found his pencil, but she could not find hers (hi! ushers !!)\nabcdz\nbcz\nczz\n_abcde_xyzxyt";
+  wchar_t text[] = L"He found his pencil, but she could not find hers (Hi! Ushers !!) ; abcdz ; bCz ; cZZ ; _abcde_xyzxyt";
 
   nocase = 1;                   // not case sensitive
 
@@ -186,8 +185,6 @@ main (void)
   printf ("%ls\n", text);
   for (size_t i = 0; i < wcslen (text); i++)
   {
-    printf ("%lc", text[i]);
-
     // 6. Inject symbols of the text, one at a time by calling ACM_nb_matches().
     //    After each insertion of a symbol, check if the last inserted symbols match a keyword.
     //    Get the matching keywords for the actual state of the machine.
@@ -197,21 +194,23 @@ main (void)
     for (size_t j = 0; j < nb_matches; j++)
     {
       // Get the ith matching keyword for the actual state of the machine.
+      size_t rank =
 #ifndef ACM_ASSOCIATED_VALUE
-      printf ("[%zu]", ACM_get_match (M, j, &match));
+      ACM_get_match (M, j, &match);
 #else
-      printf ("[%zu]", ACM_get_match (M, j, &match, 0));
+      ACM_get_match (M, j, &match, 0);
 #endif
 
       // Display matching pattern
+      for (size_t tab = 0; tab < i + 1 - ACM_MATCH_LENGTH (match) ; tab++)
+        printf (" ");
       print_match (match EXTRA);
+      printf ("[%zu]\n", rank);
     }
   }
 
   // 8. After the last call to ACM_get_match(), release to keyword by calling ACM_MATCH_RELEASE.
   ACM_MATCH_RELEASE (match);
-
-  printf ("\n");
 
   // 9. Release resources allocated by the state machine after usage.
   ACM_release (M);
