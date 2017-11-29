@@ -31,6 +31,7 @@
 #define ACM_SYMBOL wchar_t
 
 // A comparator of symbols can be user defined instead of the standard '==' operator.
+// User defined case insensitive comparator.
 static int nocaseeq (wchar_t k, wchar_t t);
 
 #define ACM_SYMBOL_EQ_OPERATOR nocaseeq
@@ -38,25 +39,23 @@ static int nocaseeq (wchar_t k, wchar_t t);
 // 2. Include "aho_corasick.h"
 #include "aho_corasick.h"
 
-static int nocase;
 static int words;
+
+// User defined case insensitive comparison
 static int
 nocaseeq (wchar_t k, wchar_t t)
 {
   if (words)
   {
-    if (!iswalpha (k) && !iswalpha (t))
-      return 1;
-    if (iswalpha (k) && !iswalpha (t))
-      return 0;
-    if (!iswalpha (k) && iswalpha (t))
+    int nak = !iswalpha (k);
+    int nat = !iswalpha (t);
+    if (nak)
+      return nat;
+    else if (nat)
       return 0;
   }
 
-  if (nocase)
-    return k == towlower (t);
-  else
-    return k == t;
+  return k == towlower (t);
 }
 
 #ifndef ACM_ASSOCIATED_VALUE
@@ -73,9 +72,11 @@ print_match (MatchHolder match, void *value)
 #endif
   if (ACM_MATCH_LENGTH (match))
   {
+    printf ("{'");
     for (size_t k = 0; k < ACM_MATCH_LENGTH (match); k++)
       printf ("%lc", ACM_MATCH_SYMBOLS (match)[k]);
 
+    printf ("'");
 #ifdef ACM_ASSOCIATED_VALUE
     if (value)
     {
@@ -83,7 +84,7 @@ print_match (MatchHolder match, void *value)
       printf ("%lu", *(size_t *) value);
     }
 #endif
-    printf (";");
+    printf ("}");
   }
 }
 
@@ -96,9 +97,8 @@ main (void)
   /****************** First test ************************/
   // This test constructs and plays with the graph from the original paper of Aho-Corasick.
   // The text where keywords are searched for.
-  wchar_t text[] = L"He found his pencil, but she could not find hers (Hi! Ushers !!) ; abcdz ; bCz ; cZZ ; _abcde_xyzxyt";
-
-  nocase = 1;                   // not case sensitive
+  wchar_t text[] =
+    L"He found his pencil, but she could not find hers (Hi! Ushers !!) ; abcdz ; bCz ; cZZ ; _abcde_xyzxyt";
 
   // 3. The machine state is initialized with 0 before any call to ACM_register_keyword.
   ACMachine *M = 0;
@@ -182,7 +182,9 @@ main (void)
   MatchHolder match;
 
   ACM_MATCH_INIT (match);
-  printf ("%ls\n", text);
+  Keyword kw = {.letter = text,.length = wcslen (text) };
+  print_match (kw EXTRA);
+  printf ("\n");
   for (size_t i = 0; i < wcslen (text); i++)
   {
     // 6. Inject symbols of the text, one at a time by calling ACM_nb_matches().
@@ -196,13 +198,13 @@ main (void)
       // Get the ith matching keyword for the actual state of the machine.
       size_t rank =
 #ifndef ACM_ASSOCIATED_VALUE
-      ACM_get_match (M, j, &match);
+        ACM_get_match (M, j, &match);
 #else
-      ACM_get_match (M, j, &match, 0);
+        ACM_get_match (M, j, &match, 0);
 #endif
 
       // Display matching pattern
-      for (size_t tab = 0; tab < i + 1 - ACM_MATCH_LENGTH (match) ; tab++)
+      for (size_t tab = 0; tab < i + 1 - ACM_MATCH_LENGTH (match); tab++)
         printf (" ");
       print_match (match EXTRA);
       printf ("[%zu]\n", rank);
@@ -218,7 +220,6 @@ main (void)
   /****************** Second test ************************/
   // This test counts the number of time the words in the english dictionnary ("words") appear
   // in the Woolf's book Mrs Dalloway ("mrs_dalloway.txt").
-  nocase = 0;                   // Case sensitive
   words = 1;
 
   FILE *stream;

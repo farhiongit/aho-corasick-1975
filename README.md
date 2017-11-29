@@ -12,7 +12,7 @@ This project offers an efficient implement of the Aho-Corasick algorithm which s
 
 In more details, compared to the implementation proposed by Aho and Corasick, this one adds several enhancements:
 
-1. First of all, the implementation does not make any assumption on the size of the alphabet used.
+1. First of all, it does not make any assumption on the size of the alphabet used.
 Particularly, the alphanet is not limited to 256 signs.
 The number of possible signs is only defined by the type of symbol the user decides to use.
 For instance, if ACM_SYMBOL would be defined as 'long long int', then the number of possible signs would be 18446744073709551616.
@@ -30,26 +30,27 @@ For instance, if ACM_SYMBOL would be defined as 'long long int', then the number
          - [2] g(state, a) = fail must be replaced by: g(state, a) = fail and state != 0
          - [3] s <- g(state, a) must be replaced by: if g(state, a) != fail then s <- g(state, a) else s <- 0
 
-2. To reduce the memory footprint, this implementation does not store output keywords associated to states.
+2. To reduce the memory footprint, it does not store output keywords associated to states.
    Instead, it reconstructs the matching keywords by traversing the branch of the tree backward.
    Attributes 'previous' and 'is_matching' are added the the state object ACState (see ACM_get_match).
-3. This implementation permits to search for keywords even though all keywords have not been registered yet.
+3. It permits to search for keywords even though all keywords have not been registered yet.
    To achieve this, failure states are reconstructed after every registration of a new keyword
    (see ACM_register_keyword which alternates calls to algorithms 2 and 3.)
-4. This implemtation keeps track of the rank of each registered keyword as returned by ACM_get_match().
+4. It keeps track of the rank of each registered keyword as returned by ACM_get_match().
    This rank can be used, together with the state machine, as a unique identifiant of a keyword.
-5. If ACM_ASSOCIATED_VALUE is defined at compile time, then user allocated and defined values can also be associated to registered keywords,
-   and retreived with the found keywords:
+5. If ACM_ASSOCIATED_VALUE is defined at compile time, it can associate user allocated and defined values to registered keywords,
+   and retreive them together with the found keywords:
       - a third and fourth arguments are passed to ACM_register_keyword calls: a pointer to a previously allocated value,
         and a pointer to function for deallocation of the associated value. This function will be called when the state machine will be release
         by ACM_release.
       - a fourth argument is passed to ACM_get_match calls: the address of a pointer to an associated value.
         The pointer to associated value is modified by ACM_get_match to the address of the value associated to the keyword.
-6. The state machine is extended to be used as well as an indexed dictionnary of keywords:
+6. It extends the state machine in order to be used as well as an indexed dictionnary of keywords:
       - ACM_is_registered_keyword() check for the existence of a keyword in the state machine.
       - ACM_unregister_keyword() removes a keyword from the state machine.
       - ACM_foreach_keyword() applies a user defined operator to each keyword of the state machine.
-7. Last but not least, this implementation is very fast.
+7. It is short: aho_corasick.c is about 450 effective lines of code.
+8. Last but not least, it is very fast.
 
 ## Implementations
 
@@ -70,25 +71,25 @@ First, initialize the finite state machine with a set of keywords to be searched
       - The rank of insertion of a keyword is registered together with the keyword.
       - The macro helper ACM_KEYWORD_SET can be used to initialize keywords with a single statement.
       - The macro helper ACM_REGISTER_KEYWORD can be conveniently used if the result (success or failure) of the registration is not needed.
-      - ACM_nb_matches() returns the number of keywords already inserted in the state machine.
+      - ACM_nb_keywords() returns the number of keywords already inserted in the state machine.
       - If a keywords was already registered in the machine, its rank (and possibly associated value) is left unchanged.
 
 Then, search for keywords in an input text:
 
-5. Initialize a match holder with ACM_MATCH_INIT before the first use by ACM_get_match.
+5. Initialize a match holder with ACM_MATCH_INIT before the first use by ACM_get_match (if necessary).
 6. Inject symbols of the text, one at a time by calling ACM_nb_matches(), and,
-   after each insertion of a symbol, check if the last inserted symbols match a keyword.
+   after each insertion of a symbol, check the returned value to know if the last inserted symbols match a keyword.
 7. If matches were found, retrieve them calling ACM_get_match() for each match.
       - ACM_MATCH_LENGTH and ACM_MATCH_SYMBOLS can be used to get the length and the content of the match found.
       - If a new text has to be processed by the state machine, reset it to its initial state (ACM_reset) so that the next symbol will
         be matched against the first letter of each keyword.
-8. After the last call to ACM_get_match(), release to match holder by calling ACM_MATCH_RELEASE.
+8. After the last call to ACM_get_match(), release to match holder by calling ACM_MATCH_RELEASE (if necessary).
 
 Finally:
 
 9. After usage, release the state machine calling ACM_release() on M.
 
-Look at aho_corasich.h for a detailed documentation of the interface and at aho_corasick_test.c for a fully documented example.
+Look at aho_corasick.h for a detailed documentation of the interface and at aho_corasick_test.c for a fully documented example.
 
 ### Note on ACM_SYMBOL
 
