@@ -1,4 +1,5 @@
-#A small, documented, easy to use implementation of the Aho-Corasick algorithm.
+A small, documented, easy to use implementation of the Aho-Corasick algorithm.
+----------------------------------
 
 This project offers an efficient implement of the Aho-Corasick algorithm which shows several benefits:
 
@@ -52,11 +53,11 @@ For instance, if ACM_SYMBOL would be defined as 'long long int', then the number
 7. It is short: aho_corasick.c is about 450 effective lines of code.
 8. Last but not least, it is very fast.
 
-## Implementations
+# Implementations
 
 The implementation allows one instanciation of the Aho-Corasock machine for the type defined by ACM_SYMBOL.
 
-### Usage
+## Usage
 
 First, initialize the finite state machine with a set of keywords to be searched for:
 
@@ -91,7 +92,7 @@ Finally:
 
 Look at aho_corasick.h for a detailed documentation of the interface and at aho_corasick_test.c for a fully documented example.
 
-### Note on ACM_SYMBOL
+## Note on ACM_SYMBOL
 
 ACM_SYMBOL is the type of letters of the alphabet that constitutes the keywords.
 
@@ -113,7 +114,7 @@ E.g. the following code will make string matching case insensitive.
     { return tolower (k) == tolower (t); }
     #define ACM_SYMBOL_EQ_OPERATOR nocaseeq
 
-### Note if ACM_SYMBOL is a structure (does not apply for basic types such as int or char)
+## Note if ACM_SYMBOL is a structure (does not apply for basic types such as int or char)
 
 If ACM_SYMBOL is a structure:
 
@@ -124,7 +125,7 @@ If ACM_SYMBOL is a structure:
       - a destructor operator with signature 'void *function* (ACM_SYMBOL a)' should be defined in the user program and
         the name of the function should be defined in macro ACM_SYMBOL_DTOR_OPERATOR.
 
-### Compilation
+## Compilation
 
 The algorithm can be compiled either as an object (aho_corasick.o) or as a private module (if PRIVATE_MODULE is defined in the user program).
 
@@ -134,7 +135,7 @@ If PRIVATE_MODULE is set in the user program, then:
   There is no need to compile aho_corasick.c separately, the source will be include in the user program including aho_corasick.h.
 - the warning "The Aho-Corasick algorithm is compiled as a private module." is emitted during compilation.
 
-### Files
+## Files
 
 Source code:
 

@@ -238,6 +238,7 @@ main (void)
     Keyword k;
 
     line[wcslen (line) - 1] = L' ';     // keywords end with ' \0'
+    line[1] = towlower (line[1]);
     ACM_KEYWORD_SET (k, line, wcsnlen (line, sizeof (line) / sizeof (*line)));
 #ifdef ACM_ASSOCIATED_VALUE
     size_t *v = malloc (sizeof (*v));
