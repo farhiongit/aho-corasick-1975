@@ -51,7 +51,8 @@ For instance, if ACM_SYMBOL would be defined as 'long long int', then the number
       - ACM_unregister_keyword() removes a keyword from the state machine.
       - ACM_foreach_keyword() applies a user defined operator to each keyword of the state machine.
 7. It is short: aho_corasick.c is about 450 effective lines of code.
-8. Last but not least, it is very fast.
+8. Last but not least, it is very fast. On my slow HD and slow CPU old computer, it takes 1.7 seconds to
+   register 370,098 keywords of 3,864,776 characters, and to find those keywords in a text of 376,617 characters.
 
 # Implementations
 
@@ -61,12 +62,17 @@ The implementation allows one instanciation of the Aho-Corasock machine for the 
 
 First, initialize the finite state machine with a set of keywords to be searched for:
 
+In global scope:
+
 1. Define the type ACM_SYMBOL with the type of symbols that constitute keywords. char or int should match most needs.
    Either define ACM_SYMBOL direcly in the user program or include a user defines aho_corasick_symbol.h file.
    E.g.:
       - '\#define ACM_SYMBOL char' (simple choice if the algorithm is compiled as a private module).
       - '\#include "aho_corasick_symbol.h"' (better choice if the algorithm is compiled as an object or library, and not as a private module).
 2. Insert "aho_corasick.h"
+
+In local scope (function or main entry point):
+
 3. Initialize a state machine: ACMachine * M = 0;
 4. Add keywords (of type Keyword) to the state machine calling ACM_register_keyword(), one at a time, repeatedly.
       - The rank of insertion of a keyword is registered together with the keyword.
@@ -89,6 +95,47 @@ Then, search for keywords in an input text:
 Finally:
 
 9. After usage, release the state machine calling ACM_release() on M.
+
+Here is a simple example:
+```c
+#include <string.h>
+#define ACM_SYMBOL char
+#define PRIVATE_MODULE
+#include "aho_corasick.h"
+
+int
+main (void)
+{
+  ACMachine *M = 0;
+
+  char *keywords[] = { "buckle", "shoe", "knock", "door", "pick", "sticks" "ten" };
+  for (size_t i = 0; i < sizeof (keywords) / sizeof (*keywords); i++)
+  {
+    Keyword kw;
+    ACM_KEYWORD_SET (kw, keywords[i], strlen (keywords[i]));
+    ACM_REGISTER_KEYWORD (M, kw);
+  }
+
+  char BuckleMyShoe[] =
+    "One, two buckle my shoe\nThree, four knock on the door\nFive, six pick up sticks\nNine, ten a big fat hen...\n";
+
+  MatchHolder m;
+  ACM_MATCH_INIT (m);
+  for (size_t i = 0; i < strlen (BuckleMyShoe); i++)
+  {
+    size_t nb = ACM_nb_matches (M, BuckleMyShoe[i]);
+    for (size_t j = 0; j < nb; j++)
+    {
+      ACM_get_match (M, j, &m);
+      for (size_t k = 0; k < ACM_MATCH_LENGTH (m); k++)
+        printf ("%c", ACM_MATCH_SYMBOLS (m)[k]);
+      printf ("\n");
+    }
+  }
+  ACM_MATCH_RELEASE (m);
+  ACM_release (M);
+}
+```
 
 You can look at
    - aho_corasick_test.c for a fully documented example.
