@@ -40,6 +40,7 @@ static int nocaseeq (wchar_t k, wchar_t t);
 #include "aho_corasick.h"
 
 static int words;
+static int current_pos;
 
 // User defined case insensitive comparison
 static int
@@ -72,19 +73,19 @@ print_match (MatchHolder match, void *value)
 #endif
   if (ACM_MATCH_LENGTH (match))
   {
-    printf ("{'");
+    current_pos += printf ("{'");
     for (size_t k = 0; k < ACM_MATCH_LENGTH (match); k++)
-      printf ("%lc", ACM_MATCH_SYMBOLS (match)[k]);
+      current_pos += printf ("%lc", ACM_MATCH_SYMBOLS (match)[k]);
 
-    printf ("'");
+    current_pos += printf ("'");
 #ifdef ACM_ASSOCIATED_VALUE
     if (value)
     {
-      printf ("=");
-      printf ("%lu", *(size_t *) value);
+      current_pos += printf ("=");
+      current_pos += printf ("%lu", *(size_t *) value);
     }
 #endif
-    printf ("}");
+    current_pos += printf ("}");
   }
 }
 
@@ -183,8 +184,9 @@ main (void)
 
   ACM_MATCH_INIT (match);
   Keyword kw = {.letter = text,.length = wcslen (text) };
+  current_pos = 0;
   print_match (kw EXTRA);
-  printf ("\n");
+
   for (size_t i = 0; i < wcslen (text); i++)
   {
     // 6. Inject symbols of the text, one at a time by calling ACM_nb_matches().
@@ -204,10 +206,15 @@ main (void)
 #endif
 
       // Display matching pattern
-      for (size_t tab = 0; tab < i + 1 - ACM_MATCH_LENGTH (match); tab++)
-        printf (" ");
+      if (current_pos > i + 1 - ACM_MATCH_LENGTH (match))
+      {
+        current_pos = 0;
+        printf ("\n");
+      }
+      for (size_t tab = current_pos; tab < i + 1 - ACM_MATCH_LENGTH (match); tab++)
+        current_pos += printf (" ");
       print_match (match EXTRA);
-      printf ("[%zu]\n", rank);
+      current_pos += printf ("[%zu]", rank);
     }
   }
 
@@ -216,6 +223,8 @@ main (void)
 
   // 9. Release resources allocated by the state machine after usage.
   ACM_release (M);
+
+  printf ("\n");
 
   /****************** Second test ************************/
   // This test counts the number of time the words in the english dictionnary ("words") appear
@@ -237,18 +246,18 @@ main (void)
   {
     Keyword k;
 
-    line[wcslen (line) - 1] = L' ';     // keywords end with ' \0'
+    if (line[wcslen (line) - 1] == L'\n')
+      line[wcslen (line) - 1] = L' ';   // keywords end with ' \0'
     line[1] = towlower (line[1]);
     ACM_KEYWORD_SET (k, line, wcsnlen (line, sizeof (line) / sizeof (*line)));
-#ifdef ACM_ASSOCIATED_VALUE
-    size_t *v = malloc (sizeof (*v));
-
-    *v = 0;
-
     // 4. Add keywords (of type Keyword) to the state machine calling ACM_register_keyword() repeatedly.
     // Values can be associated registered keywords. Values are allocated in the user program.
     // This memory will be freed by the function passed as the 4th argument (here 'free', but it could be a user defined finction).
     // That function will be called for each registered keyword by ACM_release.
+#ifdef ACM_ASSOCIATED_VALUE
+    size_t *v = malloc (sizeof (*v));
+
+    *v = 0;
     ACM_REGISTER_KEYWORD (M, k, v, free);
 #else
     ACM_REGISTER_KEYWORD (M, k);
@@ -276,7 +285,7 @@ main (void)
 
   // 6. Inject symbols of the text, one at a time by calling ACM_change_state().
   ACM_nb_matches (M, L' ');
-  printf ("[%zu]:\n", ACM_nb_keywords (M));
+  printf ("[%zu] keywords registered.\n", ACM_nb_keywords (M));
 
   stream = fopen ("mrs_dalloway.txt", "r");
   if (stream == 0)

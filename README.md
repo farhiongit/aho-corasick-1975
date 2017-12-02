@@ -51,8 +51,8 @@ For instance, if ACM_SYMBOL would be defined as 'long long int', then the number
       - ACM_unregister_keyword() removes a keyword from the state machine.
       - ACM_foreach_keyword() applies a user defined operator to each keyword of the state machine.
 7. It is short: aho_corasick.c is about 450 effective lines of code.
-8. Last but not least, it is very fast. On my slow HD and slow CPU old computer, it takes 1.7 seconds to
-   register 370,098 keywords of 3,864,776 characters, and to find those keywords in a text of 376,617 characters.
+8. Last but not least, it is very fast. On my slow HD and slow CPU old computer, it takes 1.5 seconds to register
+   370,099 keywords with a total of 3,864,776 characters, and to find those keywords in a text of 376,617 characters.
 
 # Implementations
 
@@ -71,7 +71,7 @@ In global scope:
       - '\#include "aho_corasick_symbol.h"' (better choice if the algorithm is compiled as an object or library, and not as a private module).
 2. Insert "aho_corasick.h"
 
-In local scope (function or main entry point):
+In local scope (function or main entry point), preprocess keywords (once):
 
 3. Initialize a state machine: ACMachine * M = 0;
 4. Add keywords (of type Keyword) to the state machine calling ACM_register_keyword(), one at a time, repeatedly.
@@ -81,18 +81,20 @@ In local scope (function or main entry point):
       - ACM_nb_keywords() returns the number of keywords already inserted in the state machine.
       - If a keywords was already registered in the machine, its rank (and possibly associated value) is left unchanged.
 
-Then, search for keywords in an input text:
+Then, parse any sequence of any number of texts, searching for previously registered keywords:
 
 5. (Optionally) Initialize a match holder with ACM_MATCH_INIT before the first use by ACM_get_match (if necessary).
 6. Inject symbols of the text, one at a time by calling ACM_nb_matches(), and,
-   after each insertion of a symbol, check the returned value to know if the last inserted symbols match a keyword.
+   after each insertion of a symbol, check the returned value to know if the last inserted symbols match at least one keyword.
       - If a new text has to be processed by the state machine, reset it to its initial state (ACM_reset) so that the next symbol will
         be matched against the first letter of each keyword.
 7. (Optionally) If matches were found, retrieve them calling ACM_get_match() for each match (if necessary).
       - ACM_MATCH_LENGTH and ACM_MATCH_SYMBOLS can be used to get the length and the content of a retreieved match.
 8. (Optionally) After the last call to ACM_get_match(), release to match holder by calling ACM_MATCH_RELEASE (if necessary).
 
-Finally:
+Steps 5, 7 and 8 are optional.
+
+Finally, when all texts have been parsed:
 
 9. After usage, release the state machine calling ACM_release() on M.
 
@@ -108,7 +110,7 @@ main (void)
 {
   ACMachine *M = 0;
 
-  char *keywords[] = { "buckle", "shoe", "knock", "door", "pick", "sticks" "ten" };
+  char *keywords[] = { "buckle", "shoe", "knock", "door", "pick", "sticks", "ten" };
   for (size_t i = 0; i < sizeof (keywords) / sizeof (*keywords); i++)
   {
     Keyword kw;

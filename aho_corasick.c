@@ -336,6 +336,7 @@ machine_create (ACState * state_0)
   machine->reconstruct = 1;     // f(s) is undefined and has not been computed yet
   machine->size = 1;
   machine->current_state = machine->state_0 = state_0;
+  machine->rank = machine->nb_sequence = 0;
 
   return machine;
 }
