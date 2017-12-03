@@ -56,9 +56,14 @@ For instance, if ACM_SYMBOL would be defined as 'long long int', then the number
 
 # Implementations
 
-The implementation allows one instanciation of the Aho-Corasock machine for the type defined by ACM_SYMBOL.
+Two flavours of implementation are proposed.
 
-## Usage
+- The first "standard" implementation allows one instanciation of the Aho-Corasick machine for the type defined by ACM_SYMBOL.
+- The second "template" instanciaton allows to instanciate Aho-Corasick machine for several types. **It is also the recommended instanciation.**
+
+## Standard implementation
+
+### Usage
 
 First, initialize the finite state machine with a set of keywords to be searched for:
 
@@ -143,7 +148,7 @@ You can look at
    - aho_corasick_test.c for a fully documented example.
    - aho_corasick.h for a detailed documentation of the interface
 
-## Note on ACM_SYMBOL
+### Note on ACM_SYMBOL
 
 ACM_SYMBOL is the type of letters of the alphabet that constitutes the keywords.
 
@@ -176,7 +181,7 @@ If ACM_SYMBOL is a structure:
       - a destructor operator with signature 'void *function* (ACM_SYMBOL a)' should be defined in the user program and
         the name of the function should be defined in macro ACM_SYMBOL_DTOR_OPERATOR.
 
-## Compilation
+### Compilation
 
 The algorithm can be compiled either as an object (aho_corasick.o) or as a private module (if PRIVATE_MODULE is defined in the user program).
 
@@ -186,7 +191,7 @@ If PRIVATE_MODULE is set in the user program, then:
   There is no need to compile aho_corasick.c separately, the source will be include in the user program including aho_corasick.h.
 - the warning "The Aho-Corasick algorithm is compiled as a private module." is emitted during compilation.
 
-## Files
+### Files
 
 Source code:
 
@@ -196,9 +201,125 @@ Source code:
 
 Examples:
 
-- aho_corasick_test.c gives a complete and commented example (words.gz should be gunzip'ed before use).
+- aho_corasick_test.c gives a complete and commented example.
 - words and mrs_dalloway.txt are input files used by the example.
 - aho_corasick_symbol.h is an example of a declaration of the ACM_SYMBOL.
+
+## template instanciation
+
+This implementation provides a syntax similar to the C++ templates.
+It allows to instanciate the Aho-Corasick machine at compile-time for a type specified in the user program.
+
+### Usage
+
+The usage is very similar to the "Standard" version:
+
+1. Insert "aho_corasick_template_impl.h"
+2. Declare the types for which the Aho-Corasick machines have to be instanciated.
+
+```c
+    ACM_DECLARE (char)
+    ACM_DEFINE (char)
+```
+
+In local scope (function or main entry point), preprocess keywords (once):
+
+3. **Optionally**, user defined operators can be specified for type *T*.
+
+     - An optional equality operator can be user defined for a type *T* with SET_EQ_OPERATOR(*T*, equality)
+     - An optional constructor can be user defined for a type *T* with SET_COPY_CONSTRUCTOR(*T*, constructor)
+     - An optional destructor operator can be user defined for a type *T* with SET_DESTRUCTOR(*T*, destructor)
+```c
+    SET_EQ_OPERATOR (*T*, equality);
+    SET_COPY_CONSTRUCTOR (*T*, constructor);
+    SET_DESTRUCTOR (*T*, destructor);
+```
+
+4. Initialize a state machine of type ACMachine (*T*) using ACM_create (*T*):
+      - an optional second argument of type EQ_OPERATOR_TYPE(*T*) can specify a user defined equality operator for type *T*.
+      - an optional third argument of type COPY_OPERATOR_TYPE(*T*) can specify a user defined constructor operator for type *T*.
+      - an optional fourth argument of type DESTRUCTOR_OPERATOR_TYPE(*T*) can specify a user defined destuctor operator for type *T*.
+      - Those operators supersedes those defined by SET_EQ_OPERATOR, SET_COPY_CONSTRUCTOR, SET_DESTRUCTOR for a specific instance of Aho-Corasick machine.
+```c
+    ACMachine (char) *M = ACM_create (char, [equality], [constructor], [destructor]);
+```
+
+5. Add keywords (of type Keyword (*T*)) to the state machine calling ACM_register_keyword(), one at a time, repeatedly.
+      - The rank of insertion of a keyword is registered together with the keyword.
+      - The macro helper ACM_KEYWORD_SET can be used to initialize keywords with a single statement.
+      - The macro helper ACM_REGISTER_KEYWORD can be conveniently used if the result (success or failure) of the registration is not needed.
+      - ACM_nb_keywords() returns the number of keywords already inserted in the state machine.
+      - If a keywords was already registered in the machine, its rank (and possibly associated value) is left unchanged.
+
+Then, parse any sequence of any number of texts, searching for previously registered keywords:
+
+6. (Optionally) Initialize a match holder (of type MatchHolder (*T*)) with ACM_MATCH_INIT before the first use by ACM_get_match (if necessary).
+7. Inject symbols of the text, one at a time by calling ACM_nb_matches(), and,
+   after each insertion of a symbol, check the returned value to know if the last inserted symbols match at least one keyword.
+      - If a new text has to be processed by the state machine, reset it to its initial state (ACM_reset) so that the next symbol will
+        be matched against the first letter of each keyword.
+8. (Optionally) If matches were found, retrieve them calling ACM_get_match() for each match (if necessary).
+      - ACM_MATCH_LENGTH and ACM_MATCH_SYMBOLS can be used to get the length and the content of a retreieved match.
+9. (Optionally) After the last call to ACM_get_match(), release to match holder by calling ACM_MATCH_RELEASE (if necessary).
+
+Steps 6, 8 and 9 are optional.
+
+Finally, when all texts have been parsed:
+
+10. After usage, release the state machine calling ACM_release() on M.
+Here is a simple example:
+```c
+#include <string.h>
+#include "../aho_corasick_template_impl.h"
+
+ACM_DECLARE (char)
+ACM_DEFINE (char)
+
+int
+main (void)
+{
+  ACMachine (char) *M = ACM_create (char);
+
+  char *keywords[] = { "buckle", "shoe", "knock", "door", "pick", "sticks", "ten" };
+  for (size_t i = 0; i < sizeof (keywords) / sizeof (*keywords); i++)
+  {
+    Keyword (char) kw;
+    ACM_KEYWORD_SET (kw, keywords[i], strlen (keywords[i]));
+    ACM_REGISTER_KEYWORD (M, kw);
+  }
+
+  char BuckleMyShoe[] =
+    "One, two buckle my shoe\nThree, four knock on the door\nFive, six pick up sticks\nNine, ten a big fat hen...\n";
+
+  MatchHolder (char) m;
+  ACM_MATCH_INIT (m);
+  for (size_t i = 0; i < strlen (BuckleMyShoe); i++)
+  {
+    size_t nb = ACM_nb_matches (M, BuckleMyShoe[i]);
+    for (size_t j = 0; j < nb; j++)
+    {
+      ACM_get_match (M, j, &m);
+      for (size_t k = 0; k < ACM_MATCH_LENGTH (m); k++)
+        printf ("%c", ACM_MATCH_SYMBOLS (m)[k]);
+      printf ("\n");
+    }
+  }
+  ACM_MATCH_RELEASE (m);
+  ACM_release (M);
+}
+```
+
+### Files
+
+Source code:
+
+- aho_corasick_template.h defines the interface.
+- aho_corasick_template_impl.h defines the implementation.
+
+Examples:
+
+- aho_corasick_template_test.c gives a complete and commented example.
+- words and mrs_dalloway.txt are input files used by the example.
 
 Hopes this helps.
 Have fun !
