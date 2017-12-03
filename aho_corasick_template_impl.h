@@ -504,7 +504,7 @@ ACM_foreach_keyword_##ACM_SYMBOL (const ACMachine_##ACM_SYMBOL * machine, void (
 }                                                                      \
 \
 static void                                                            \
-state_release_##ACM_SYMBOL (ACState_##ACM_SYMBOL * state,              \
+state_release_##ACM_SYMBOL (const ACState_##ACM_SYMBOL * state,        \
                             DESTROY_##ACM_SYMBOL##_TYPE dtor)          \
 {                                                                      \
   for (size_t i = 0; i < state->nb_goto; i++)                          \
@@ -517,16 +517,16 @@ state_release_##ACM_SYMBOL (ACState_##ACM_SYMBOL * state,              \
   free (state->goto_array);                                            \
   if (state->value && state->value_dtor)                               \
     state->value_dtor (state->value);                                  \
-  free (state);                                                        \
+  free ((ACState_##ACM_SYMBOL *) state);                               \
 }                                                                      \
 \
 static void                                                            \
-ACM_release_##ACM_SYMBOL (ACMachine_##ACM_SYMBOL * machine)            \
+ACM_release_##ACM_SYMBOL (const ACMachine_##ACM_SYMBOL * machine)      \
 {                                                                      \
   if (!machine)                                                        \
     return;                                                            \
   state_release_##ACM_SYMBOL (machine->state_0, machine->destroy);     \
-  free (machine);                                                      \
+  free ((ACMachine_##ACM_SYMBOL *) machine);                           \
 }                                                                      \
 \
 static const ACState_##ACM_SYMBOL *                                    \

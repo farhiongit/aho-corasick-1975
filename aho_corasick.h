@@ -157,7 +157,7 @@ ACM_PRIVATE size_t ACM_get_match (const ACMachine * machine, size_t index, Match
 /// @param [in] machine A pointer to a Aho-Corasick Machine allocated by a previous call to ACM_register_keyword.
 /// The user program should call ACM_release after usage of machine.
 /// machine should be set to 0 before reuse.
-ACM_PRIVATE void ACM_release (ACMachine * machine);
+ACM_PRIVATE void ACM_release (const ACMachine * machine);
 
 #  ifdef PRIVATE_MODULE
 #    include "aho_corasick.c"

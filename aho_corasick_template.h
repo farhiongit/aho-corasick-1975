@@ -75,7 +75,7 @@ struct _ac_vtable_##ACM_SYMBOL                                         \
   int (*unregister_keyword) (ACMachine_##ACM_SYMBOL * machine, Keyword_##ACM_SYMBOL keyword);                          \
   size_t (*nb_keywords) (const ACMachine_##ACM_SYMBOL * machine);                                                      \
   void (*foreach_keyword) (const ACMachine_##ACM_SYMBOL * machine, void (*operator) (Keyword_##ACM_SYMBOL, void *));   \
-  void (*release) (ACMachine_##ACM_SYMBOL * machine);                                                                  \
+  void (*release) (const ACMachine_##ACM_SYMBOL * machine);                                                            \
 \
   size_t (*nb_matches) (ACMachine_##ACM_SYMBOL * machine, ACM_SYMBOL letter);                                          \
   void (*reset) (ACMachine_##ACM_SYMBOL * machine);                                                                    \

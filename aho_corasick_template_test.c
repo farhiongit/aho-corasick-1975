@@ -34,9 +34,15 @@ ACM_DEFINE (wchar_t)
 static int words;
 static int current_pos;
 
-// User defined case insensitive comparison
+// User defined case insensitive comparisons
 static int
 nocaseeq (wchar_t k, wchar_t t)
+{
+  return k == towlower (t);
+}
+
+static int
+alphaeq (wchar_t k, wchar_t t)
 {
   if (words)
   {
@@ -232,7 +238,7 @@ main (void)
 
   // 3. M is prepared for reuse.
   // Template: creates a new machine for type wchar_t, with a delaration of a specific equality operator.
-  M = ACM_create (wchar_t, nocaseeq);
+  M = ACM_create (wchar_t, alphaeq);
 
   while (fgetws (line + 1, sizeof (line) / sizeof (*line) - 1, stream))
   {

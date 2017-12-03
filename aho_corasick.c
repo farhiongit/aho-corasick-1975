@@ -547,7 +547,7 @@ ACM_foreach_keyword (const ACMachine * machine, void (*operator) (Keyword, void 
 }
 
 static void
-state_release (ACState * state)
+state_release (const ACState * state)
 {
   for (size_t i = 0; i < state->nb_goto; i++)
     state_release (state->goto_array[i].state);
@@ -564,17 +564,17 @@ state_release (ACState * state)
 #endif
 
   // Release state
-  free (state);
+  free ((ACState *) state);
 }
 
 ACM_PRIVATE void
-ACM_release (ACMachine * machine)
+ACM_release (const ACMachine * machine)
 {
   if (!machine)
     return;
 
   state_release (machine->state_0);
-  free (machine);
+  free ((ACMachine *) machine);
 }
 
 /// @see Aho-Corasick Algorithm 1: Pattern matching machine - while loop.
