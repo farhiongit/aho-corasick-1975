@@ -28,8 +28,6 @@
 #ifndef AHO_CORASICK
 #  define AHO_CORASICK
 
-#  include <stddef.h>
-#  include <inttypes.h>
 #  include <stdlib.h>
 
 #  ifdef PRIVATE_MODULE

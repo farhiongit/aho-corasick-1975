@@ -333,6 +333,7 @@ static ACMachine *
 machine_create (ACState * state_0)
 {
   ACMachine *machine = malloc (sizeof (*machine));
+  ACM_ASSERT (machine);
   machine->reconstruct = 1;     // f(s) is undefined and has not been computed yet
   machine->size = 1;
   machine->current_state = machine->state_0 = state_0;
@@ -468,6 +469,7 @@ ACM_unregister_keyword (ACMachine * machine, Keyword y)
       prev->goto_array[k].state->previous.i_letter = k;
     }
     prev->goto_array = realloc (prev->goto_array, sizeof (*prev->goto_array) * prev->nb_goto);
+    ACM_ASSERT (!prev->nb_goto || prev->goto_array);
 
 #ifdef ACM_ASSOCIATED_VALUE
     // Release associated value;
@@ -513,6 +515,7 @@ foreach_keyword (const ACState * state, ACM_SYMBOL ** letters, size_t * length, 
   {
     (*length)++;
     *letters = realloc (*letters, sizeof (**letters) * (*length));
+    ACM_ASSERT (letters);
   }
 
   for (size_t i = 0; i < state->nb_goto; i++)
