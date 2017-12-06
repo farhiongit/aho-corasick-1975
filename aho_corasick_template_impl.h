@@ -266,8 +266,7 @@ state_goto_update_##ACM_SYMBOL (ACMachine_##ACM_SYMBOL * machine, Keyword_##ACM_
   {                                                                    \
     ACState_##ACM_SYMBOL *next = 0;                                    \
     for (size_t k = 0; k < state->nb_goto; k++)                        \
-      if (machine->eq ? machine->eq (state->goto_array[k].letter, sequence.letter[j]) :\
-          __EQ_##ACM_SYMBOL (state->goto_array[k].letter, sequence.letter[j]))         \
+      if (machine->eq (state->goto_array[k].letter, sequence.letter[j]))         \
       {                                                                \
         next = state->goto_array[k].state;                             \
         break;                                                         \
@@ -287,8 +286,7 @@ state_goto_update_##ACM_SYMBOL (ACMachine_##ACM_SYMBOL * machine, Keyword_##ACM_
                 sizeof (*state->goto_array) * state->nb_goto));        \
     ACState_##ACM_SYMBOL *newstate = state_create_##ACM_SYMBOL ();     \
     state->goto_array[state->nb_goto - 1].state = newstate;            \
-    state->goto_array[state->nb_goto - 1].letter = machine->copy ?     \
-          machine->copy (sequence.letter[p]) : __COPY_##ACM_SYMBOL (sequence.letter[p]);  \
+    state->goto_array[state->nb_goto - 1].letter = machine->copy (sequence.letter[p]);  \
     newstate->previous.state = state;                                  \
     newstate->previous.i_letter = state->nb_goto - 1;                  \
     state = newstate;                                                  \
@@ -400,9 +398,7 @@ get_last_state_##ACM_SYMBOL (const ACMachine_##ACM_SYMBOL * machine, Keyword_##A
   {                                                                    \
     ACState_##ACM_SYMBOL *next = 0;                                    \
     for (size_t k = 0; k < state->nb_goto; k++)                        \
-      if (machine->eq ?                                                \
-        machine->eq (state->goto_array[k].letter, sequence.letter[j]) :\
-        __EQ_##ACM_SYMBOL (state->goto_array[k].letter, sequence.letter[j])) \
+      if (machine->eq (state->goto_array[k].letter, sequence.letter[j])) \
       {                                                                \
         next = state->goto_array[k].state;                             \
         break;                                                         \
@@ -448,10 +444,7 @@ ACM_unregister_keyword_##ACM_SYMBOL (ACMachine_##ACM_SYMBOL * machine, Keyword_#
     prev->nb_goto--;                                                   \
     for (size_t k = last->previous.i_letter; k < prev->nb_goto; k++)   \
     {                                                                  \
-      if (machine->destroy)                                            \
-        machine->destroy (prev->goto_array[k].letter);                 \
-      else                                                             \
-      __DTOR_##ACM_SYMBOL (prev->goto_array[k].letter);                \
+      machine->destroy (prev->goto_array[k].letter);                 \
       prev->goto_array[k] = prev->goto_array[k + 1];                   \
       prev->goto_array[k].state->previous.i_letter = k;                \
     }                                                                  \
@@ -536,8 +529,7 @@ state_goto_##ACM_SYMBOL (const ACState_##ACM_SYMBOL * state, ACM_SYMBOL letter,\
   while (1)                                                            \
   {                                                                    \
     for (size_t i = 0; i < state->nb_goto; i++)                        \
-      if (eq ? eq (state->goto_array[i].letter, letter) :              \
-              __EQ_##ACM_SYMBOL (state->goto_array[i].letter, letter)) \
+      if (eq (state->goto_array[i].letter, letter)) \
         return state->goto_array[i].state;                             \
     if (state->fail_state == 0)                                        \
       return state;                                                    \
@@ -622,9 +614,9 @@ machine_create_##ACM_SYMBOL (ACState_##ACM_SYMBOL * state_0,           \
   machine->current_state = machine->state_0 = state_0;                 \
   machine->rank = machine->nb_sequence = 0;                            \
   machine->vtable = &(VTABLE_##ACM_SYMBOL);                            \
-  machine->copy = copier;                                              \
-  machine->destroy = dtor;                                             \
-  machine->eq = eq;                                                    \
+  machine->copy = copier ? copier : __COPY_##ACM_SYMBOL;               \
+  machine->destroy = dtor ? dtor : __DTOR_##ACM_SYMBOL;                \
+  machine->eq = eq ? eq : __EQ_##ACM_SYMBOL;                           \
   return machine;                                                      \
 }                                                                      \
 // END DEFINE_ACM

@@ -18,37 +18,18 @@
 */
 
 #include <stdio.h>
-#include <assert.h>
-#include <wctype.h>
-#include <wchar.h>
-#include <locale.h>
-
 #include "aho_corasick_template_impl.h"
 
-/* *INDENT-OFF* */
 ACM_DECLARE (char)
 ACM_DEFINE (char)
-/* *INDENT-ON* */
 
 static void
 print_match (MatchHolder (char) match, void *value)
 {
-  if (value && *(size_t *) value == 0)
-    return;
-  if (ACM_MATCH_LENGTH (match))
-  {
-    printf ("{'");
-    for (size_t k = 0; k < ACM_MATCH_LENGTH (match); k++)
-      printf ("%lc", ACM_MATCH_SYMBOLS (match)[k]);
-
-    printf ("'");
-    if (value)
-    {
-      printf ("=");
-      printf ("%lu", *(size_t *) value);
-    }
-    printf ("}");
-  }
+  printf ("{'");
+  for (size_t k = 0; k < ACM_MATCH_LENGTH (match); k++)
+    printf ("%lc", ACM_MATCH_SYMBOLS (match)[k]);
+  printf ("'=%i}", *(int *) value);
 }
 
 int
@@ -59,14 +40,10 @@ main (void)
   int *v;
 
   ACM_KEYWORD_SET (kw, "1984", 4);
-  v = malloc (sizeof (*v));
-  *v = 0;
-  ACM_REGISTER_KEYWORD (M, kw, v, free);
+  ACM_REGISTER_KEYWORD (M, kw, v = calloc (1, sizeof (*v)), free);
 
   ACM_KEYWORD_SET (kw, "1985", 4);
-  v = malloc (sizeof (*v));
-  *v = 0;
-  ACM_REGISTER_KEYWORD (M, kw, v, free);
+  ACM_REGISTER_KEYWORD (M, kw, v = calloc (1, sizeof (*v)), free);
 
   FILE *f = fopen ("googlebooks-eng-all-1gram-20120701-0", "r");
   if (f == 0)

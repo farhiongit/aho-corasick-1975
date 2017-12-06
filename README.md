@@ -205,10 +205,10 @@ Examples:
 - words and mrs_dalloway.txt are input files used by the example.
 - aho_corasick_symbol.h is an example of a declaration of the ACM_SYMBOL.
 
-## template instanciation
+## Template instanciation
 
 This implementation provides a syntax similar to the C++ templates.
-It allows to instanciate the Aho-Corasick machine at compile-time for a type specified in the user program.
+It allows to instanciate the Aho-Corasick machine at compile-time for one or several type specified in the user program (compared to the standard implementation which instanciate the machine for a unique type defined in ACM_SYMBOL.)
 
 ### Usage
 
@@ -270,20 +270,20 @@ Finally, when all texts have been parsed:
 Here is a simple example:
 ```c
 #include <string.h>
-#include "../aho_corasick_template_impl.h"
+#include "aho_corasick_template_impl.h"
 
-ACM_DECLARE (char)
-ACM_DEFINE (char)
+ACM_DECLARE (char)                            /* template */
+ACM_DEFINE (char)                             /* template */
 
 int
 main (void)
 {
-  ACMachine (char) *M = ACM_create (char);
+  ACMachine (char) *M = ACM_create (char);    /* template */
 
   char *keywords[] = { "buckle", "shoe", "knock", "door", "pick", "sticks", "ten" };
   for (size_t i = 0; i < sizeof (keywords) / sizeof (*keywords); i++)
   {
-    Keyword (char) kw;
+    Keyword (char) kw;                        /* template */
     ACM_KEYWORD_SET (kw, keywords[i], strlen (keywords[i]));
     ACM_REGISTER_KEYWORD (M, kw);
   }
@@ -291,7 +291,7 @@ main (void)
   char BuckleMyShoe[] =
     "One, two buckle my shoe\nThree, four knock on the door\nFive, six pick up sticks\nNine, ten a big fat hen...\n";
 
-  MatchHolder (char) m;
+  MatchHolder (char) m;                       /* template */
   ACM_MATCH_INIT (m);
   for (size_t i = 0; i < strlen (BuckleMyShoe); i++)
   {
@@ -320,6 +320,64 @@ Examples:
 
 - aho_corasick_template_test.c gives a complete and commented example.
 - words and mrs_dalloway.txt are input files used by the example.
+
+#Performance
+
+These implementations (standard and template) are equally very fast.
+
+Genericity (alphabet is user defined and not restricted to 256 characters as most implementations do) comes with a very limited loss of performance.
+
+A performance test (look at file aho_corasick_template_test.c) can be applied on a sample data of 184 MB available [here](http://storage.googleapis.com/books/ngrams/books/googlebooks-eng-all-1gram-20120701-0.gz).
+
+```
+wget http://storage.googleapis.com/books/ngrams/books/googlebooks-eng-all-1gram-20120701-0.gz
+gzip -d googlebooks-eng-all-1gram-20120701-0.gz
+```
+```c
+#include <stdio.h>
+#include "aho_corasick_template_impl.h"
+
+ACM_DECLARE (char)
+ACM_DEFINE (char)
+
+static void print_match (MatchHolder (char) match, void *value)
+{
+  printf ("{'");
+  for (size_t k = 0; k < ACM_MATCH_LENGTH (match); k++)
+    printf ("%lc", ACM_MATCH_SYMBOLS (match)[k]);
+  printf ("'=%lu}\n", *(size_t *) value);
+}
+
+int main (void)
+{
+  ACMachine (char) * M = ACM_create (char);
+  Keyword (char) kw;
+  int *v;
+
+  ACM_KEYWORD_SET (kw, "1984", 4);
+  ACM_REGISTER_KEYWORD (M, kw, v = calloc (1, sizeof (*v)), free);
+
+  ACM_KEYWORD_SET (kw, "1985", 4);
+  ACM_REGISTER_KEYWORD (M, kw, v = calloc (1, sizeof (*v)), free);
+
+  FILE *f = fopen ("googlebooks-eng-all-1gram-20120701-0", "r");
+  for (int c = 0; (c = fgetc (f)) != EOF;)
+  {
+    size_t nb = ACM_nb_matches (M, c);
+    for (size_t j = 0; j < nb; j++)
+    {
+      void *v;
+      ACM_get_match (M, j, 0, &v);
+      (*(int *) v)++;
+    }
+  }
+  fclose(f);
+
+  ACM_foreach_keyword (M, print_match);
+  ACM_release (M);
+}
+```
+It's only about 30 % slower than https://github.com/morenice/ahocorasick and can process 184 MB is few seconds.
 
 Hopes this helps.
 Have fun !
