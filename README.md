@@ -380,7 +380,7 @@ int main (void)
   ACM_release (M);
 }
 ```
-It's a fasr as https://github.com/morenice/ahocorasick (and can process 184 MB is few seconds)
+It's as fast as https://github.com/morenice/ahocorasick (and can process 184 MB is few seconds)
 but with a clean, generic and template interface.
 
 Hopes this helps.
