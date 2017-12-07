@@ -321,13 +321,14 @@ Examples:
 - aho_corasick_template_test.c gives a complete and commented example.
 - words and mrs_dalloway.txt are input files used by the example.
 
-#Performance
+##Performance
 
 These implementations (standard and template) are equally very fast.
 
-Genericity (alphabet is user defined and not restricted to 256 characters as most implementations do) comes with a very limited loss of performance.
+Genericity (alphabet is user defined and not restricted to 256 characters as most implementations do) comes
+without loss of performance.
 
-A performance test (look at file aho_corasick_template_test.c) can be applied on a sample data of 184 MB available [here](http://storage.googleapis.com/books/ngrams/books/googlebooks-eng-all-1gram-20120701-0.gz).
+The following performance test (also look at file aho_corasick_template_test.c) can be applied on a sample data of 184 MB available [here](http://storage.googleapis.com/books/ngrams/books/googlebooks-eng-all-1gram-20120701-0.gz).
 
 ```
 wget http://storage.googleapis.com/books/ngrams/books/googlebooks-eng-all-1gram-20120701-0.gz
@@ -361,15 +362,17 @@ int main (void)
   ACM_REGISTER_KEYWORD (M, kw, v = calloc (1, sizeof (*v)), free);
 
   FILE *f = fopen ("googlebooks-eng-all-1gram-20120701-0", "r");
-  for (int c = 0; (c = fgetc (f)) != EOF;)
-  {
-    size_t nb = ACM_nb_matches (M, c);
-    for (size_t j = 0; j < nb; j++)
+  char line[4096];
+  while (fgets (line, sizeof (line) / sizeof (*line), f))
+    for (char *c = line; *c; c++)
     {
-      void *v;
-      ACM_get_match (M, j, 0, &v);
-      (*(int *) v)++;
-    }
+      size_t nb = ACM_nb_matches (M, *c);
+      for (size_t j = 0; j < nb; j++)
+      {
+        void *v;
+        ACM_get_match (M, j, 0, &v);
+        (*(int *) v)++;
+      }
   }
   fclose(f);
 
@@ -377,7 +380,8 @@ int main (void)
   ACM_release (M);
 }
 ```
-It's only about 30 % slower than https://github.com/morenice/ahocorasick and can process 184 MB is few seconds.
+It's a fasr as https://github.com/morenice/ahocorasick (and can process 184 MB is few seconds)
+but with a clean, generic and template interface.
 
 Hopes this helps.
 Have fun !

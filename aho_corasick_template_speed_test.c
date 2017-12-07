@@ -53,18 +53,21 @@ main (void)
             "  gzip -d googlebooks-eng-all-1gram-20120701-0.gz\n");
     exit (EXIT_FAILURE);
   }
-  for (int c = 0; (c = fgetc (f)) != EOF;)
-  {
-    size_t nb = ACM_nb_matches (M, c);
 
-    for (size_t j = 0; j < nb; j++)
+  char line[4096];
+  while (fgets (line, sizeof (line) / sizeof (*line), f))
+    for (char *c = line; *c; c++)
     {
-      void *v;
-      ACM_get_match (M, j, 0, &v);
-      (*(int *) v)++;
+      size_t nb = ACM_nb_matches (M, *c);
+
+      for (size_t j = 0; j < nb; j++)
+      {
+        void *v;
+        ACM_get_match (M, j, 0, &v);
+        (*(int *) v)++;
+      }
     }
-  }
-  fclose(f);
+  fclose (f);
 
   ACM_foreach_keyword (M, print_match);
   printf ("\n");
