@@ -326,7 +326,7 @@ Examples:
 These implementations (standard and template) are equally very fast.
 
 Genericity (alphabet is user defined and not restricted to 256 characters as most implementations do) comes
-without loss of performance.
+with a slight loss of performance.
 
 The following performance test (also look at file aho_corasick_template_test.c) can be applied on a sample data of 184 MB available [here](http://storage.googleapis.com/books/ngrams/books/googlebooks-eng-all-1gram-20120701-0.gz).
 
@@ -380,8 +380,9 @@ int main (void)
   ACM_release (M);
 }
 ```
-It's as fast as https://github.com/morenice/ahocorasick (and can process 184 MB is few seconds)
+It's a little bit slower than classical implemtations (such as  https://github.com/morenice/ahocorasick)
 but with a clean, generic and template interface.
+Anyway, it can process 184 MB against matching keywords is few seconds.
 
 Hopes this helps.
 Have fun !
