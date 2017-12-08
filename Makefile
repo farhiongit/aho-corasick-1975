@@ -1,4 +1,4 @@
-CFLAGS = -Wall -O -pthread -Werror
+CFLAGS = -Wall -O3 -pthread -Werror
 #CFLAGS += -g
 CC = cc -Wno-error=cpp
 #CC = clang -Wno-error=\#warnings

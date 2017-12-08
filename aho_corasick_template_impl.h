@@ -215,7 +215,7 @@ static int __EQ_##ACM_SYMBOL(const ACM_SYMBOL a, const ACM_SYMBOL b)   \
 \
 struct _ac_state_##ACM_SYMBOL                                          \
 {                                                                      \
-  struct                                                               \
+  struct _ac_next_##ACM_SYMBOL                                         \
   {                                                                    \
     ACM_SYMBOL letter;                                                 \
     struct _ac_state_##ACM_SYMBOL *state;                              \
@@ -265,10 +265,12 @@ state_goto_update_##ACM_SYMBOL (ACMachine_##ACM_SYMBOL * machine, Keyword_##ACM_
   for (; j < sequence.length;)                                         \
   {                                                                    \
     ACState_##ACM_SYMBOL *next = 0;                                    \
-    for (size_t k = 0; k < state->nb_goto; k++)                        \
-      if (machine->eq (state->goto_array[k].letter, sequence.letter[j]))         \
+    struct _ac_next_##ACM_SYMBOL *p = state->goto_array;               \
+    struct _ac_next_##ACM_SYMBOL *end = p + state->nb_goto;            \
+    for (; p < end; p++)                                               \
+      if (machine->eq (p->letter, sequence.letter[j]))                 \
       {                                                                \
-        next = state->goto_array[k].state;                             \
+        next = p->state;                                               \
         break;                                                         \
       }                                                                \
     if (next)                                                          \
@@ -318,8 +320,10 @@ state_reset_output_##ACM_SYMBOL (ACState_##ACM_SYMBOL * r)             \
     r->nb_sequence = 1;                                                \
   else                                                                 \
     r->nb_sequence = 0;                                                \
-  for (size_t i = 0; i < r->nb_goto; i++)                              \
-    state_reset_output_##ACM_SYMBOL (r->goto_array[i].state);          \
+  struct _ac_next_##ACM_SYMBOL *p = r->goto_array;                     \
+  struct _ac_next_##ACM_SYMBOL *end = p + r->nb_goto;                  \
+  for (; p < end; p++)                                                 \
+    state_reset_output_##ACM_SYMBOL (p->state);                        \
 }                                                                      \
 \
 static void                                                            \
@@ -333,9 +337,11 @@ state_fail_state_construct_##ACM_SYMBOL (ACMachine_##ACM_SYMBOL * machine) \
   size_t queue_length = 0;                                             \
   ACState_##ACM_SYMBOL **queue = 0;                                    \
   ACM_ASSERT (queue = malloc (sizeof (*queue) * (machine->size - 1))); \
-  for (size_t i = 0; i < state_0->nb_goto; i++)                        \
+  struct _ac_next_##ACM_SYMBOL *p = state_0->goto_array;               \
+  struct _ac_next_##ACM_SYMBOL *end = p + state_0->nb_goto;            \
+  for (; p < end; p++)                                                 \
   {                                                                    \
-    ACState_##ACM_SYMBOL *s = state_0->goto_array[i].state;            \
+    ACState_##ACM_SYMBOL *s = p->state;                                \
     queue_length++;                                                    \
     queue[queue_length - 1] = s;                                       \
     s->fail_state = state_0;                                           \
@@ -345,10 +351,12 @@ state_fail_state_construct_##ACM_SYMBOL (ACMachine_##ACM_SYMBOL * machine) \
   {                                                                    \
     ACState_##ACM_SYMBOL *r = queue[queue_read_pos];                   \
     queue_read_pos++;                                                  \
-    for (size_t i = 0; i < r->nb_goto; i++)                            \
+    struct _ac_next_##ACM_SYMBOL *p = r->goto_array;                   \
+    struct _ac_next_##ACM_SYMBOL *end = p + r->nb_goto;                \
+    for (; p < end; p++)                                               \
     {                                                                  \
-      ACState_##ACM_SYMBOL *s = r->goto_array[i].state;                \
-      ACM_SYMBOL a = r->goto_array[i].letter;                          \
+      ACState_##ACM_SYMBOL *s = p->state;                              \
+      ACM_SYMBOL a = p->letter;                                        \
       queue_length++;                                                  \
       queue[queue_length - 1] = s;                                     \
       const ACState_##ACM_SYMBOL *state = r->fail_state;               \
@@ -397,10 +405,12 @@ get_last_state_##ACM_SYMBOL (const ACMachine_##ACM_SYMBOL * machine, Keyword_##A
   for (size_t j = 0; j < sequence.length; j++)                         \
   {                                                                    \
     ACState_##ACM_SYMBOL *next = 0;                                    \
-    for (size_t k = 0; k < state->nb_goto; k++)                        \
-      if (machine->eq (state->goto_array[k].letter, sequence.letter[j])) \
+    struct _ac_next_##ACM_SYMBOL *p = state->goto_array;               \
+    struct _ac_next_##ACM_SYMBOL *end = p + state->nb_goto;            \
+    for (; p < end; p++)                                               \
+      if (machine->eq (p->letter, sequence.letter[j]))                 \
       {                                                                \
-        next = state->goto_array[k].state;                             \
+        next = p->state;                                               \
         break;                                                         \
       }                                                                \
     if (next)                                                          \
@@ -444,7 +454,7 @@ ACM_unregister_keyword_##ACM_SYMBOL (ACMachine_##ACM_SYMBOL * machine, Keyword_#
     prev->nb_goto--;                                                   \
     for (size_t k = last->previous.i_letter; k < prev->nb_goto; k++)   \
     {                                                                  \
-      machine->destroy (prev->goto_array[k].letter);                 \
+      machine->destroy (prev->goto_array[k].letter);                   \
       prev->goto_array[k] = prev->goto_array[k + 1];                   \
       prev->goto_array[k].state->previous.i_letter = k;                \
     }                                                                  \
@@ -477,10 +487,12 @@ foreach_keyword_##ACM_SYMBOL (const ACState_##ACM_SYMBOL * state, ACM_SYMBOL ** 
     *letters = realloc (*letters, sizeof (**letters) * (*length));     \
     ACM_ASSERT (letters);                                              \
   }                                                                    \
-  for (size_t i = 0; i < state->nb_goto; i++)                          \
+  struct _ac_next_##ACM_SYMBOL *p = state->goto_array;                 \
+  struct _ac_next_##ACM_SYMBOL *end = p + state->nb_goto;              \
+  for (; p < end; p++)                                                 \
   {                                                                    \
-    (*letters)[depth] = state->goto_array[i].letter;                   \
-    foreach_keyword_##ACM_SYMBOL (state->goto_array[i].state, letters, length, depth + 1, operator);  \
+    (*letters)[depth] = p->letter;                                     \
+    foreach_keyword_##ACM_SYMBOL (p->state, letters, length, depth + 1, operator);  \
   }                                                                    \
 }                                                                      \
 \
@@ -500,13 +512,14 @@ static void                                                            \
 state_release_##ACM_SYMBOL (const ACState_##ACM_SYMBOL * state,        \
                             DESTROY_##ACM_SYMBOL##_TYPE dtor)          \
 {                                                                      \
-  for (size_t i = 0; i < state->nb_goto; i++)                          \
-    state_release_##ACM_SYMBOL (state->goto_array[i].state, dtor);     \
-  for (size_t i = 0; i < state->nb_goto; i++)                          \
+  struct _ac_next_##ACM_SYMBOL *p = state->goto_array;                 \
+  struct _ac_next_##ACM_SYMBOL *end = p + state->nb_goto;              \
+  for (; p < end; p++)                                                 \
+  {                                                                    \
+    state_release_##ACM_SYMBOL (p->state, dtor);                       \
     if (dtor)                                                          \
-      dtor (state->goto_array[i].letter);                              \
-    else                                                               \
-    __DTOR_##ACM_SYMBOL (state->goto_array[i].letter);                 \
+      dtor (p->letter);                                                \
+  }                                                                    \
   free (state->goto_array);                                            \
   if (state->value && state->value_dtor)                               \
     state->value_dtor (state->value);                                  \
@@ -528,9 +541,11 @@ state_goto_##ACM_SYMBOL (const ACState_##ACM_SYMBOL * state, ACM_SYMBOL letter,\
 {                                                                      \
   while (1)                                                            \
   {                                                                    \
-    for (size_t i = 0; i < state->nb_goto; i++)                        \
-      if (eq (state->goto_array[i].letter, letter)) \
-        return state->goto_array[i].state;                             \
+    struct _ac_next_##ACM_SYMBOL *p = state->goto_array;               \
+    struct _ac_next_##ACM_SYMBOL *end = p + state->nb_goto;            \
+    for (; p < end; p++)                                               \
+      if (eq (p->letter, letter))                                      \
+        return p->state;                                               \
     if (state->fail_state == 0)                                        \
       return state;                                                    \
     state = state->fail_state;                                         \
