@@ -340,52 +340,37 @@ gzip -d googlebooks-eng-all-1gram-20120701-0.gz
 ACM_DECLARE (char)
 ACM_DEFINE (char)
 
-static void print_match (MatchHolder (char) match, void *value)
-{
-  printf ("{'");
-  for (size_t k = 0; k < ACM_MATCH_LENGTH (match); k++)
-    printf ("%lc", ACM_MATCH_SYMBOLS (match)[k]);
-  printf ("'=%lu}\n", *(size_t *) value);
-}
-
 int main (void)
 {
   ACMachine (char) * M = ACM_create (char);
   Keyword (char) kw;
 
   ACM_KEYWORD_SET (kw, "1984", 4);
-  ACM_REGISTER_KEYWORD (M, kw, calloc (1, sizeof (int)), free);
+  ACM_REGISTER_KEYWORD (M, kw);
 
   ACM_KEYWORD_SET (kw, "1985", 4);
-  ACM_REGISTER_KEYWORD (M, kw, calloc (1, sizeof (int)), free);
+  ACM_REGISTER_KEYWORD (M, kw);
 
+  size_t nb_matches = 0;
   FILE *f = fopen ("googlebooks-eng-all-1gram-20120701-0", "r");
   char line[4096];
   while (fgets (line, sizeof (line) / sizeof (*line), f))
     for (char *c = line; *c; c++)
-    {
-      size_t nb = ACM_nb_matches (M, *c);
-      for (size_t j = 0; j < nb; j++)
-      {
-        void *v;
-        ACM_get_match (M, j, 0, &v);
-        (*(int *) v)++;
-      }
-  }
-  fclose(f);
+      nb_matches += ACM_nb_matches (M, *c);
+  fclose (f);
+  printf ("%lu\n", nb_matches);
 
-  ACM_foreach_keyword (M, print_match);
   ACM_release (M);
 }
 ```
 ##Build and run:
 ```
 time ./aho_corasick_template_speed_test
-{'1984'=141060}{'1985'=139443}
+280503
 
-real  0m4.014s
-user  0m3.916s
-sys 0m0.092s
+real  0m3.991s
+user  0m3.944s
+sys 0m0.048s
 ```
 
 It's a little bit slower than classical implemtations (such as  https://github.com/morenice/ahocorasick)
