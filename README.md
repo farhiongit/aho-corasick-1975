@@ -332,7 +332,7 @@ The following performance test (also look at file aho_corasick_template_test.c) 
 wget http://storage.googleapis.com/books/ngrams/books/googlebooks-eng-all-1gram-20120701-0.gz
 gzip -d googlebooks-eng-all-1gram-20120701-0.gz
 ```
-##Type in the source of the performance test:
+##Type in the source of the performance test, say in ahoperftest.c:
 ```c
 #include <stdio.h>
 #include "aho_corasick_template_impl.h"
@@ -365,7 +365,8 @@ int main (void)
 ```
 ##Build and run:
 ```
-time ./aho_corasick_template_speed_test
+cc -O3 -pthread ahoperftest.c -o ahoperftest
+time ./ahoperftest
 280503
 
 real  0m3.991s
@@ -373,7 +374,7 @@ user  0m3.944s
 sys 0m0.048s
 ```
 
-It's a little bit slower than classical implemtations (such as  https://github.com/morenice/ahocorasick)
+It's a little bit slower than classical implementations (such as  https://github.com/morenice/ahocorasick)
 but with a clean, generic and template interface.
 Genericity (alphabet is user defined and not restricted to 256 characters as most implementations do) comes
 with a slight loss of performance.
