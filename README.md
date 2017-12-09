@@ -321,19 +321,18 @@ Examples:
 - aho_corasick_template_test.c gives a complete and commented example.
 - words and mrs_dalloway.txt are input files used by the example.
 
-##Performance
+# Performance test
 
-These implementations (standard and template) are equally very fast.
-
-Genericity (alphabet is user defined and not restricted to 256 characters as most implementations do) comes
-with a slight loss of performance.
+These implementations (standard and template) are equally fast.
 
 The following performance test (also look at file aho_corasick_template_test.c) can be applied on a sample data of 184 MB available [here](http://storage.googleapis.com/books/ngrams/books/googlebooks-eng-all-1gram-20120701-0.gz).
 
+##Get the sample data from the internet:
 ```
 wget http://storage.googleapis.com/books/ngrams/books/googlebooks-eng-all-1gram-20120701-0.gz
 gzip -d googlebooks-eng-all-1gram-20120701-0.gz
 ```
+##Type in the source of the performance test:
 ```c
 #include <stdio.h>
 #include "aho_corasick_template_impl.h"
@@ -353,13 +352,12 @@ int main (void)
 {
   ACMachine (char) * M = ACM_create (char);
   Keyword (char) kw;
-  int *v;
 
   ACM_KEYWORD_SET (kw, "1984", 4);
-  ACM_REGISTER_KEYWORD (M, kw, v = calloc (1, sizeof (*v)), free);
+  ACM_REGISTER_KEYWORD (M, kw, calloc (1, sizeof (int)), free);
 
   ACM_KEYWORD_SET (kw, "1985", 4);
-  ACM_REGISTER_KEYWORD (M, kw, v = calloc (1, sizeof (*v)), free);
+  ACM_REGISTER_KEYWORD (M, kw, calloc (1, sizeof (int)), free);
 
   FILE *f = fopen ("googlebooks-eng-all-1gram-20120701-0", "r");
   char line[4096];
@@ -380,8 +378,21 @@ int main (void)
   ACM_release (M);
 }
 ```
+##Build and run:
+```
+time ./aho_corasick_template_speed_test
+{'1984'=141060}{'1985'=139443}
+
+real  0m4.014s
+user  0m3.916s
+sys 0m0.092s
+```
+
 It's a little bit slower than classical implemtations (such as  https://github.com/morenice/ahocorasick)
 but with a clean, generic and template interface.
+Genericity (alphabet is user defined and not restricted to 256 characters as most implementations do) comes
+with a slight loss of performance.
+
 Anyway, it can process 184 MB against matching keywords is few seconds.
 
 Hopes this helps.
