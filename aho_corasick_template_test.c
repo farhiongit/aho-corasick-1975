@@ -125,13 +125,9 @@ main (void)
     Keyword (wchar_t) VAR;  \
     wchar_t _VAR[] = { __VA_ARGS__ };  \
     ACM_KEYWORD_SET (VAR, _VAR, sizeof (_VAR) / sizeof (*_VAR));  \
-    ACMachine (wchar_t) * is;  \
     /* 4. Add keywords (of type Keyword) to the state machine calling ACM_register_keyword() repeatedly. */ \
-    if ((is = ACM_register_keyword (MACHINE, VAR EXTRA EXTRA)))  \
-    {  \
-      MACHINE = is;  \
+    if (ACM_register_keyword (MACHINE, VAR EXTRA EXTRA))          \
       print_match (VAR EXTRA);  \
-    }  \
     else  \
       printf  ("X");  \
   }
@@ -256,7 +252,7 @@ main (void)
     size_t *v = malloc (sizeof (*v));
 
     *v = 0;
-    ACM_REGISTER_KEYWORD (M, k, v, free);
+    ACM_register_keyword (M, k, v, free);
   }
 
   fclose (stream);

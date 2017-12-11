@@ -39,10 +39,10 @@ main (void)
   Keyword (char) kw;
 
   ACM_KEYWORD_SET (kw, "1984", 4);
-  ACM_REGISTER_KEYWORD (M, kw, calloc (1, sizeof (int)), free);
+  ACM_register_keyword (M, kw, calloc (1, sizeof (int)), free);
 
   ACM_KEYWORD_SET (kw, "1985", 4);
-  ACM_REGISTER_KEYWORD (M, kw, calloc (1, sizeof (int)), free);
+  ACM_register_keyword (M, kw, calloc (1, sizeof (int)), free);
 
   FILE *f = fopen ("googlebooks-eng-all-1gram-20120701-0", "r");
   if (f == 0)

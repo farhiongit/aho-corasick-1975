@@ -380,14 +380,12 @@ static ACMachine_##ACM_SYMBOL *ACM_create_##ACM_SYMBOL (EQ_##ACM_SYMBOL##_TYPE e
   return machine;                                                      \
 }                                                                      \
 \
-static ACMachine_##ACM_SYMBOL *                                        \
+static int                                                             \
 ACM_register_keyword_##ACM_SYMBOL (ACMachine_##ACM_SYMBOL * machine, Keyword_##ACM_SYMBOL y,\
                                    void *value, void (*dtor) (void *))                      \
 {                                                                      \
   ACM_ASSERT (machine);                                                \
-  if (!state_goto_update_##ACM_SYMBOL (machine, y, value, dtor))       \
-    return 0;                                                          \
-  return machine;                                                      \
+  return state_goto_update_##ACM_SYMBOL (machine, y, value, dtor);     \
 }                                                                      \
 \
 static size_t                                                          \
