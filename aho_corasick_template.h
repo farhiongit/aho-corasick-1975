@@ -21,156 +21,174 @@
 
 #  define __ACM_TEMPLATE__
 
-// User interface
+/// User interface
 
-// Types are used to declare destructor, copy constructor and equality operator.
-// Type for destructor is: void (*destructor) (const T)
+/// Texts and keywprds are composed of symbols of type T.
+/// T can be any standard type (int, char, wchar_t, ...) or any user defined type (such as a structure).
+/// It can be declared and defined in global scope by:
+///   #include "aho_corasick_template_impl.h"
+///   ACM_DECLARE (T)
+///   ACM_DEFINE (T)
+///
+/// A destructor, and a copy constructor can be declared for type T if required.
+/// Type for destructor is: void (*destructor) (const T)
 #  define DESTRUCTOR_TYPE(T)                        DESTROY_##T##_TYPE
 
-// Type for constructor is: T (*constructor) (const T)
+/// Type for constructor is: T (*constructor) (const T)
 #  define COPY_CONSTRUCTOR_TYPE(T)                  COPY_##T##_TYPE
 
-// Type for equality operator is: int (*equal_operator) (const T, const T)
+/// Type for equality operator is: int (*equal_operator) (const T, const T)
 #  define EQ_OPERATOR_TYPE(T)                       EQ_##T##_TYPE
 
-// SET_DESTRUCTOR optionally declare a destructor for type T.
+/// SET_DESTRUCTOR optionally declare a destructor for type T.
+/// Exemple: SET_DESTRUCTOR (mytype, mydestructor);
 #  define SET_DESTRUCTOR(T, destructor)             do { DESTROY_##T = (destructor) ; } while (0)
 
-// SET_COPY_CONSTRUCTOR optionally declare a copy constructor for type T.
+/// SET_COPY_CONSTRUCTOR optionally declare a copy constructor for type T.
+/// Exemple: SET_COPY_CONSTRUCTOR (mytype, myconstructor);
 #  define SET_COPY_CONSTRUCTOR(T, constructor)      do { COPY_##T = (constructor) ; } while (0)
 
-// SET_EQ_OPERATOR optionally declare equality operator for type T.
-// Exemple: static int nocaseeq (wchar_t k, wchar_t t) { return k == towlower (t); }
-//          SET_EQ_OPERATOR (wchar_t, nocaseeq);
+/// SET_EQ_OPERATOR optionally declare equality operator for type T.
+/// A user defined equality operator can be declared for type T if needed.
+/// A default equality operator (memcmp) is used otherwise.
+/// Exemple: static int nocaseeq (wchar_t k, wchar_t t) { return k == towlower (t); }
+///          SET_EQ_OPERATOR (wchar_t, nocaseeq);
 #  define SET_EQ_OPERATOR(T, equal_operator)        do { EQ_##T = (equal_operator) ; } while (0)
 
-// Type of the Aho-Corasick finite state machine for type T
+/// ACMachine (T) is the type of the Aho-Corasick finite state machine for type T
 #  define ACMachine(T)                              ACMachine_##T
 
-// ACMachine (T) *ACM_create (T, [equality_operator], [copy constructor], [destructor])
-// Creates a Aho-Corasick finite state machine for type T.
-// @param [in] T type of symbols composing keywords and text to be parsed.
-// @param [in, optional] equality_operator Equality operator of type EQ_OPERATOR_TYPE(T).
-// @param [in, optional] copy constructor Copy constructor of type COPY_CONSTRUCTOR_TYPE(T).
-// @param [in, optional] destructor Destructor of type DESTRUCTOR_TYPE(T).
-// @returns A pointer to a Aho-Corasick machine for type T.
-// Exemple: ACMachine (char) * M = ACM_create (char);
+/// ACMachine (T) *ACM_create (T, [equality_operator], [copy constructor], [destructor])
+/// Creates a Aho-Corasick finite state machine for type T.
+/// @param [in] T type of symbols composing keywords and text to be parsed.
+/// @param [in, optional] equality_operator Equality operator of type EQ_OPERATOR_TYPE(T).
+/// @param [in, optional] copy constructor Copy constructor of type COPY_CONSTRUCTOR_TYPE(T).
+/// @param [in, optional] destructor Destructor of type DESTRUCTOR_TYPE(T).
+/// @returns A pointer to a Aho-Corasick machine for type T.
+/// Exemple: ACMachine (char) * M = ACM_create (char);
 #  define ACM_create(...)                           VFUNC(ACM_create, __VA_ARGS__)
 
-// void ACM_release (const ACMachine (T) *machine)
-// Release the ressources of a Aho-Corasick machine created with ACM_create.
-// @param [in] machine A pointer to a Aho-Corasick machine to be realeased.
-// Exemple: ACM_release (M);
-#  define ACM_release(machine)                      do { (machine)->vtable->release ((machine)) ; } while (0)
+/// void ACM_release (const ACMachine (T) *machine)
+/// Releases the ressources of a Aho-Corasick machine created with ACM_create.
+/// @param [in] machine A pointer to a Aho-Corasick machine to be realeased.
+/// Exemple: ACM_release (M);
+#  define ACM_release(machine)                      (machine)->vtable->release ((machine))
 
-// Type of a kyeword composed of symbols of type T.
-// Exemple: Keyword (char) kw;
+/// Keyword (T) is the type of a keyword composed of symbols of type T.
+/// Exemple: Keyword (char) kw;
 #  define Keyword(T)                                Keyword_##T
 
-// void ACM_KEYWORD_SET (Keyword(T) kw, T* array, size_t length)
-// Initialize a keyword from an array of symbols
-// @param [in] kw Keyword of symbols of type T.
-// @param [in] array Array of symbols
-// @param [in] length Length of the array
-// Nnote: the array is not duplicated by ACM_KEYWORD_SET.
-// Exemple: ACM_KEYWORD_SET (kw, "Duck", 4);
+/// void ACM_KEYWORD_SET (Keyword(T) kw, T* array, size_t length)
+/// Initializes a keyword from an array of symbols
+/// @param [in] kw Keyword of symbols of type T.
+/// @param [in] array Array of symbols
+/// @param [in] length Length of the array
+/// Nnote: the array is not duplicated by ACM_KEYWORD_SET.
+/// Exemple: ACM_KEYWORD_SET (kw, "Duck", 4);
 #  define ACM_KEYWORD_SET(keyword,symbols,length)   do { ACM_MATCH_SYMBOLS (keyword) = (symbols); ACM_MATCH_LENGTH (keyword) = (length); } while (0)
 
-// int ACM_register_keyword(ACMachine (T) *machine, Keyword(T) kw, [void * value_ptr], void (*destructor) (void *))
-// Registers a keyword in the Aho-Corasick machine.
-// @param [in] machine A pointer to a Aho-Corasick machine.
-// @param [in] kw Keyword of symbols of type T to be registered.
-// @param [in, optional] value_ptr Pointer to a previously allocated value to associate with keyword kw.
-// @param [in, optional] destructor A destructor to be used to free the value pointed by value_ptr.
-// @return 1 if the keyword was successfully registered, 0 otherwise (the keywpord is already registered in the machine).
-// Note: Keyword kw is duplicated and can be released after its registration.
-// Note: The equality operator, either associated to the machine, or associated to the type T, is used if declared.
-// Exemple: ACM_register_keyword (M, kw);
-//          ACM_register_keyword (M, kw, calloc (1, sizeof (int)), free);
+/// int ACM_register_keyword(ACMachine (T) *machine, Keyword(T) kw, [void * value_ptr], void (*destructor) (void *))
+/// Registers a keyword in the Aho-Corasick machine.
+/// @param [in] machine A pointer to a Aho-Corasick machine.
+/// @param [in] kw Keyword of symbols of type T to be registered.
+/// @param [in, optional] value_ptr Pointer to a previously allocated value to associate with keyword kw.
+/// @param [in, optional] destructor A destructor to be used to free the value pointed by value_ptr.
+/// @return 1 if the keyword was successfully registered, 0 otherwise (the keywpord is already registered in the machine).
+/// Note: Keyword kw is duplicated and can be released after its registration.
+/// Note: The equality operator, either associated to the machine, or associated to the type T, is used if declared.
+/// Note: The keyword is registered together with its rank.
+///       The rank of the registered keyword is the number of times ACM_register_keyword was previously called
+///       since the machine was created. The rank is a 0-based sequence number.
+///       This rank can later be retrieved by ACM_get_match.
+/// Exemple: ACM_register_keyword (M, kw);
+///          ACM_register_keyword (M, kw, calloc (1, sizeof (int)), free);
 #  define ACM_register_keyword(...)                 VFUNC(ACM_register_keyword, __VA_ARGS__)
 
-// int ACM_is_registered_keyword (const ACMachine (T) * machine, Keyword (T) kw, [void **value_ptr])
-// Checks whether a keyword is already registered in the machine.
-// @param [in] machine A pointer to a Aho-Corasick machine.
-// @param [in] kw Keyword of symbols of type T to be checked.
-// @param [out, optional] value_ptr *value_ptr is set to the pointer of the value associated to the keyword after the call.
-// @return 1 if the keyword is registered in the machine, 0 otherwise.
-// Note: The equality operator, either associated to the machine, or associated to the type T, is used if declared.
+/// int ACM_is_registered_keyword (const ACMachine (T) * machine, Keyword (T) kw, [void **value_ptr])
+/// Checks whether a keyword is already registered in the machine.
+/// @param [in] machine A pointer to a Aho-Corasick machine.
+/// @param [in] kw Keyword of symbols of type T to be checked.
+/// @param [out, optional] value_ptr *value_ptr is set to the pointer of the value associated to the keyword after the call.
+/// @return 1 if the keyword is registered in the machine, 0 otherwise.
+/// Note: The equality operator, either associated to the machine, or associated to the type T, is used if declared.
 #  define ACM_is_registered_keyword(...)            VFUNC(ACM_is_registered_keyword, __VA_ARGS__)
 
-// int ACM_unregister_keyword (ACMachine (T) *machine, Keyword(T) kw, [void * value_ptr], void (*destructor) (void *))
-// Unregisters a keyword from the Aho-Corasick machine.
-// @param [in] machine A pointer to a Aho-Corasick machine.
-// @param [in] kw Keyword of symbols of type T to be registered.
-// @return 1 if the keyword was successfully unregistered, 0 otherwise (the keywpord is not registered in the machine).
-// Note: The equality operator, either associated to the machine, or associated to the type T, is used if declared.
+/// int ACM_unregister_keyword (ACMachine (T) *machine, Keyword(T) kw, [void * value_ptr], void (*destructor) (void *))
+/// Unregisters a keyword from the Aho-Corasick machine.
+/// @param [in] machine A pointer to a Aho-Corasick machine.
+/// @param [in] kw Keyword of symbols of type T to be registered.
+/// @return 1 if the keyword was successfully unregistered, 0 otherwise (the keywpord is not registered in the machine).
+/// Note: The equality operator, either associated to the machine, or associated to the type T, is used if declared.
 #  define ACM_unregister_keyword(machine, keyword)  (machine)->vtable->unregister_keyword ( (machine), (keyword))
 
-// size_t ACM_nb_keywords (const ACMachine (T) *machine)
-// Returns the number of keywords registered in the machine.
-// @param [in] machine A pointer to a Aho-Corasick machine.
-// @return The number of keywords registered in the machine.
+/// size_t ACM_nb_keywords (const ACMachine (T) *machine)
+/// Returns the number of keywords registered in the machine.
+/// @param [in] machine A pointer to a Aho-Corasick machine.
+/// @return The number of keywords registered in the machine.
 #  define ACM_nb_keywords(machine)                  (machine)->vtable->nb_keywords ((machine))
 
-// Type of a match composed of symbols of type T.
-// Exemple: MatchHolder (char) match;
+/// MatchHolder (T) is the type of a match composed of symbols of type T.
+/// Exemple: MatchHolder (char) match;
 #  define MatchHolder(T)                            Keyword_##T
 
-// size_t ACM_MATCH_LENGTH (MatchHolder (T) match)
-// Returns the length of a match.
-// @param [in] A match
-// @return The length of a match.
-// Exemple:  MatchHolder (wchar_t) match;
+/// size_t ACM_MATCH_LENGTH (MatchHolder (T) match)
+/// Returns the length of a match.
+/// @param [in] match A match
+/// @return The length of a match.
+/// Exemple:  MatchHolder (wchar_t) match;
 #  define ACM_MATCH_LENGTH(match)                   ((match).length)
 
-// T* ACM_MATCH_SYMBOLS (MatchHolder (T) match)
-// Returns the array to the symbols of a match.
-// @param [in] A match
-// @return The array to the symbols of a match.
+/// T* ACM_MATCH_SYMBOLS (MatchHolder (T) match)
+/// Returns the array to the symbols of a match.
+/// @param [in] match A match
+/// @return The array to the symbols of a match.
 #  define ACM_MATCH_SYMBOLS(match)                  ((match).letter)
 
-// void ACM_foreach_keyword (const ACMachine (T) * machine, void (*operator) (Keyword_##T, void *))
-// Applies an operator to each registered keyword in the machine.
-// @param [in] machine A pointer to a Aho-Corasick machine.
-// @param [in] operator Function of type void (*operator) (Keyword (T), void *)
-// Note: The operator is called for each keyword and pointer to associated value successively.
-// Note: The order the keywords are processed in unspecified.
-// Exemple: static void print_match (MatchHolder (wchar_t) match, void *value) { /* user code here */ }
-//          ACM_foreach_keyword (M, print_match);
-#  define ACM_foreach_keyword(machine, operator)    do { (machine)->vtable->foreach_keyword ((machine), (operator)) ; } while (0)
+/// void ACM_foreach_keyword (const ACMachine (T) * machine, void (*operator) (Keyword_##T, void *))
+/// Applies an operator to each registered keyword in the machine.
+/// @param [in] machine A pointer to a Aho-Corasick machine.
+/// @param [in] operator Function of type void (*operator) (Keyword (T), void *)
+/// Note: The operator is called for each keyword and pointer to associated value successively.
+/// Note: The order the keywords are processed in unspecified.
+/// Exemple: static void print_match (MatchHolder (wchar_t) match, void *value) { /* user code here */ }
+///          ACM_foreach_keyword (M, print_match);
+#  define ACM_foreach_keyword(machine, operator)    (machine)->vtable->foreach_keyword ((machine), (operator))
 
-// size_t ACM_nb_matches (ACMachine (T) * machine, T letter)
-// Returns the number of registered keywords that match a sequence of last letters matched by ACM_nb_matches.
-// @param [in] machine A pointer to a Aho-Corasick machine.
-// @param [in] letter A symbol.
-// @return The number of registered keywords that match a sequence of last letters matched by ACM_nb_matches.
-// Note: The equality operator, either associated to the machine, or associated to the type T, is used if declared.
+/// size_t ACM_nb_matches (ACMachine (T) * machine, T letter)
+/// Returns the number of registered keywords that match a sequence of the symbols passed by the last ACM_nb_matches.
+/// @param [in] machine A pointer to a Aho-Corasick machine.
+/// @param [in] letter A symbol.
+/// @return The number of registered keywords that match a sequence of last letters matched by ACM_nb_matches.
+/// Note: The equality operator, either associated to the machine, or associated to the type T, is used if declared.
 #  define ACM_nb_matches(machine, letter)           (machine)->vtable->nb_matches ((machine), (letter))
 
-// void ACM_reset (ACMachine (T) * machine)
-// Ignores all the letters previously matched by  by ACM_nb_matches.
-// @param [in] machine A pointer to a Aho-Corasick machine.
-#  define ACM_reset(machine)                        do { (machine)->vtable->reset ((machine)) ; } while (0)
+/// void ACM_reset (ACMachine (T) * machine)
+/// Ignores all the symbols previously matched by by ACM_nb_matches.
+/// @param [in] machine A pointer to a Aho-Corasick machine.
+#  define ACM_reset(machine)                        (machine)->vtable->reset ((machine))
 
-// void ACM_MATCH_INIT (MatchHolder (T) match)
-// Initialize a match before its first use by ACM_get_match.
-// Exemple: ACM_MATCH_INIT (match);
+/// void ACM_MATCH_INIT (MatchHolder (T) match)
+/// Initializes a match before its first use by ACM_get_match.
+/// @param [in] match A match
+/// Exemple: ACM_MATCH_INIT (match);
 #  define ACM_MATCH_INIT(match)                     ACM_KEYWORD_SET((match), 0, 0)
 
-// size_t ACM_get_match (const ACMachine (T) * machine, size_t index, [MatchHolder (T) * match], [void **value_ptr])
-// @param [in] machine A pointer to a Aho-Corasick machine.
-// @param [in] index Index (ith) of the ith matching keyword.
-// @param [out, optional] match *match is set to the ith matching keyword.
-// @param [out, optional] value_ptr *value_ptr is set to the pointer of the value associated to the keyword after the call.
-// @return The rank (unique id) of the ith matching keyword.
-// Note: index must be lower than value returned by the last call to ACM_nb_matches.
-// ?ote: *match should have been initialized by ACM_MATCH_INIT before use.
-// Exemple: size_t rank = ACM_get_match (M, j, &match, 0);
+/// size_t ACM_get_match (const ACMachine (T) * machine, size_t index, [MatchHolder (T) * match], [void **value_ptr])
+/// Gets the ith keyword matching with the last symbols.
+/// @param [in] machine A pointer to a Aho-Corasick machine.
+/// @param [in] index Index (ith) of the ith matching keyword.
+/// @param [out, optional] match *match is set to the ith matching keyword.
+/// @param [out, optional] value_ptr *value_ptr is set to the pointer of the value associated to the keyword after the call.
+/// @return The rank (unique id) of the ith matching keyword.
+/// Note: index must be lower than value returned by the last call to ACM_nb_matches.
+/// ?ote: *match should have been initialized by ACM_MATCH_INIT before use.
+/// Exemple: size_t rank = ACM_get_match (M, j, &match, 0);
 #  define ACM_get_match(...)                        VFUNC(ACM_get_match, __VA_ARGS__)
 
-// void ACM_MATCH_RELEASE (MatchHolder (T) match)
-// Releases a match after its last use by ACM_get_match.
-// Exemple: ACM_MATCH_INIT (match);
+/// void ACM_MATCH_RELEASE (MatchHolder (T) match)
+/// Releases a match after its last use by ACM_get_match.
+/// @param [in] match A match
+/// Exemple: ACM_MATCH_INIT (match);
 #  define ACM_MATCH_RELEASE(match)                  do { free (ACM_MATCH_SYMBOLS (match)); ACM_MATCH_INIT (match); } while (0)
 
 // ---------------------------------------------------------------------

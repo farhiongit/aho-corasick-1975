@@ -59,7 +59,7 @@ For instance, if `ACM_SYMBOL` would be defined as `long long int`, then the numb
 Two flavours of implementation are proposed.
 
 - The first "standard" implementation allows one instanciation of the Aho-Corasick machine for the type defined by ACM_SYMBOL.
-- The second "template" instanciaton allows to instanciate Aho-Corasick machine for several types. **It is also the recommended instanciation.**
+- The second "template" implementation allows to instanciate Aho-Corasick machine for several types. **It is also the recommended implementation.**
 
 ## Standard implementation
 
@@ -215,8 +215,8 @@ It allows to instanciate the Aho-Corasick machine at compile-time for one or sev
 
 The usage is very similar to the "Standard" version:
 
-1. Insert "aho_corasick_template_impl.h"
-2. Declare the types for which the Aho-Corasick machines have to be instanciated.
+1. Insert "aho_corasick_template_impl.h" in global scope.
+2. Declare, in global scope, the types for which the Aho-Corasick machines have to be instanciated.
 
 ```c
     ACM_DECLARE (char)
