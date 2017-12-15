@@ -188,7 +188,7 @@
 /// void ACM_MATCH_RELEASE (MatchHolder (T) match)
 /// Releases a match after its last use by ACM_get_match.
 /// @param [in] match A match
-/// Exemple: ACM_MATCH_INIT (match);
+/// Exemple: ACM_MATCH_RELEASE (match);
 #  define ACM_MATCH_RELEASE(match)                  do { free (ACM_MATCH_SYMBOLS (match)); ACM_MATCH_INIT (match); } while (0)
 
 // ---------------------------------------------------------------------

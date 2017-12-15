@@ -242,6 +242,7 @@ main (void)
   // 3. M is prepared for reuse.
   M = 0;
 
+  clock_t myclock = clock ();
   while (fgetws (line + 1, sizeof (line) / sizeof (*line) - 1, stream))
   {
     Keyword k;
@@ -280,6 +281,7 @@ main (void)
       ACM_reset (M);
     }
   }
+  printf ("Elapsed CPU time for processing keywords: %f s.\n", (clock () - myclock) * 1.0 / CLOCKS_PER_SEC);
 
   fclose (stream);
 
@@ -291,25 +293,24 @@ main (void)
   if (stream == 0)
     exit (EXIT_FAILURE);
 
+  myclock = clock ();
   for (wint_t wc; (wc = fgetwc (stream)) != WEOF;)
   {
     // 6. Inject symbols of the text, one at a time by calling ACM_nb_matches().
     //    After each insertion of a symbol, check if the last inserted symbols match a keyword.
     size_t nb = ACM_nb_matches (M, wc);
 
-    if (nb)
-    {
 #ifdef ACM_ASSOCIATED_VALUE
-      // 7. If matches were found, retrieve them calling ACM_get_match() for each match.
-      for (size_t j = 0; j < nb; j++)
-      {
-        void *v;
-        ACM_get_match (M, j, 0, &v);
-        (*(size_t *) v)++;
-      }
-#endif
+    // 7. If matches were found, retrieve them calling ACM_get_match() for each match.
+    for (size_t j = 0; j < nb; j++)
+    {
+      void *v;
+      ACM_get_match (M, j, 0, &v);
+      (*(size_t *) v)++;
     }
+#endif
   }
+  printf ("Elapsed CPU time for scaning text for keywords: %f s.\n", (clock () - myclock) * 1.0 / CLOCKS_PER_SEC);
 
   fclose (stream);
 

@@ -22,6 +22,7 @@
 #include <wctype.h>
 #include <wchar.h>
 #include <locale.h>
+#include <time.h>
 
 #include "aho_corasick_template_impl.h"
 
@@ -236,6 +237,7 @@ main (void)
   // Template: creates a new machine for type wchar_t, with a delaration of a specific equality operator.
   M = ACM_create (wchar_t, alphaeq);
 
+  clock_t myclock = clock ();
   while (fgetws (line + 1, sizeof (line) / sizeof (*line) - 1, stream))
   {
     // Template: declare a keyword for type wchar_t.
@@ -251,9 +253,11 @@ main (void)
     // That function will be called for each registered keyword by ACM_release.
     size_t *v = malloc (sizeof (*v));
 
+    // Initialize the value associated to the keyword.
     *v = 0;
     ACM_register_keyword (M, k, v, free);
   }
+  printf ("Elapsed CPU time for processing keywords: %f s.\n", (clock () - myclock) * 1.0 / CLOCKS_PER_SEC);
 
   fclose (stream);
 
@@ -265,6 +269,7 @@ main (void)
   if (stream == 0)
     exit (EXIT_FAILURE);
 
+  myclock = clock ();
   for (wint_t wc; (wc = fgetwc (stream)) != WEOF;)
   {
     // 6. Inject symbols of the text, one at a time by calling ACM_nb_matches().
@@ -278,14 +283,17 @@ main (void)
       {
         void *v;
         ACM_get_match (M, j, 0, &v);
+        // Increment the value associated to the keyword.
         (*(size_t *) v)++;
       }
     }
   }
+  printf ("Elapsed CPU time for scaning text for keywords: %f s.\n", (clock () - myclock) * 1.0 / CLOCKS_PER_SEC);
   printf ("\n");
 
   fclose (stream);
 
+  // Display keywords and their associated value.
   ACM_foreach_keyword (M, print_match);
 
   printf ("\n");

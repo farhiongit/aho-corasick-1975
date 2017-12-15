@@ -51,8 +51,8 @@ For instance, if `ACM_SYMBOL` would be defined as `long long int`, then the numb
       - `ACM_unregister_keyword()` removes a keyword from the state machine.
       - `ACM_foreach_keyword()` applies a user defined operator to each keyword of the state machine.
 7. It is short: aho_corasick.c is about 450 effective lines of code.
-8. Last but not least, it is very fast. On my slow HD and slow CPU old computer, it takes 1.5 seconds to register
-   370,099 keywords with a total of 3,864,776 characters, and to find those keywords in a text of 376,617 characters.
+8. Last but not least, it is very fast. On my slow HD and slow CPU old computer, it takes 0.92 seconds to register 370,099 keywords
+   with a total of 3,864,776 characters, and 0.12 seconds to find (and count occurencies of) those keywords in a text of 376,617 characters.
 
 # Implementations
 
