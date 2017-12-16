@@ -209,7 +209,10 @@ Examples:
 ## Template implementation
 
 This implementation provides a syntax similar to the C++ templates.
-It allows to instanciate the Aho-Corasick machine at compile-time for one or several type specified in the user program (compared to the standard implementation which instanciate the machine for a unique type defined in ACM_SYMBOL.)
+It makes use of a nice idea of Randy Gaul for [Generic Programming in C](http://www.randygaul.net/2012/08/10/generic-programming-in-c/).
+
+It allows to instanciate the Aho-Corasick machine at compile-time for one or several type specified in the user program
+(to ne compared to the standard implementation which instanciate the machine for a unique type defined in ACM_SYMBOL.)
 
 ### Usage
 

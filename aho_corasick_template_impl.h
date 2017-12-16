@@ -17,6 +17,9 @@
 *  along with this file.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+// Credits: This implementation of "templates" makes use of a nice idea of Randy Gaul for Generic Programming in C.
+// See http://www.randygaul.net/2012/08/10/generic-programming-in-c
+//
 // Initialized by gcc -fpreprocessed -dD -E -P aho_corasick.c | grep -v '^$' | indent
 
 #ifndef __ACM_TEMPLATE_IMPL__

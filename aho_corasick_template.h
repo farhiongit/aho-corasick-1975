@@ -21,7 +21,7 @@
 
 #  define __ACM_TEMPLATE__
 
-/// User interface
+/// User interface ************************************************************************
 
 /// Texts and keywprds are composed of symbols of type T.
 /// T can be any standard type (int, char, wchar_t, ...) or any user defined type (such as a structure).
@@ -66,6 +66,7 @@
 /// @param [in, optional] destructor Destructor of type DESTRUCTOR_TYPE(T).
 /// @returns A pointer to a Aho-Corasick machine for type T.
 /// Exemple: ACMachine (char) * M = ACM_create (char);
+/// Note: ACM_create accepts optional arguments thanks to the use of the VFUNC macro (see below).
 #  define ACM_create(...)                           VFUNC(ACM_create, __VA_ARGS__)
 
 /// void ACM_release (const ACMachine (T) *machine)
@@ -191,8 +192,11 @@
 /// Exemple: ACM_MATCH_RELEASE (match);
 #  define ACM_MATCH_RELEASE(match)                  do { free (ACM_MATCH_SYMBOLS (match)); ACM_MATCH_INIT (match); } while (0)
 
-// ---------------------------------------------------------------------
-// Internal declarations
+/// Internal declarations ********************************************************************
+
+// BEGIN VFUNC
+// Credits: VFUNC is a macro for overloading on number (but not types) of arguments.
+// See https://stackoverflow.com/questions/11761703/overloading-macro-on-number-of-arguments
 #  define __NARG__(...)  __NARG_I_(__VA_ARGS__,__RSEQ_N())
 #  define __NARG_I_(...) __ARG_N(__VA_ARGS__)
 #  define __ARG_N( \
@@ -215,6 +219,7 @@
 #  define _VFUNC_(name, n) name##n
 #  define _VFUNC(name, n) _VFUNC_(name, n)
 #  define VFUNC(func, ...) _VFUNC(func, __NARG__(__VA_ARGS__)) (__VA_ARGS__)
+// END VFUNC
 
 // BEGIN DECLARE_ACM
 #  define ACM_DECLARE(T)                             \
