@@ -103,17 +103,18 @@ struct _ac_state                // [state s]
   void *value;                  // An optional value associated to a state.
   void (*value_dtor) (void *);  // Destrcutor of the associated value, called a state machine release.
 #endif
+
+  ACMachine * machine;
 };
-typedef struct _ac_state ACState;
 
 struct _ac_machine
 {
   ACState *state_0;
-  const ACState *current_state;
   size_t rank;                  // Number of keywords registered in the machine.
   size_t nb_sequence;           // Number of keywords in the machine.
   int reconstruct;
   size_t size;
+  pthread_mutex_t lock;
 };
 
 //-----------------------------------------------------
@@ -142,6 +143,7 @@ state_create (void)
   s->value_dtor = 0;
 #endif
 
+  s->machine = 0;
   return s;
 }
 
@@ -208,6 +210,7 @@ state_goto_update (ACMachine * machine, Keyword sequence        /* a[1] a[2] ...
     // Creation of a new state
     // Aho-Corasick Algorithm 2: newstate <- newstate + 1
     ACState *newstate = state_create ();
+    newstate->machine = machine;
 
     // Aho-Corasick Algorithm 2: g(state, a[p]) <- newstate
     state->goto_array[state->nb_goto - 1].state = newstate;
@@ -274,8 +277,6 @@ state_fail_state_construct (ACMachine * machine)
   if (machine->reconstruct == 2)
     state_reset_output (state_0);
 
-  machine->reconstruct = 0;
-
   // Aho-Corasick Algorithm: "(except state 0 for which the failure function is not defined)."
   state_0->fail_state = 0;
 
@@ -335,6 +336,8 @@ state_fail_state_construct (ACMachine * machine)
   }                             // while (queue_read_pos < queue_length)
 
   free (queue);
+
+  machine->reconstruct = 0;
 }
 
 static ACMachine *
@@ -344,8 +347,10 @@ machine_create (ACState * state_0)
   ACM_ASSERT (machine);
   machine->reconstruct = 1;     // f(s) is undefined and has not been computed yet
   machine->size = 1;
-  machine->current_state = machine->state_0 = state_0;
+  machine->state_0 = state_0;
+  state_0->machine = machine;
   machine->rank = machine->nb_sequence = 0;
+  pthread_mutex_init (&machine->lock, 0);
 
   return machine;
 }
@@ -445,12 +450,12 @@ ACM_is_registered_keyword (const ACMachine * machine, Keyword sequence, void **v
 ACM_PRIVATE int
 ACM_unregister_keyword (ACMachine * machine, Keyword y)
 {
-  ACState *state_0 = machine->state_0;  // [state 0]
-
   ACState *last = get_last_state (machine, y);
 
   if (!last)
     return 0;
+
+  ACState *state_0 = machine->state_0;  // [state 0]
 
   // machine->rank is not decreased, so as to ensure unicity.
   machine->nb_sequence--;
@@ -588,6 +593,7 @@ ACM_release (const ACMachine * machine)
     return;
 
   state_release (machine->state_0);
+  pthread_mutex_destroy (&((ACMachine *) machine)->lock);
   free ((ACMachine *) machine);
 }
 
@@ -624,38 +630,46 @@ state_goto (const ACState * state, ACM_SYMBOL letter /* Aho-Corasick Algorithm 1
 }
 
 /// @see Aho-Corasick Algorithm 1: Pattern matching machine - if output (stat) != empty
-ACM_PRIVATE size_t
-ACM_nb_matches (ACMachine * machine, ACM_SYMBOL letter)
+ACM_PRIVATE const ACState *
+ACM_match (const ACState * state, ACM_SYMBOL letter)
 {
-  if (!machine)
-    return 0;
-
-  // N.B.: In Aho-Corasick, algorithm 3 is executed after all sequences have been inserted
+  // N.B.: In Aho-Corasick, algorithm 3 is executed after all keywords have been inserted
   //       in the goto graph one after the other by algorithm 2.
-  //       As a slight enhancement: the fail state chains are rebuilted from scratch when needed,
-  //       i.e. if a keyword has been added since the last pattern maching serch.
-  //       Therefore, algorithms 2 and 3 can be processed sequentially.
-  //       but then, algorithm 3 must traverse the full goto graph every time a sequence has been added.
-  if (machine->reconstruct)
-    state_fail_state_construct (machine);
+  //       As a slight enhancement: the fail state chains are rebuilt from scratch when needed,
+  //       i.e. if a keyword has been added since the last pattern maching search.
+  //       Therefore, algorithms 2 and 3 can be processed alternately.
+  //       (algorithm 3 will traverse the full goto graph after a keyword has been added.)
+  // Double-checked locking
+  if (state->machine->reconstruct)
+  {
+    pthread_mutex_lock (&state->machine->lock);
+    if (state->machine->reconstruct)
+      state_fail_state_construct (state->machine);
+    pthread_mutex_unlock (&state->machine->lock);
+  }
 
-  machine->current_state = state_goto (machine->current_state, letter);
-  return machine->current_state->nb_sequence;
+  return state_goto (state, letter);
+}
+
+/// @see Aho-Corasick Algorithm 1: Pattern matching machine - if output (stat) != empty
+ACM_PRIVATE size_t
+ACM_nb_matches (const ACState *state)
+{
+  return state->nb_sequence;
 }
 
 /// @see Aho-Corasick Algorithm 1: Pattern matching machine - print output (state) [ith element]
 #ifndef ACM_ASSOCIATED_VALUE
 ACM_PRIVATE size_t
-ACM_get_match (const ACMachine * machine, size_t index, MatchHolder * match)
+ACM_get_match (const ACState * state, size_t index, MatchHolder * match)
 #else
 ACM_PRIVATE size_t
-ACM_get_match (const ACMachine * machine, size_t index, MatchHolder * match, void **value)
+ACM_get_match (const ACState * state, size_t index, MatchHolder * match, void **value)
 #endif
 {
   // Aho-Corasick Algorithm 1: if output(state) [ith element]
-  ACM_ASSERT (machine && index < machine->current_state->nb_sequence);
+  ACM_ASSERT (index < state->nb_sequence);
 
-  const ACState *state = machine->current_state;
   size_t i = 0;
 
   for (; state; state = state->fail_state, i++ /* skip to the next failing state */ )
@@ -697,9 +711,8 @@ ACM_get_match (const ACMachine * machine, size_t index, MatchHolder * match, voi
   return state->rank;
 }
 
-ACM_PRIVATE void
-ACM_reset (ACMachine * machine)
+ACM_PRIVATE const ACState*
+ACM_reset (const ACMachine * machine)
 {
-  if (machine)
-    machine->current_state = machine->state_0;
+  return machine->state_0;
 }

@@ -75,6 +75,8 @@ typedef Keyword MatchHolder;
   do { ACMachine * tmp = ACM_register_keyword ((machine), (keyword), (value_ptr), (dtor)); if (tmp) (machine) = tmp; } while (0)
 #  endif
 
+struct _ac_state;               // Partially declared structure
+typedef struct _ac_state ACState;
 struct _ac_machine;             // Partially declared structure
 typedef struct _ac_machine ACMachine;
 
@@ -125,20 +127,35 @@ ACM_PRIVATE void ACM_foreach_keyword (const ACMachine * machine, void (*operator
 ACM_PRIVATE void ACM_foreach_keyword (const ACMachine * machine, void (*operator) (Keyword, void *));
 #  endif
 
+/// Setting or resetting the state to the initial state of the state machine
+/// will enforce the next letter to try to match with only the first symbol of a registered keyword (if possible).
+/// This is useful to start parsing a new text against registered keywords.
+/// @param [in] machine A pointer to a valid state machine.
+/// @returns A pointer to a valid state.
+/// Thread safe.
+ACM_PRIVATE const ACState *ACM_reset (const ACMachine * machine);
+
+/// Transit to a valid state matching letter.
+/// @param [in] state A pointer to a valid state.
+/// @param [in] letter letter to match keywords with.
+/// @returns A pointer to a valid state after transition to letter.
+/// Thread safe.
+ACM_PRIVATE const ACState *ACM_match (const ACState * state, ACM_SYMBOL letter);
+
 /// Get the number of keywords associated to the last provided letters.
-/// @param [in] machine State machine.
+/// @param [in] state A pointer to a valid state.
+/// @returns The number of keywords matching with the last letters.
+/// Thread safe.
+ACM_PRIVATE size_t ACM_nb_matches (const ACState * state);
+
+/// Get the number of keywords associated to the last provided letters.
+/// @param [in] state A pointer to a valid state.
 /// @param [in] letter letter to match keywords with.
 /// @returns The number of keywords matching with the last letters.
-ACM_PRIVATE size_t ACM_nb_matches (ACMachine * machine, ACM_SYMBOL letter);
+#define ACM_NB_MATCHES(state, letter) ACM_nb_matches ((state) = ACM_match ((state), (letter)))
 
-/// Setting or resetting the state to the initial state of the msteate machine
-/// will enforce the next letter to try to match with only the first symbol of a registered keyword (if possible).
-/// This is useful to start parsing a new text aginst registered keywords.
-/// @param [in] machine A pointer to a Aho-Corasick Machine allocated by a previous call to ACM_register_keyword.
-ACM_PRIVATE void ACM_reset (ACMachine * machine);
-
-/// Get the ith keyword associate to the internal state.
-/// @param [in] machine State machine.
+/// Get the ith keyword associate to the state.
+/// @param [in] state A pointer to a valid state.
 /// @param [in] index of the requested keyword.
 /// @param [out] match 0 or a pointer to a keyword.
 ///                       *match is modified to the keyword of rank 'index' associated to the internal state.
@@ -147,10 +164,11 @@ ACM_PRIVATE void ACM_reset (ACMachine * machine);
 /// index should be less than the value returned by state_nb_keywords().
 /// match->letter should have been initialized to 0 prior to first call to ACM_get_match.
 /// match->letter should be freed by the user program after the last call to ACM_get_match.
+/// Thread safe.
 #  ifndef ACM_ASSOCIATED_VALUE
-ACM_PRIVATE size_t ACM_get_match (const ACMachine * machine, size_t index, MatchHolder * match);
+ACM_PRIVATE size_t ACM_get_match (const ACState * state, size_t index, MatchHolder * match);
 #  else
-ACM_PRIVATE size_t ACM_get_match (const ACMachine * machine, size_t index, MatchHolder * match, void **value);
+ACM_PRIVATE size_t ACM_get_match (const ACState * state, size_t index, MatchHolder * match, void **value);
 #  endif
 
 /// Release allocated resources.

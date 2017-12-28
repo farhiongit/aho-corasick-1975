@@ -16,7 +16,8 @@ In more details, compared to the implementation proposed by Aho and Corasick, th
 1. First of all, it does not make any assumption on the size of the alphabet used.
 Particularly, the alphabet is not limited to 256 signs as most other implementations do.
 The number of possible signs is only defined by the type of symbol the user decides to use.
-For instance, if `ACM_SYMBOL` would be defined as `long long int`, then the number of possible signs would be 18446744073709551616.
+For instance, if the type of signs is defined as `long long int` rather than the usual `char`,
+then the number of possible signs would be 18446744073709551616 !
 
       - For this to be possible, the assertion "for all a such that g(0, a) = fail do g(0, a) <- 0" in the Aho-Corasick paper,
         at the end of algorithm 2 can not be fulfilled because it would require to set g(0, a) for all the values of 'a'
@@ -39,8 +40,8 @@ For instance, if `ACM_SYMBOL` would be defined as `long long int`, then the numb
    (see `ACM_register_keyword` which alternates calls to algorithms 2 and 3.)
 4. It keeps track of the rank of each registered keyword as returned by ACM_get_match().
    This rank can be used, together with the state machine, as a unique identifiant of a keyword.
-5. If `ACM_ASSOCIATED_VALUE` is defined at compile time, it can associate user allocated and defined values to registered keywords,
-   and retreive them together with the found keywords:
+5. It can associate user allocated and defined values to registered keywords,
+   and retrieve them together with the found keywords:
       - a third and fourth arguments are passed to `ACM_register_keyword` calls: a pointer to a previously allocated value,
         and a pointer to function for deallocation of the associated value. This function will be called when the state machine will be release
         by `ACM_release`.
@@ -50,20 +51,180 @@ For instance, if `ACM_SYMBOL` would be defined as `long long int`, then the numb
       - `ACM_is_registered_keyword()` check for the existence of a keyword in the state machine.
       - `ACM_unregister_keyword()` removes a keyword from the state machine.
       - `ACM_foreach_keyword()` applies a user defined operator to each keyword of the state machine.
-7. It is short: aho_corasick.c is about 450 effective lines of code.
-8. Last but not least, it is very fast. On my slow HD and slow CPU old computer, it takes 0.92 seconds to register 370,099 keywords
+7. Search for matching patterns is thread safe: several texts can be parsed concurrently (by several threads).
+8. It is short: aho_corasick.c is about 700 effective lines of code.
+9. Last but not least, it is very fast. On my slow HD and slow CPU old computer, it takes 0.92 seconds to register 370,099 keywords
    with a total of 3,864,776 characters, and 0.12 seconds to find (and count occurencies of) those keywords in a text of 376,617 characters.
 
 # Implementations
 
 Two flavours of implementation are proposed.
 
-- The first "standard" implementation allows one instanciation of the Aho-Corasick machine for the type defined by ACM_SYMBOL.
-- The second "template" implementation allows to instanciate Aho-Corasick machine for several types. **It is also the recommended implementation.**
+- The first "template" implementation allows to instanciate Aho-Corasick machine for several types.
+  **It is also the recommended implementation.**
+- The second "standard" implementation allows only one instanciation of the Aho-Corasick machine for the type defined
+  by ACM_SYMBOL. **The code is fully commented, thus it is provided mostly for information purpose.**
+
+## Template implementation
+
+This implementation provides a syntax similar to the C++ templates (!).
+It makes use of a nice idea of Randy Gaul for [Generic Programming in C](http://www.randygaul.net/2012/08/10/generic-programming-in-c/).
+
+It allows to instanciate the Aho-Corasick machine at compile-time for one or several type specified in the user program
+(to be compared to the standard implementation which instanciate the machine for a unique type defined in ACM_SYMBOL.)
+
+Except for ACM_register_keyword() and ACM_unregister_keyword(), all functions are thread-safe.
+Therefore, a given shared Aho-Corasick machine can be used by multiple threads to scan different texts for matching keywords.
+
+### Usage
+
+1. Insert "aho_corasick_template_impl.h" in global scope.
+2. Declare, in global scope, the types for which the Aho-Corasick machines have to be instanciated.
+
+```c
+    ACM_DECLARE (char)
+    ACM_DEFINE (char)
+```
+
+In local scope (function or main entry point), preprocess keywords:
+
+3. **Optionally**, user defined operators can be specified for type *T*.
+
+     - An optional equality operator can be user defined for a type *T* with SET_EQ_OPERATOR(*T*, equality)
+     - An optional constructor can be user defined for a type *T* with SET_COPY_CONSTRUCTOR(*T*, constructor)
+     - An optional destructor operator can be user defined for a type *T* with SET_DESTRUCTOR(*T*, destructor)
+```c
+    SET_EQ_OPERATOR (*T*, equality);
+    SET_COPY_CONSTRUCTOR (*T*, constructor);
+    SET_DESTRUCTOR (*T*, destructor);
+```
+
+4. Initialize a state machine of type ACMachine (*T*) using ACM_create (*T*):
+      - An optional second argument of type EQ_OPERATOR_TYPE(*T*) can specify a user defined equality operator for type *T*.
+      - An optional third argument of type COPY_OPERATOR_TYPE(*T*) can specify a user defined constructor operator for type *T*.
+      - An optional fourth argument of type DESTRUCTOR_OPERATOR_TYPE(*T*) can specify a user defined destuctor operator for type *T*.
+      - Those operators supersedes those defined by SET_EQ_OPERATOR, SET_COPY_CONSTRUCTOR, SET_DESTRUCTOR for a specific
+        instance of Aho-Corasick machine.
+```c
+    ACMachine (char) *M = ACM_create (char, [equality], [constructor], [destructor]);
+```
+
+5. Add keywords (of type `Keyword (*T*)`) to the state machine calling `ACM_register_keyword()`, one at a time, repeatedly.
+      - An optional third argument, if not 0, can point to a value to be associated to the registerd keyword.
+      - An optional fourth argument, if not 0, provides a pointer to a destructor (`void (*dtor) (void *)`)
+        to be used to destroy the associated value.
+      - The macro helper `ACM_KEYWORD_SET (keyword,symbols,length)` can be used to initialize keywords with a single statement.
+      - The rank of insertion of a keyword is registered together with the keyword.
+      - If a keywords was already registered in the machine, its rank (and possibly associated value) is left unchanged.
+      - `ACM_nb_keywords (machine)` returns the number of keywords already inserted in the state machine.
+```c
+    int has_been_registered = ACM_register_keyword (machine, keyword, [value], [destructor]);
+```
+
+Then, parse any sequence of any number of texts, searching for previously registered keywords:
+
+6. (Optionally) Initialize a match holder (of type `MatchHolder` (*T*)) with `ACM_MATCH_INIT (match)`
+   before the first use by ACM_get_match (if necessary).
+7. Initialize a state (of type `const ACState` (*T*)) with `ACM_reset (machine)`
+8. Inject symbols of the text, one at a time by calling `ACM_match (state, symbol)`.
+9. After each insertion of a symbol, check the returned value of `ACM_nb_matches` to know if the last inserted symbols match at least one keyword.
+      - If a new text has to be processed by the state machine, reset it to its initial state (`ACM_reset`) so that the next symbol will
+        be matched against the first letter of each keyword.
+10. (Optionally) If matches were found, retrieve them calling `ACM_get_match ()` for each match (if necessary).
+      - `ACM_MATCH_LENGTH (match)` and `ACM_MATCH_SYMBOLS (match)` can be used to get the length and the content of a retreieved match.
+      - An optional third argument, a pointer to a `MatchHolder` (*T*), if not 0, will point to the matching keyword on return.
+      - An optional fourth argument, a pointer to a `(void *)` pointer, if not 0, will point to the pointer to the value associated
+        with the matching keyword.
+```c
+    size_t rank = ACM_get_match (machine, index, [match], [value]);
+```
+11. (Optionally) After the last call to `ACM_get_match ()`, release to match holder by calling `ACM_MATCH_RELEASE (match)` (if necessary).
+
+Steps 6, 8 and 9 are optional.
+
+Finally, when all texts have been parsed:
+
+12. After usage, release the state machine calling ACM_release() on M.
+
+Extra features are available to manage keywords:
+
+- `ACM_is_registered_keyword (machine, keyword, [value])` can check if a keyword is already registered, and retreives its associated value
+  if the third argument (of type `void **`) is provided and not equal to 0.
+- `ACM_unregister_keyword (machine, keyword)` allows to unregister a keyword (if previously registered).
+- `ACM_foreach_keyword (machine, function)` applies a function (`void (*function) (Keyword (T), void *)`) on each registerd keyword.
+  The `function` is called for each keyword.
+  The first argument of this function is the keyword, the second is the pointer to the value associated to the keyword.
+- `ACM_nb_keywords (machine)` yields the number of registered keywords.
+
+Here is a simple example:
+```c
+#include <string.h>
+#include "aho_corasick_template_impl.h"
+
+ACM_DECLARE (char)                            /* template */
+ACM_DEFINE (char)                             /* template */
+
+int
+main (void)
+{
+  ACMachine (char) *M = ACM_create (char);    /* template */
+
+  char *keywords[] = { "buckle", "shoe", "knock", "door", "pick", "sticks", "ten" };
+  for (size_t i = 0; i < sizeof (keywords) / sizeof (*keywords); i++)
+  {
+    Keyword (char) kw;                        /* template */
+    ACM_KEYWORD_SET (kw, keywords[i], strlen (keywords[i]));
+    ACM_register_keyword (M, kw);
+  }
+
+  char BuckleMyShoe[] =
+    "One, two buckle my shoe\nThree, four knock on the door\nFive, six pick up sticks\nNine, ten a big fat hen...\n";
+
+  const ACState (char) * state = ACM_reset (M);
+  MatchHolder (char) m;                       /* template */
+  ACM_MATCH_INIT (m);
+  for (size_t i = 0; i < strlen (BuckleMyShoe); i++)
+  {
+    state = ACM_match (state, BuckleMyShoe[i]);
+    size_t nb = ACM_nb_matches (state);
+    for (size_t j = 0; j < nb; j++)
+    {
+      ACM_get_match (state, j, &m);
+      for (size_t k = 0; k < ACM_MATCH_LENGTH (m); k++)
+        printf ("%c", ACM_MATCH_SYMBOLS (m)[k]);
+      printf ("\n");
+    }
+  }
+  ACM_MATCH_RELEASE (m);
+  ACM_release (M);
+}
+```
+
+### Files
+
+Source code:
+
+- aho_corasick_template.h defines and fully documents the interface.
+- aho_corasick_template_impl.h defines the implementation.
+
+Examples:
+
+- aho_corasick_template_test.c gives a complete and commented example.
+- words and mrs_dalloway.txt are input files used by the example.
+
 
 ## Standard implementation
 
+The allows to instanciate a single finite state machine for a type of symbols defined by `ACM_SYMBOL`.
+If `ACM_ASSOCIATED_VALUE` is defined at compile time, user defined and allocated values can be associated to
+registered keywords and later retrieved with the matching keywords.
+
+Except for ACM_register_keyword() and ACM_unregister_keyword(), all functions are thread-safe.
+Therefore, the Aho-Corasick machine can be used by multiple threads to scan different texts for matching keywords.
+
 ### Usage
+
+The usage is very similar to the "Template" version:
 
 First, initialize the finite state machine with a set of keywords to be searched for:
 
@@ -89,19 +250,20 @@ In local scope (function or main entry point), preprocess keywords (once):
 Then, parse any sequence of any number of texts, searching for previously registered keywords:
 
 5. (Optionally) Initialize a match holder with `ACM_MATCH_INIT` before the first use by `ACM_get_match` (if necessary).
-6. Inject symbols of the text, one at a time by calling `ACM_nb_matches()`, and,
-   after each insertion of a symbol, check the returned value to know if the last inserted symbols match at least one keyword.
+6. Initialize a state (of type `const ACState` (*T*)) with `ACM_reset (machine)`
+7. Inject symbols of the text, one at a time by calling `ACM_NB_MATCHES()`.
+8. After each insertion of a symbol, check the returned value to know if the last inserted symbols match at least one keyword.
       - If a new text has to be processed by the state machine, reset it to its initial state (`ACM_reset`) so that the next symbol will
         be matched against the first letter of each keyword.
-7. (Optionally) If matches were found, retrieve them calling `ACM_get_match()` for each match (if necessary).
+9. (Optionally) If matches were found, retrieve them calling `ACM_get_match()` for each match (if necessary).
       - `ACM_MATCH_LENGTH` and `ACM_MATCH_SYMBOLS` can be used to get the length and the content of a retreieved match.
-8. (Optionally) After the last call to `ACM_get_match()`, release to match holder by calling `ACM_MATCH_RELEASE` (if necessary).
+10. (Optionally) After the last call to `ACM_get_match()`, release to match holder by calling `ACM_MATCH_RELEASE` (if necessary).
 
 Steps 5, 7 and 8 are optional.
 
 Finally, when all texts have been parsed:
 
-9. After usage, release the state machine calling `ACM_release()` on M.
+11. After usage, release the state machine calling `ACM_release()` on M.
 
 Here is a simple example:
 ```c
@@ -126,14 +288,15 @@ main (void)
   char BuckleMyShoe[] =
     "One, two buckle my shoe\nThree, four knock on the door\nFive, six pick up sticks\nNine, ten a big fat hen...\n";
 
+  const ACState * state = ACM_reset (M);
   MatchHolder m;
   ACM_MATCH_INIT (m);
   for (size_t i = 0; i < strlen (BuckleMyShoe); i++)
   {
-    size_t nb = ACM_nb_matches (M, BuckleMyShoe[i]);
+    size_t nb = ACM_NB_MATCHES (state, BuckleMyShoe[i]);
     for (size_t j = 0; j < nb; j++)
     {
-      ACM_get_match (M, j, &m);
+      ACM_get_match (state, j, &m);
       for (size_t k = 0; k < ACM_MATCH_LENGTH (m); k++)
         printf ("%c", ACM_MATCH_SYMBOLS (m)[k]);
       printf ("\n");
@@ -205,150 +368,6 @@ Examples:
 - `aho_corasick_test.c` gives a complete and commented example.
 - `words` and `mrs_dalloway.txt` are input files used by the example.
 - `aho_corasick_symbol.h` is an example of a declaration of the `ACM_SYMBOL`.
-
-## Template implementation
-
-This implementation provides a syntax similar to the C++ templates.
-It makes use of a nice idea of Randy Gaul for [Generic Programming in C](http://www.randygaul.net/2012/08/10/generic-programming-in-c/).
-
-It allows to instanciate the Aho-Corasick machine at compile-time for one or several type specified in the user program
-(to ne compared to the standard implementation which instanciate the machine for a unique type defined in ACM_SYMBOL.)
-
-### Usage
-
-The usage is very similar to the "Standard" version:
-
-1. Insert "aho_corasick_template_impl.h" in global scope.
-2. Declare, in global scope, the types for which the Aho-Corasick machines have to be instanciated.
-
-```c
-    ACM_DECLARE (char)
-    ACM_DEFINE (char)
-```
-
-In local scope (function or main entry point), preprocess keywords:
-
-3. **Optionally**, user defined operators can be specified for type *T*.
-
-     - An optional equality operator can be user defined for a type *T* with SET_EQ_OPERATOR(*T*, equality)
-     - An optional constructor can be user defined for a type *T* with SET_COPY_CONSTRUCTOR(*T*, constructor)
-     - An optional destructor operator can be user defined for a type *T* with SET_DESTRUCTOR(*T*, destructor)
-```c
-    SET_EQ_OPERATOR (*T*, equality);
-    SET_COPY_CONSTRUCTOR (*T*, constructor);
-    SET_DESTRUCTOR (*T*, destructor);
-```
-
-4. Initialize a state machine of type ACMachine (*T*) using ACM_create (*T*):
-      - An optional second argument of type EQ_OPERATOR_TYPE(*T*) can specify a user defined equality operator for type *T*.
-      - An optional third argument of type COPY_OPERATOR_TYPE(*T*) can specify a user defined constructor operator for type *T*.
-      - An optional fourth argument of type DESTRUCTOR_OPERATOR_TYPE(*T*) can specify a user defined destuctor operator for type *T*.
-      - Those operators supersedes those defined by SET_EQ_OPERATOR, SET_COPY_CONSTRUCTOR, SET_DESTRUCTOR for a specific
-        instance of Aho-Corasick machine.
-```c
-    ACMachine (char) *M = ACM_create (char, [equality], [constructor], [destructor]);
-```
-
-5. Add keywords (of type `Keyword (*T*)`) to the state machine calling `ACM_register_keyword()`, one at a time, repeatedly.
-      - An optional third argument, if not 0, can point to a value to be associated to the registerd keyword.
-      - An optional fourth argument, if not 0, provides a pointer to a destructor (`void (*dtor) (void *)`)
-        to be used to destroy the associated value.
-      - The macro helper `ACM_KEYWORD_SET (keyword,symbols,length)` can be used to initialize keywords with a single statement.
-      - The rank of insertion of a keyword is registered together with the keyword.
-      - If a keywords was already registered in the machine, its rank (and possibly associated value) is left unchanged.
-      - `ACM_nb_keywords (machine)` returns the number of keywords already inserted in the state machine.
-```c
-    int has_been_registered = ACM_register_keyword (machine, keyword, [value], [destructor]);
-```
-
-Then, parse any sequence of any number of texts, searching for previously registered keywords:
-
-6. (Optionally) Initialize a match holder (of type `MatchHolder` (*T*)) with `ACM_MATCH_INIT (match)`
-   before the first use by ACM_get_match (if necessary).
-7. Inject symbols of the text, one at a time by calling `ACM_nb_matches (machine, symbol)`, and,
-   after each insertion of a symbol, check the returned value to know if the last inserted symbols match at least one keyword.
-      - If a new text has to be processed by the state machine, reset it to its initial state (`ACM_reset`) so that the next symbol will
-        be matched against the first letter of each keyword.
-8. (Optionally) If matches were found, retrieve them calling `ACM_get_match ()` for each match (if necessary).
-      - `ACM_MATCH_LENGTH (match)` and `ACM_MATCH_SYMBOLS (match)` can be used to get the length and the content of a retreieved match.
-      - An optional third argument, a pointer to a `MatchHolder` (*T*), if not 0, will point to the matching keyword on return.
-      - An optional fourth argument, a pointer to a `(void *)` pointer, if not 0, will point to the pointer to the value associated
-        with the matching keyword.
-```c
-    size_t rank = ACM_get_match (machine, index, [match], [value]);
-```
-9. (Optionally) After the last call to `ACM_get_match ()`, release to match holder by calling `ACM_MATCH_RELEASE (match)` (if necessary).
-
-Steps 6, 8 and 9 are optional.
-
-Finally, when all texts have been parsed:
-
-10. After usage, release the state machine calling ACM_release() on M.
-
-Extra features are available to manage keywords:
-
-- `ACM_is_registered_keyword (machine, keyword, [value])` can check if a keyword is already registered, and retreives its associated value
-if the third argument (of type `void **`) is provided and not equal to 0.
-- `ACM_unregister_keyword (machine, keyword)` allows to unregister a keyword (if previously registered).
-- `ACM_foreach_keyword (machine, function)` applies a function (`void (*function) (Keyword (T), void *)`) on each registerd keyword.
-The `function` is called for each keyword.
-The first argument of this function is the keyword, the second is the pointer to the value associated to the keyword.
-- `ACM_nb_keywords (machine)` yields the number of registered keywords.
-
-Here is a simple example:
-```c
-#include <string.h>
-#include "aho_corasick_template_impl.h"
-
-ACM_DECLARE (char)                            /* template */
-ACM_DEFINE (char)                             /* template */
-
-int
-main (void)
-{
-  ACMachine (char) *M = ACM_create (char);    /* template */
-
-  char *keywords[] = { "buckle", "shoe", "knock", "door", "pick", "sticks", "ten" };
-  for (size_t i = 0; i < sizeof (keywords) / sizeof (*keywords); i++)
-  {
-    Keyword (char) kw;                        /* template */
-    ACM_KEYWORD_SET (kw, keywords[i], strlen (keywords[i]));
-    ACM_register_keyword (M, kw);
-  }
-
-  char BuckleMyShoe[] =
-    "One, two buckle my shoe\nThree, four knock on the door\nFive, six pick up sticks\nNine, ten a big fat hen...\n";
-
-  MatchHolder (char) m;                       /* template */
-  ACM_MATCH_INIT (m);
-  for (size_t i = 0; i < strlen (BuckleMyShoe); i++)
-  {
-    size_t nb = ACM_nb_matches (M, BuckleMyShoe[i]);
-    for (size_t j = 0; j < nb; j++)
-    {
-      ACM_get_match (M, j, &m);
-      for (size_t k = 0; k < ACM_MATCH_LENGTH (m); k++)
-        printf ("%c", ACM_MATCH_SYMBOLS (m)[k]);
-      printf ("\n");
-    }
-  }
-  ACM_MATCH_RELEASE (m);
-  ACM_release (M);
-}
-```
-
-### Files
-
-Source code:
-
-- aho_corasick_template.h defines and fully documents the interface.
-- aho_corasick_template_impl.h defines the implementation.
-
-Examples:
-
-- aho_corasick_template_test.c gives a complete and commented example.
-- words and mrs_dalloway.txt are input files used by the example.
-
 
 # Performance test
 

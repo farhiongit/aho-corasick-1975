@@ -10,7 +10,8 @@ aho_corasick_test: aho_corasick_test.c
 
 .PHONY: cloc
 cloc:
-	cloc --by-file-by-lang aho_corasick_test.c aho_corasick.c aho_corasick.h aho_corasick_template_test.c aho_corasick_template.h aho_corasick_template_impl.h
+	cloc --by-file aho_corasick.c aho_corasick.h
+	cloc --by-file aho_corasick_template.h aho_corasick_template_impl.h
 
 .PHONY: execute
 execute: aho_corasick_test aho_corasick_template_test

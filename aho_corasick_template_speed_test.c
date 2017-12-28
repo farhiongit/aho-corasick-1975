@@ -53,16 +53,18 @@ main (void)
     exit (EXIT_FAILURE);
   }
 
+  const ACState (char) * state = ACM_reset (M);
   char line[4096];
   while (fgets (line, sizeof (line) / sizeof (*line), f))
     for (char *c = line; *c; c++)
     {
-      size_t nb = ACM_nb_matches (M, *c);
+      state = ACM_match (state, *c);
+      size_t nb = ACM_nb_matches (state);
 
       for (size_t j = 0; j < nb; j++)
       {
         void *v;
-        ACM_get_match (M, j, 0, &v);
+        ACM_get_match (state, j, 0, &v);
         (*(int *) v)++;
       }
     }

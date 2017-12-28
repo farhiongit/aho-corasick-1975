@@ -55,6 +55,9 @@
 ///          SET_EQ_OPERATOR (wchar_t, nocaseeq);
 #  define SET_EQ_OPERATOR(T, equal_operator)        do { EQ_##T = (equal_operator) ; } while (0)
 
+/// ACState (T) is the type of a Aho-Corasick state machine for type T
+#  define ACState(T)                                ACState_##T
+
 /// ACMachine (T) is the type of the Aho-Corasick finite state machine for type T
 #  define ACMachine(T)                              ACMachine_##T
 
@@ -155,17 +158,25 @@
 ///          ACM_foreach_keyword (M, print_match);
 #  define ACM_foreach_keyword(machine, operator)    (machine)->vtable->foreach_keyword ((machine), (operator))
 
-/// size_t ACM_nb_matches (ACMachine (T) * machine, T letter)
-/// Returns the number of registered keywords that match a sequence of the symbols passed by the last ACM_nb_matches.
-/// @param [in] machine A pointer to a Aho-Corasick machine.
+/// const ACState (T) * ACM_match (const ACState (T) * state, T letter)
+/// Get the next state maiching a symbol injected in the finite state machine.
+/// @param [in] state A pointer to a valid Aho-Corasick machine state.
 /// @param [in] letter A symbol.
-/// @return The number of registered keywords that match a sequence of last letters matched by ACM_nb_matches.
+/// @return A pointer to the state reached after the transition from the input state matching the input symbol.
 /// Note: The equality operator, either associated to the machine, or associated to the type T, is used if declared.
-#  define ACM_nb_matches(machine, letter)           (machine)->vtable->nb_matches ((machine), (letter))
+/// Usage: state = ACM_match(state, letter);
+#  define ACM_match(state, letter)           (state)->vtable->match ((state), (letter))
 
-/// void ACM_reset (ACMachine (T) * machine)
-/// Ignores all the symbols previously matched by by ACM_nb_matches.
+/// size_t ACM_nb_matches (ACState (T) * state)
+/// Returns the number of registered keywords that match a sequence of the symbols passed by the last ACM_nb_matches.
+/// @param [in] state A pointer to a valid Aho-Corasick machine state.
+/// @return The number of registered keywords that match a sequence of last letters matched by ACM_nb_matches.
+#  define ACM_nb_matches(state)              (state)->vtable->nb_matches ((state))
+
+/// const ACState (T) * ACM_reset (ACMachine (T) * machine)
+/// Get a valid state, ignoring all the symbols previously matched by ACM_match.
 /// @param [in] machine A pointer to a Aho-Corasick machine.
+/// @param [in] state A pointer to a valid Aho-Corasick machine state.
 #  define ACM_reset(machine)                        (machine)->vtable->reset ((machine))
 
 /// void ACM_MATCH_INIT (MatchHolder (T) match)
@@ -174,16 +185,16 @@
 /// Exemple: ACM_MATCH_INIT (match);
 #  define ACM_MATCH_INIT(match)                     ACM_KEYWORD_SET((match), 0, 0)
 
-/// size_t ACM_get_match (const ACMachine (T) * machine, size_t index, [MatchHolder (T) * match], [void **value_ptr])
+/// size_t ACM_get_match (const ACState (T) * state, size_t index, [MatchHolder (T) * match], [void **value_ptr])
 /// Gets the ith keyword matching with the last symbols.
-/// @param [in] machine A pointer to a Aho-Corasick machine.
+/// @param [in] state A pointer to a valid Aho-Corasick machine state.
 /// @param [in] index Index (ith) of the ith matching keyword.
 /// @param [out, optional] match *match is set to the ith matching keyword.
 /// @param [out, optional] value_ptr *value_ptr is set to the pointer of the value associated to the keyword after the call.
 /// @return The rank (unique id) of the ith matching keyword.
 /// Note: index must be lower than value returned by the last call to ACM_nb_matches.
 /// ?ote: *match should have been initialized by ACM_MATCH_INIT before use.
-/// Exemple: size_t rank = ACM_get_match (M, j, &match, 0);
+/// Exemple: size_t rank = ACM_get_match (state, j, &match, 0);
 #  define ACM_get_match(...)                        VFUNC(ACM_get_match, __VA_ARGS__)
 
 /// void ACM_MATCH_RELEASE (MatchHolder (T) match)
@@ -235,10 +246,11 @@ typedef struct                                       \
 } Keyword_##T;                                       \
 \
 struct _ac_state_##T;                                \
+typedef struct _ac_state_##T ACState_##T;            \
 struct _ac_machine_##T;                              \
 typedef struct _ac_machine_##T ACMachine_##T;        \
 \
-struct _ac_vtable_##T                                \
+struct _acm_vtable_##T                               \
 {                                                    \
   int (*register_keyword) (ACMachine_##T * machine, Keyword_##T keyword, void *value, void (*dtor) (void *)); \
   int (*is_registered_keyword) (const ACMachine_##T * machine, Keyword_##T keyword, void **value);            \
@@ -246,25 +258,51 @@ struct _ac_vtable_##T                                \
   size_t (*nb_keywords) (const ACMachine_##T * machine);                                                      \
   void (*foreach_keyword) (const ACMachine_##T * machine, void (*operator) (Keyword_##T, void *));            \
   void (*release) (const ACMachine_##T * machine);                                                            \
+  const ACState_##T * (*reset) (const ACMachine_##T * machine);                                               \
+};                                                   \
 \
-  size_t (*nb_matches) (ACMachine_##T * machine, T letter);                                                   \
-  void (*reset) (ACMachine_##T * machine);                                                                    \
-  size_t (*get_match) (const ACMachine_##T * machine, size_t index, Keyword_##T * match,                      \
-                       void **value);                                                                         \
+struct _acs_vtable_##T                               \
+{                                                    \
+  const ACState_##T * (*match) (const ACState_##T * state, T letter);                                   \
+  size_t (*nb_matches) (const ACState_##T * state);                                                     \
+  size_t (*get_match) (const ACState_##T * statee, size_t index, Keyword_##T * match, void **value);    \
 };                                                                     \
 \
 struct _ac_machine_##T                               \
 {                                                    \
   struct _ac_state_##T *state_0;                     \
-  const struct _ac_state_##T *current_state;         \
   size_t rank;                                       \
   size_t nb_sequence;                                \
   int reconstruct;                                   \
   size_t size;                                       \
-  const struct _ac_vtable_##T *vtable;               \
+  pthread_mutex_t lock;                              \
+  const struct _acm_vtable_##T *vtable;              \
   T (*copy) (const T);                               \
   void (*destroy) (const T);                         \
   int (*eq) (const T, const T);                      \
+};                                                   \
+\
+struct _ac_state_##T                                 \
+{                                                    \
+  struct _ac_next_##T                                \
+  {                                                  \
+    T letter;                                        \
+    struct _ac_state_##T *state;                     \
+  } *goto_array;                                     \
+  size_t nb_goto;                                    \
+  struct                                             \
+  {                                                  \
+    size_t i_letter;                                 \
+    struct _ac_state_##T *state;                     \
+  } previous;                                        \
+  const struct _ac_state_##T *fail_state;            \
+  int is_matching;                                   \
+  size_t nb_sequence;                                \
+  size_t rank;                                       \
+  void *value;                                       \
+  void (*value_dtor) (void *);                       \
+  ACMachine_##T * machine;                           \
+  const struct _acs_vtable_##T *vtable;              \
 };                                                   \
 \
 static ACMachine_##T *ACM_create_##T (EQ_##T##_TYPE eq,        \
@@ -283,9 +321,9 @@ static ACMachine_##T *ACM_create_##T (EQ_##T##_TYPE eq,        \
 #  define ACM_is_registered_keyword3(machine, keyword, value)           (machine)->vtable->is_registered_keyword ( (machine), (keyword), (value))
 #  define ACM_is_registered_keyword2(machine, keyword)                  ACM_is_registered_keyword3(machine, keyword, 0)
 
-#  define ACM_get_match4(machine, index, matchholder, value)            (machine)->vtable->get_match ((machine), (index), (matchholder), (value))
-#  define ACM_get_match3(machine, index, matchholder)                   ACM_get_match4(machine, index, matchholder, 0)
-#  define ACM_get_match2(machine, index)                                ACM_get_match4(machine, index, 0, 0)
+#  define ACM_get_match4(state, index, matchholder, value)            (state)->vtable->get_match ((state), (index), (matchholder), (value))
+#  define ACM_get_match3(state, index, matchholder)                   ACM_get_match4(state, index, matchholder, 0)
+#  define ACM_get_match2(state, index)                                ACM_get_match4(state, index, 0, 0)
 // END MACROS
 
 #endif
