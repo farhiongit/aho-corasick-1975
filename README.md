@@ -387,7 +387,6 @@ gzip -d googlebooks-eng-all-1gram-20120701-0.gz
 
 ACM_DECLARE (char)
 ACM_DEFINE (char)
-
 int main (void)
 {
   ACMachine (char) * M = ACM_create (char);
@@ -402,9 +401,13 @@ int main (void)
   size_t nb_matches = 0;
   FILE *f = fopen ("googlebooks-eng-all-1gram-20120701-0", "r");
   char line[4096];
+  const ACState (char) *state = ACM_reset (M);
   while (fgets (line, sizeof (line) / sizeof (*line), f))
     for (char *c = line; *c; c++)
-      nb_matches += ACM_nb_matches (M, *c);
+    {
+      state = ACM_match (state, *c);
+      nb_matches += ACM_nb_matches (state);
+    }
   fclose (f);
   printf ("%lu\n", nb_matches);
 
@@ -417,12 +420,12 @@ clang -O3 -pthread ahoperftest.c -o ahoperftest
 time ./ahoperftest
 280503
 
-real	0m3.665s
-user	0m3.560s
-sys	0m0.076s
+real  0m3.848s
+user  0m3.732s
+sys 0m0.088s
 ```
 
-It's a little bit slower than classical implementations (such as  https://github.com/morenice/ahocorasick)
+It's a little bit slower than usual implementations (such as  https://github.com/morenice/ahocorasick)
 but with a clean, generic and template interface.
 Genericity (alphabet is user defined and not restricted to 256 characters as most implementations do) comes
 with a slight loss of performance.
