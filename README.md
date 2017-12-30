@@ -151,8 +151,8 @@ Extra features are available to manage keywords:
 - `ACM_is_registered_keyword (machine, keyword, [value])` can check if a keyword is already registered, and retreives its associated value
   if the third argument (of type `void **`) is provided and not equal to 0.
 - `ACM_unregister_keyword (machine, keyword)` allows to unregister a keyword (if previously registered).
-- `ACM_foreach_keyword (machine, function)` applies a function (`void (*function) (Keyword (T), void *)`) on each registerd keyword.
-  The `function` is called for each keyword.
+- `ACM_foreach_keyword (machine, function)` applies a function (`void (*function) (Keyword (T), void *)`) on each
+  registerd keyword. The `function` is called for each keyword and should keep it unchanged.
   The first argument of this function is the keyword, the second is the pointer to the value associated to the keyword.
 - `ACM_nb_keywords (machine)` yields the number of registered keywords.
 
@@ -405,8 +405,9 @@ int main (void)
   while (fgets (line, sizeof (line) / sizeof (*line), f))
     for (char *c = line; *c; c++)
     {
-      state = ACM_match (state, *c);
-      nb_matches += ACM_nb_matches (state);
+      size_t nb;
+      state = ACM_match (state, *c, &nb);
+      nb_matches += nb;
     }
   fclose (f);
   printf ("%lu\n", nb_matches);
@@ -420,9 +421,9 @@ clang -O3 -pthread ahoperftest.c -o ahoperftest
 time ./ahoperftest
 280503
 
-real  0m3.848s
-user  0m3.732s
-sys 0m0.088s
+real	0m3.593s
+user	0m3.484s
+sys	0m0.108s
 ```
 
 It's a little bit slower than usual implementations (such as  https://github.com/morenice/ahocorasick)

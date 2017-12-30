@@ -1,7 +1,7 @@
 CFLAGS = -Wall -O3 -pthread -Werror
 #CFLAGS += -g
 #CC = cc -Wno-error=cpp
-CC = clang -Wno-error=\#warnings
+CC = clang -Wno-error=\#warnings -fmacro-backtrace-limit=0
 
 all: cloc execute aho_corasick.o nmo speed
 

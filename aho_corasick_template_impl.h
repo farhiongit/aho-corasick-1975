@@ -216,8 +216,63 @@ static int __EQ_##ACM_SYMBOL(const ACM_SYMBOL a, const ACM_SYMBOL b)   \
                                        "ABORT  " "\n"), fflush (0), raise (SIGABRT));                       \
 }                                                                      \
 \
+static const ACState_##ACM_SYMBOL *state_goto_##ACM_SYMBOL (           \
+                const ACState_##ACM_SYMBOL * state,                    \
+                ACM_SYMBOL letter, EQ_##ACM_SYMBOL##_TYPE eq);         \
+\
 static void                                                            \
-state_fail_state_construct_##ACM_SYMBOL (ACMachine_##ACM_SYMBOL * machine);    \
+state_reset_output_##ACM_SYMBOL (ACState_##ACM_SYMBOL * r)             \
+{                                                                      \
+  if (r->is_matching)                                                  \
+    r->nb_sequence = 1;                                                \
+  else                                                                 \
+    r->nb_sequence = 0;                                                \
+  struct _ac_next_##ACM_SYMBOL *p = r->goto_array;                     \
+  struct _ac_next_##ACM_SYMBOL *end = p + r->nb_goto;                  \
+  for (; p < end; p++)                                                 \
+    state_reset_output_##ACM_SYMBOL (p->state);                        \
+}                                                                      \
+\
+static void                                                            \
+state_fail_state_construct_##ACM_SYMBOL (ACMachine_##ACM_SYMBOL * machine) \
+{                                                                      \
+  ACState_##ACM_SYMBOL *state_0 = machine->state_0;                    \
+  if (machine->reconstruct == 2)                                       \
+    state_reset_output_##ACM_SYMBOL (state_0);                         \
+  state_0->fail_state = 0;                                             \
+  size_t queue_length = 0;                                             \
+  ACState_##ACM_SYMBOL **queue = 0;                                    \
+  ACM_ASSERT (queue = malloc (sizeof (*queue) * (machine->size - 1))); \
+  struct _ac_next_##ACM_SYMBOL *p = state_0->goto_array;               \
+  struct _ac_next_##ACM_SYMBOL *end = p + state_0->nb_goto;            \
+  for (; p < end; p++)                                                 \
+  {                                                                    \
+    ACState_##ACM_SYMBOL *s = p->state;                                \
+    queue_length++;                                                    \
+    queue[queue_length - 1] = s;                                       \
+    s->fail_state = state_0;                                           \
+  }                                                                    \
+  size_t queue_read_pos = 0;                                           \
+  while (queue_read_pos < queue_length)                                \
+  {                                                                    \
+    ACState_##ACM_SYMBOL *r = queue[queue_read_pos];                   \
+    queue_read_pos++;                                                  \
+    struct _ac_next_##ACM_SYMBOL *p = r->goto_array;                   \
+    struct _ac_next_##ACM_SYMBOL *end = p + r->nb_goto;                \
+    for (; p < end; p++)                                               \
+    {                                                                  \
+      ACState_##ACM_SYMBOL *s = p->state;                              \
+      ACM_SYMBOL a = p->letter;                                        \
+      queue_length++;                                                  \
+      queue[queue_length - 1] = s;                                     \
+      const ACState_##ACM_SYMBOL *state = r->fail_state;               \
+      s->fail_state = state_goto_##ACM_SYMBOL (state, a, machine->eq); \
+      s->nb_sequence += s->fail_state->nb_sequence;                    \
+    }                                                                  \
+  }                                                                    \
+  free (queue);                                                        \
+  machine->reconstruct = 0;                                            \
+}                                                                      \
 \
 static const ACState_##ACM_SYMBOL *                                    \
 state_goto_##ACM_SYMBOL (const ACState_##ACM_SYMBOL * state, ACM_SYMBOL letter,\
@@ -237,7 +292,7 @@ state_goto_##ACM_SYMBOL (const ACState_##ACM_SYMBOL * state, ACM_SYMBOL letter,\
 }                                                                      \
 \
 static const ACState_##ACM_SYMBOL *                                    \
-ACM_match_##ACM_SYMBOL (const ACState_##ACM_SYMBOL * state, ACM_SYMBOL letter)     \
+ACM_match_##ACM_SYMBOL (const ACState_##ACM_SYMBOL * state, ACM_SYMBOL letter, size_t * nb_matches)     \
 {                                                                      \
   if (state->machine->reconstruct)                                     \
   {                                                                    \
@@ -246,7 +301,9 @@ ACM_match_##ACM_SYMBOL (const ACState_##ACM_SYMBOL * state, ACM_SYMBOL letter)  
       state_fail_state_construct_##ACM_SYMBOL (state->machine);        \
     pthread_mutex_unlock (&state->machine->lock);                      \
   }                                                                    \
-  return state_goto_##ACM_SYMBOL (state, letter, state->machine->eq);  \
+  state = state_goto_##ACM_SYMBOL (state, letter, state->machine->eq); \
+  if (nb_matches) *nb_matches = state->nb_sequence;                    \
+  return state;                                                        \
 }                                                                      \
 \
 static size_t                                                          \
@@ -314,8 +371,9 @@ state_create_##ACM_SYMBOL (void)                                       \
 }                                                                      \
 \
 static int                                                             \
-state_goto_update_##ACM_SYMBOL (ACMachine_##ACM_SYMBOL * machine, Keyword_##ACM_SYMBOL sequence,\
-                                void *value, void (*dtor) (void *))    \
+machine_goto_update_##ACM_SYMBOL (ACMachine_##ACM_SYMBOL * machine,    \
+                                  Keyword_##ACM_SYMBOL sequence,       \
+                                  void *value, void (*dtor) (void *))  \
 {                                                                      \
   if (!sequence.length)                                                \
     return 0;                                                          \
@@ -370,64 +428,6 @@ state_goto_update_##ACM_SYMBOL (ACMachine_##ACM_SYMBOL * machine, Keyword_##ACM_
   return 1;                                                            \
 }                                                                      \
 \
-static const ACState_##ACM_SYMBOL *state_goto_##ACM_SYMBOL (           \
-                const ACState_##ACM_SYMBOL * state,                    \
-                ACM_SYMBOL letter, EQ_##ACM_SYMBOL##_TYPE eq);         \
-\
-static void                                                            \
-state_reset_output_##ACM_SYMBOL (ACState_##ACM_SYMBOL * r)             \
-{                                                                      \
-  if (r->is_matching)                                                  \
-    r->nb_sequence = 1;                                                \
-  else                                                                 \
-    r->nb_sequence = 0;                                                \
-  struct _ac_next_##ACM_SYMBOL *p = r->goto_array;                     \
-  struct _ac_next_##ACM_SYMBOL *end = p + r->nb_goto;                  \
-  for (; p < end; p++)                                                 \
-    state_reset_output_##ACM_SYMBOL (p->state);                        \
-}                                                                      \
-\
-static void                                                            \
-state_fail_state_construct_##ACM_SYMBOL (ACMachine_##ACM_SYMBOL * machine) \
-{                                                                      \
-  ACState_##ACM_SYMBOL *state_0 = machine->state_0;                    \
-  if (machine->reconstruct == 2)                                       \
-    state_reset_output_##ACM_SYMBOL (state_0);                         \
-  state_0->fail_state = 0;                                             \
-  size_t queue_length = 0;                                             \
-  ACState_##ACM_SYMBOL **queue = 0;                                    \
-  ACM_ASSERT (queue = malloc (sizeof (*queue) * (machine->size - 1))); \
-  struct _ac_next_##ACM_SYMBOL *p = state_0->goto_array;               \
-  struct _ac_next_##ACM_SYMBOL *end = p + state_0->nb_goto;            \
-  for (; p < end; p++)                                                 \
-  {                                                                    \
-    ACState_##ACM_SYMBOL *s = p->state;                                \
-    queue_length++;                                                    \
-    queue[queue_length - 1] = s;                                       \
-    s->fail_state = state_0;                                           \
-  }                                                                    \
-  size_t queue_read_pos = 0;                                           \
-  while (queue_read_pos < queue_length)                                \
-  {                                                                    \
-    ACState_##ACM_SYMBOL *r = queue[queue_read_pos];                   \
-    queue_read_pos++;                                                  \
-    struct _ac_next_##ACM_SYMBOL *p = r->goto_array;                   \
-    struct _ac_next_##ACM_SYMBOL *end = p + r->nb_goto;                \
-    for (; p < end; p++)                                               \
-    {                                                                  \
-      ACState_##ACM_SYMBOL *s = p->state;                              \
-      ACM_SYMBOL a = p->letter;                                        \
-      queue_length++;                                                  \
-      queue[queue_length - 1] = s;                                     \
-      const ACState_##ACM_SYMBOL *state = r->fail_state;               \
-      s->fail_state = state_goto_##ACM_SYMBOL (state, a, machine->eq); \
-      s->nb_sequence += s->fail_state->nb_sequence;                    \
-    }                                                                  \
-  }                                                                    \
-  free (queue);                                                        \
-  machine->reconstruct = 0;                                            \
-}                                                                      \
-\
 static ACMachine_##ACM_SYMBOL *                                        \
 machine_create_##ACM_SYMBOL (ACState_##ACM_SYMBOL * state_0,           \
                              EQ_##ACM_SYMBOL##_TYPE eq,                \
@@ -445,7 +445,7 @@ static int                                                             \
 ACM_register_keyword_##ACM_SYMBOL (ACMachine_##ACM_SYMBOL * machine, Keyword_##ACM_SYMBOL y,\
                                    void *value, void (*dtor) (void *))                      \
 {                                                                      \
-  return state_goto_update_##ACM_SYMBOL (machine, y, value, dtor);     \
+  return machine_goto_update_##ACM_SYMBOL (machine, y, value, dtor);   \
 }                                                                      \
 \
 static size_t                                                          \
@@ -598,7 +598,7 @@ ACM_reset_##ACM_SYMBOL (const ACMachine_##ACM_SYMBOL * machine)        \
   return machine->state_0;                                             \
 }                                                                      \
 \
-static const struct _acm_vtable_##ACM_SYMBOL ACM_VTABLE_##ACM_SYMBOL =     \
+static const struct _acm_vtable_##ACM_SYMBOL ACM_VTABLE_##ACM_SYMBOL = \
 {                                                                      \
   ACM_register_keyword_##ACM_SYMBOL,                                   \
   ACM_is_registered_keyword_##ACM_SYMBOL,                              \

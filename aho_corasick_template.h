@@ -158,26 +158,31 @@
 ///          ACM_foreach_keyword (M, print_match);
 #  define ACM_foreach_keyword(machine, operator)    (machine)->vtable->foreach_keyword ((machine), (operator))
 
-/// const ACState (T) * ACM_match (const ACState (T) * state, T letter)
-/// Get the next state maiching a symbol injected in the finite state machine.
+/// const ACState (T) * ACM_reset (ACMachine (T) * machine)
+/// Get a valid state, ignoring all the symbols previously matched by ACM_match.
+/// @param [in] machine A pointer to a Aho-Corasick machine.
+/// @param [in] state A pointer to a valid Aho-Corasick machine state.
+/// Note: Several calls to ACM_reset on the same machine can be used to
+///       parse several texts concurrently (e.g. by several threads).
+#  define ACM_reset(machine)                        (machine)->vtable->reset ((machine))
+
+/// const ACState (T) * ACM_match (const ACState (T) * state, T letter, [size_t * nb_matches])
+/// This is the main function used to parse a text, one symbol after the other, and search for pattern matching.
+/// Get the next state matching a symbol injected in the finite state machine.
 /// @param [in] state A pointer to a valid Aho-Corasick machine state.
 /// @param [in] letter A symbol.
+/// @param [out, optional] nb_matches The number of registered keywords that match a sequence of last letters injected.
 /// @return A pointer to the state reached after the transition from the input state matching the input symbol.
 /// Note: The equality operator, either associated to the machine, or associated to the type T, is used if declared.
+/// Note: The optional argument `nb_matches` avoids the call to ACM_nb_matches.
 /// Usage: state = ACM_match(state, letter);
-#  define ACM_match(state, letter)           (state)->vtable->match ((state), (letter))
+#  define ACM_match(...)                     VFUNC(ACM_match, __VA_ARGS__)
 
 /// size_t ACM_nb_matches (ACState (T) * state)
 /// Returns the number of registered keywords that match a sequence of the symbols passed by the last ACM_nb_matches.
 /// @param [in] state A pointer to a valid Aho-Corasick machine state.
 /// @return The number of registered keywords that match a sequence of last letters matched by ACM_nb_matches.
 #  define ACM_nb_matches(state)              (state)->vtable->nb_matches ((state))
-
-/// const ACState (T) * ACM_reset (ACMachine (T) * machine)
-/// Get a valid state, ignoring all the symbols previously matched by ACM_match.
-/// @param [in] machine A pointer to a Aho-Corasick machine.
-/// @param [in] state A pointer to a valid Aho-Corasick machine state.
-#  define ACM_reset(machine)                        (machine)->vtable->reset ((machine))
 
 /// void ACM_MATCH_INIT (MatchHolder (T) match)
 /// Initializes a match before its first use by ACM_get_match.
@@ -263,7 +268,7 @@ struct _acm_vtable_##T                               \
 \
 struct _acs_vtable_##T                               \
 {                                                    \
-  const ACState_##T * (*match) (const ACState_##T * state, T letter);                                   \
+  const ACState_##T * (*match) (const ACState_##T * state, T letter, size_t * nb_matvhes);              \
   size_t (*nb_matches) (const ACState_##T * state);                                                     \
   size_t (*get_match) (const ACState_##T * statee, size_t index, Keyword_##T * match, void **value);    \
 };                                                                     \
@@ -312,18 +317,21 @@ static ACMachine_##T *ACM_create_##T (EQ_##T##_TYPE eq,        \
 
 // BEGIN MACROS
 #  define ACM_create4(T, eq, copy, dtor)       ACM_create_##T((eq), (copy), (dtor))
-#  define ACM_create2(T, eq)                   ACM_create4(T, eq, 0, 0)
+#  define ACM_create2(T, eq)                   ACM_create4(T, (eq), 0, 0)
 #  define ACM_create1(T)                       ACM_create4(T, 0, 0, 0)
 
-#  define ACM_register_keyword4(machine, keyword, value, dtor)          (machine)->vtable->register_keyword ((machine), (keyword), (value), (dtor))
-#  define ACM_register_keyword2(machine, keyword)                       ACM_register_keyword4(machine, keyword, 0, 0)
+#  define ACM_register_keyword4(machine, keyword, value, dtor)  (machine)->vtable->register_keyword ((machine), (keyword), (value), (dtor))
+#  define ACM_register_keyword2(machine, keyword)               ACM_register_keyword4((machine), (keyword), 0, 0)
 
-#  define ACM_is_registered_keyword3(machine, keyword, value)           (machine)->vtable->is_registered_keyword ( (machine), (keyword), (value))
-#  define ACM_is_registered_keyword2(machine, keyword)                  ACM_is_registered_keyword3(machine, keyword, 0)
+#  define ACM_is_registered_keyword3(machine, keyword, value)   (machine)->vtable->is_registered_keyword ((machine), (keyword), (value))
+#  define ACM_is_registered_keyword2(machine, keyword)          ACM_is_registered_keyword3((machine), (keyword), 0)
 
-#  define ACM_get_match4(state, index, matchholder, value)            (state)->vtable->get_match ((state), (index), (matchholder), (value))
-#  define ACM_get_match3(state, index, matchholder)                   ACM_get_match4(state, index, matchholder, 0)
-#  define ACM_get_match2(state, index)                                ACM_get_match4(state, index, 0, 0)
+#  define ACM_match3(state, letter, nb_matches)                 (state)->vtable->match((state), (letter), (nb_matches))
+#  define ACM_match2(state, letter)                             ACM_match3((state), (letter), 0)
+
+#  define ACM_get_match4(state, index, matchholder, value)      (state)->vtable->get_match ((state), (index), (matchholder), (value))
+#  define ACM_get_match3(state, index, matchholder)             ACM_get_match4((state), (index), (matchholder), 0)
+#  define ACM_get_match2(state, index)                          ACM_get_match4((state), (index), 0, 0)
 // END MACROS
 
 #endif
