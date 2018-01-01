@@ -194,10 +194,9 @@ main (void)
   for (size_t i = 0; i < wcslen (text); i++)
   {
     // 8. Inject symbols of the text, one at a time by calling `ACM_match`.
-    state = ACM_match (state, text[i]);
-    // 9. After each insertion of a symbol, check the returned value of `ACM_nb_matches` to know
+    size_t nb_matches = ACM_match (state, text[i]);
+    // 9. After each insertion of a symbol, check the returned value to know
     //    if the last inserted symbols match at least one keyword.
-    size_t nb_matches = ACM_nb_matches (state);
 
     for (size_t j = 0; j < nb_matches; j++)
     {
@@ -286,9 +285,8 @@ main (void)
   for (wint_t wc; (wc = fgetwc (stream)) != WEOF;)
   {
     // 8. Inject symbols of the text, one at a time by calling `ACM_match (state, symbol)`.
-    state = ACM_match (state, wc);
-    // 9. After each insertion of a symbol, check the returned value of `ACM_nb_matches` to know if the last inserted symbols match at least one keyword.
-    size_t nb = ACM_nb_matches (state);
+    // 9. After each insertion of a symbol, check the returned value to know if the last inserted symbols match at least one keyword.
+    size_t nb = ACM_match (state, wc);
 
     if (nb)
     {
@@ -316,6 +314,6 @@ main (void)
   printf ("\n");
 
   // 12. After usage, release the state machine calling ACM_release() on M.
-  // ACM_release also frees the values associated to registered keywords.
+  //     ACM_release also frees the values associated to registered keywords.
   ACM_release (M);
 }

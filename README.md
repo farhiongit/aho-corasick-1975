@@ -127,7 +127,7 @@ Then, parse any sequence of any number of texts, searching for previously regist
    before the first use by ACM_get_match (if necessary).
 7. Initialize a state (of type `const ACState` (*T*)) with `ACM_reset (machine)`
 8. Inject symbols of the text, one at a time by calling `ACM_match (state, symbol)`.
-9. After each insertion of a symbol, check the returned value of `ACM_nb_matches` to know if the last inserted symbols match at least one keyword.
+9. After each insertion of a symbol, check the returned value to know if the last inserted symbols match at least one keyword.
       - If a new text has to be processed by the state machine, reset it to its initial state (`ACM_reset`) so that the next symbol will
         be matched against the first letter of each keyword.
 10. (Optionally) If matches were found, retrieve them calling `ACM_get_match ()` for each match (if necessary).
@@ -140,7 +140,7 @@ Then, parse any sequence of any number of texts, searching for previously regist
 ```
 11. (Optionally) After the last call to `ACM_get_match ()`, release to match holder by calling `ACM_MATCH_RELEASE (match)` (if necessary).
 
-Steps 6, 8 and 9 are optional.
+Steps 6, 10 and 11 are optional.
 
 Finally, when all texts have been parsed:
 
@@ -185,8 +185,7 @@ main (void)
   ACM_MATCH_INIT (m);
   for (size_t i = 0; i < strlen (BuckleMyShoe); i++)
   {
-    state = ACM_match (state, BuckleMyShoe[i]);
-    size_t nb = ACM_nb_matches (state);
+    size_t nb = ACM_match (state, BuckleMyShoe[i]);
     for (size_t j = 0; j < nb; j++)
     {
       ACM_get_match (state, j, &m);
@@ -251,7 +250,7 @@ Then, parse any sequence of any number of texts, searching for previously regist
 
 5. (Optionally) Initialize a match holder with `ACM_MATCH_INIT` before the first use by `ACM_get_match` (if necessary).
 6. Initialize a state (of type `const ACState` (*T*)) with `ACM_reset (machine)`
-7. Inject symbols of the text, one at a time by calling `ACM_NB_MATCHES()`.
+7. Inject symbols of the text, one at a time by calling `ACM_MATCH()`.
 8. After each insertion of a symbol, check the returned value to know if the last inserted symbols match at least one keyword.
       - If a new text has to be processed by the state machine, reset it to its initial state (`ACM_reset`) so that the next symbol will
         be matched against the first letter of each keyword.
@@ -259,7 +258,7 @@ Then, parse any sequence of any number of texts, searching for previously regist
       - `ACM_MATCH_LENGTH` and `ACM_MATCH_SYMBOLS` can be used to get the length and the content of a retreieved match.
 10. (Optionally) After the last call to `ACM_get_match()`, release to match holder by calling `ACM_MATCH_RELEASE` (if necessary).
 
-Steps 5, 7 and 8 are optional.
+Steps 5, 9 and 10 are optional.
 
 Finally, when all texts have been parsed:
 
@@ -293,7 +292,7 @@ main (void)
   ACM_MATCH_INIT (m);
   for (size_t i = 0; i < strlen (BuckleMyShoe); i++)
   {
-    size_t nb = ACM_NB_MATCHES (state, BuckleMyShoe[i]);
+    size_t nb = ACM_MATCH (state, BuckleMyShoe[i]);
     for (size_t j = 0; j < nb; j++)
     {
       ACM_get_match (state, j, &m);
@@ -404,11 +403,7 @@ int main (void)
   const ACState (char) *state = ACM_reset (M);
   while (fgets (line, sizeof (line) / sizeof (*line), f))
     for (char *c = line; *c; c++)
-    {
-      size_t nb;
-      state = ACM_match (state, *c, &nb);
-      nb_matches += nb;
-    }
+      nb_matches += ACM_match (state, *c);
   fclose (f);
   printf ("%lu\n", nb_matches);
 
@@ -421,9 +416,9 @@ clang -O3 -pthread ahoperftest.c -o ahoperftest
 time ./ahoperftest
 280503
 
-real	0m3.593s
-user	0m3.484s
-sys	0m0.108s
+real  0m3.764s
+user  0m3.664s
+sys 0m0.076s
 ```
 
 It's a little bit slower than usual implementations (such as  https://github.com/morenice/ahocorasick)

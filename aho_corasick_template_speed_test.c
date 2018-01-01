@@ -58,8 +58,7 @@ main (void)
   while (fgets (line, sizeof (line) / sizeof (*line), f))
     for (char *c = line; *c; c++)
     {
-      size_t nb;
-      state = ACM_match (state, *c, &nb);
+      size_t nb = ACM_match (state, *c);
       // For performance reasons, the third optional argument of ACM_match avoids the euivalent but slower call to ACM_nb_matches.
       // size_t nb = ACM_nb_matches (state);
 

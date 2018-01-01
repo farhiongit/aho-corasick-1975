@@ -291,25 +291,20 @@ state_goto_##ACM_SYMBOL (const ACState_##ACM_SYMBOL * state, ACM_SYMBOL letter,\
   }                                                                    \
 }                                                                      \
 \
-static const ACState_##ACM_SYMBOL *                                    \
-ACM_match_##ACM_SYMBOL (const ACState_##ACM_SYMBOL * state, ACM_SYMBOL letter, size_t * nb_matches)     \
-{                                                                      \
-  if (state->machine->reconstruct)                                     \
-  {                                                                    \
-    pthread_mutex_lock (&state->machine->lock);                        \
-    if (state->machine->reconstruct)                                   \
-      state_fail_state_construct_##ACM_SYMBOL (state->machine);        \
-    pthread_mutex_unlock (&state->machine->lock);                      \
-  }                                                                    \
-  state = state_goto_##ACM_SYMBOL (state, letter, state->machine->eq); \
-  if (nb_matches) *nb_matches = state->nb_sequence;                    \
-  return state;                                                        \
-}                                                                      \
-\
 static size_t                                                          \
-ACM_nb_matches_##ACM_SYMBOL (const ACState_##ACM_SYMBOL * state)       \
+ACM_match_##ACM_SYMBOL (const ACState_##ACM_SYMBOL ** pstate, ACM_SYMBOL letter)     \
 {                                                                      \
-  return state->nb_sequence;                                           \
+  ACMachine_##ACM_SYMBOL * machine = (*pstate)->machine;               \
+  if (machine->reconstruct)                                            \
+  {                                                                    \
+    pthread_mutex_lock (&machine->lock);                               \
+    if (machine->reconstruct)                                          \
+      state_fail_state_construct_##ACM_SYMBOL (machine);               \
+    pthread_mutex_unlock (&machine->lock);                             \
+  }                                                                    \
+  return                                                               \
+    (*pstate = state_goto_##ACM_SYMBOL (*pstate, letter, machine->eq)) \
+      ->nb_sequence;                                                   \
 }                                                                      \
 \
 static size_t                                                          \
@@ -346,7 +341,6 @@ ACM_get_match_##ACM_SYMBOL (const ACState_##ACM_SYMBOL * state, size_t index,  \
 static const struct _acs_vtable_##ACM_SYMBOL ACS_VTABLE_##ACM_SYMBOL =     \
 {                                                                      \
   ACM_match_##ACM_SYMBOL,                                              \
-  ACM_nb_matches_##ACM_SYMBOL,                                         \
   ACM_get_match_##ACM_SYMBOL,                                          \
 };                                                                     \
 \

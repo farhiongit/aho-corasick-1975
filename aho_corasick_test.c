@@ -192,9 +192,9 @@ main (void)
   ACState const * state = ACM_reset (M);
   for (size_t i = 0; i < wcslen (text); i++)
   {
-    // 7. Inject symbols of the text, one at a time by calling `ACM_NB_MATCHES()`.
+    // 7. Inject symbols of the text, one at a time by calling `ACM_MATCH()`.
     // 8. After each insertion of a symbol, check the returned value to know if the last inserted symbols match a keyword.
-    size_t nb_matches = ACM_NB_MATCHES (state, text[i]);
+    size_t nb_matches = ACM_MATCH (state, text[i]);
 
     for (size_t j = 0; j < nb_matches; j++)
     {
@@ -271,12 +271,12 @@ main (void)
       ;
     else if (!wcscmp (L" m ", line))
     {
-      ACM_NB_MATCHES (state, L' ');
+      ACM_MATCH (state, L' ');
       printf ("[%zu]:\n", ACM_nb_keywords (M));
     }
     else if (!wcscmp (L" n ", line))
     {
-      ACM_NB_MATCHES (state, L' ');
+      ACM_MATCH (state, L' ');
       printf ("[%zu]:\n", ACM_nb_keywords (M));
     }
   }
@@ -289,9 +289,9 @@ main (void)
   // will be matched against the first letter of each keyword.
   state = ACM_reset (M);
 
-  // 7. Inject symbols of the text, one at a time by calling `ACM_NB_MATCHES()`.
+  // 7. Inject symbols of the text, one at a time by calling `ACM_MATCH()`.
   // 8. After each insertion of a symbol, check the returned value to know if the last inserted symbols match a keyword.
-  ACM_NB_MATCHES (state, L' ');
+  ACM_MATCH (state, L' ');
   printf ("[%zu] keywords registered.\n", ACM_nb_keywords (M));
 
   stream = fopen ("mrs_dalloway.txt", "r");
@@ -301,9 +301,9 @@ main (void)
   myclock = clock ();
   for (wint_t wc; (wc = fgetwc (stream)) != WEOF;)
   {
-    // 7. Inject symbols of the text, one at a time by calling `ACM_NB_MATCHES()`.
+    // 7. Inject symbols of the text, one at a time by calling `ACM_MATCH()`.
     // 8. After each insertion of a symbol, check the returned value to know if the last inserted symbols match a keyword.
-    size_t nb = ACM_NB_MATCHES (state, wc);
+    size_t nb = ACM_MATCH (state, wc);
 
 #ifdef ACM_ASSOCIATED_VALUE
     for (size_t j = 0; j < nb; j++)

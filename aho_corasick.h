@@ -149,10 +149,11 @@ ACM_PRIVATE const ACState *ACM_match (const ACState * state, ACM_SYMBOL letter);
 ACM_PRIVATE size_t ACM_nb_matches (const ACState * state);
 
 /// Get the number of keywords associated to the last provided letters.
-/// @param [in] state A pointer to a valid state.
+/// @param [in, out] state A pointer to a valid state, passed by reference.
 /// @param [in] letter letter to match keywords with.
 /// @returns The number of keywords matching with the last letters.
-#define ACM_NB_MATCHES(state, letter) ACM_nb_matches ((state) = ACM_match ((state), (letter)))
+/// Note: `state` is passed by reference. It is modified by the function.
+#define ACM_MATCH(state, letter) ACM_nb_matches ((state) = ACM_match ((state), (letter)))
 
 /// Get the ith keyword associate to the state.
 /// @param [in] state A pointer to a valid state.
