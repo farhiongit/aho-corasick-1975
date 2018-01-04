@@ -416,9 +416,9 @@ clang -O3 -pthread ahoperftest.c -o ahoperftest
 time ./ahoperftest
 280503
 
-real  0m3.764s
-user  0m3.664s
-sys 0m0.076s
+real  0m3.710s
+user  0m3.620s
+sys 0m0.088s
 ```
 
 It's a little bit slower than usual implementations (such as  https://github.com/morenice/ahocorasick)

@@ -91,12 +91,15 @@
 /// Exemple: ACM_KEYWORD_SET (kw, "Duck", 4);
 #  define ACM_KEYWORD_SET(keyword,symbols,length)   do { ACM_MATCH_SYMBOLS (keyword) = (symbols); ACM_MATCH_LENGTH (keyword) = (length); } while (0)
 
-/// int ACM_register_keyword(ACMachine (T) *machine, Keyword(T) kw, [void * value_ptr], void (*destructor) (void *))
+/// int ACM_register_keyword(ACMachine (T) *machine, Keyword(T) kw, [void * value_ptr], [void (*destructor) (void *)])
 /// Registers a keyword in the Aho-Corasick machine.
 /// @param [in] machine A pointer to a Aho-Corasick machine.
 /// @param [in] kw Keyword of symbols of type T to be registered.
 /// @param [in, optional] value_ptr Pointer to a previously allocated value to associate with keyword kw.
 /// @param [in, optional] destructor A destructor to be used to free the value pointed by value_ptr.
+///                                  The default destructor is the standard library function `free.
+///                                  Use `0` if the allocated value need not be managed by the finite state machine
+///                                  (in case of automatic or static values).
 /// @return 1 if the keyword was successfully registered, 0 otherwise (the keywpord is already registered in the machine).
 /// Note: Keyword kw is duplicated and can be released after its registration.
 /// Note: The equality operator, either associated to the machine, or associated to the type T, is used if declared.
@@ -314,6 +317,7 @@ static ACMachine_##T *ACM_create_##T (EQ_##T##_TYPE eq,        \
 #  define ACM_create1(T)                       ACM_create4(T, 0, 0, 0)
 
 #  define ACM_register_keyword4(machine, keyword, value, dtor)  (machine)->vtable->register_keyword ((machine), (keyword), (value), (dtor))
+#  define ACM_register_keyword3(machine, keyword, value)        ACM_register_keyword4((machine), (keyword), (value), free)
 #  define ACM_register_keyword2(machine, keyword)               ACM_register_keyword4((machine), (keyword), 0, 0)
 
 #  define ACM_is_registered_keyword3(machine, keyword, value)   (machine)->vtable->is_registered_keyword ((machine), (keyword), (value))
