@@ -48,12 +48,18 @@ typedef struct
   ACM_SYMBOL *letter;           ///< An array of symbols
   size_t length;                ///< Length of the array
 } Keyword;
-typedef Keyword MatchHolder;
+typedef struct
+{
+  ACM_SYMBOL *letter;           ///< An array of symbols
+  size_t length;                ///< Length of the array
+  size_t rank;                  ///< Rank of the regidtered keyword
+} MatchHolder;
 
 /// Matches macro helpers
 // - getters: ACM_MATCH_LENGTH and ACM_MATCH_SYMBOLS
-#  define ACM_MATCH_LENGTH(match) ((match).length)
+#  define ACM_MATCH_LENGTH(match)  ((match).length)
 #  define ACM_MATCH_SYMBOLS(match) ((match).letter)
+#  define ACM_MATCH_UID(match)     ((match).rank)
 
 /// Keyword macro helpers
 // - setter: ACM_KEYWORD_SET
@@ -122,9 +128,9 @@ ACM_PRIVATE size_t ACM_nb_keywords (const ACMachine * machine);
 /// @param [in] operator Operator applied to each keyword of the state machine.
 /// @note The operator is applied to keywords in unspecified order.
 #  ifndef ACM_ASSOCIATED_VALUE
-ACM_PRIVATE void ACM_foreach_keyword (const ACMachine * machine, void (*operator) (Keyword));
+ACM_PRIVATE void ACM_foreach_keyword (const ACMachine * machine, void (*operator) (MatchHolder));
 #  else
-ACM_PRIVATE void ACM_foreach_keyword (const ACMachine * machine, void (*operator) (Keyword, void *));
+ACM_PRIVATE void ACM_foreach_keyword (const ACMachine * machine, void (*operator) (MatchHolder, void *));
 #  endif
 
 /// Setting or resetting the state to the initial state of the state machine

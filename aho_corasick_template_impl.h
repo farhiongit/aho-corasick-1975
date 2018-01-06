@@ -309,7 +309,7 @@ ACM_match_##ACM_SYMBOL (const ACState_##ACM_SYMBOL ** pstate, ACM_SYMBOL letter)
 \
 static size_t                                                          \
 ACM_get_match_##ACM_SYMBOL (const ACState_##ACM_SYMBOL * state, size_t index,  \
-                            Keyword_##ACM_SYMBOL * match, void **value)        \
+                            MatchHolder_##ACM_SYMBOL * match, void **value)    \
 {                                                                      \
   ACM_ASSERT (index < state->nb_sequence);                             \
   size_t i = 0;                                                        \
@@ -332,6 +332,7 @@ ACM_get_match_##ACM_SYMBOL (const ACState_##ACM_SYMBOL * state, size_t index,  \
       match->letter[match->length - i - 1] = s->previous.state->goto_array[s->previous.i_letter].letter;   \
       i++;                                                             \
     }                                                                  \
+    match->rank = state->rank;                                         \
   }                                                                    \
   if (value)                                                           \
     *value = state->value;                                             \
@@ -526,11 +527,11 @@ ACM_unregister_keyword_##ACM_SYMBOL (ACMachine_##ACM_SYMBOL * machine, Keyword_#
 \
 static void                                                            \
 foreach_keyword_##ACM_SYMBOL (const ACState_##ACM_SYMBOL * state, ACM_SYMBOL ** letters, size_t * length, size_t depth, \
-                              void (*operator) (Keyword_##ACM_SYMBOL, void *)) \
+                              void (*operator) (MatchHolder_##ACM_SYMBOL, void *)) \
 {                                                                      \
   if (state->is_matching && depth)                                     \
   {                                                                    \
-    Keyword_##ACM_SYMBOL k = {.letter = *letters,.length = depth };    \
+    MatchHolder_##ACM_SYMBOL k = {.letter = *letters,.length = depth, .rank = state->rank };    \
     (*operator) (k, state->value);                                     \
   }                                                                    \
   if (state->nb_goto && depth >= *length)                              \
@@ -549,7 +550,7 @@ foreach_keyword_##ACM_SYMBOL (const ACState_##ACM_SYMBOL * state, ACM_SYMBOL ** 
 }                                                                      \
 \
 static void                                                            \
-ACM_foreach_keyword_##ACM_SYMBOL (const ACMachine_##ACM_SYMBOL * machine, void (*operator) (Keyword_##ACM_SYMBOL, void *))                     \
+ACM_foreach_keyword_##ACM_SYMBOL (const ACMachine_##ACM_SYMBOL * machine, void (*operator) (MatchHolder_##ACM_SYMBOL, void *))                     \
 {                                                                      \
   if (!operator)                                                       \
     return;                                                            \

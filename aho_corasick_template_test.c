@@ -62,14 +62,24 @@ alphaeq (wchar_t k, wchar_t t)
 }
 
 static void
+print_keyword (Keyword (wchar_t) kw)
+{
+  printf ("{'");
+  for (size_t k = 0; k < ACM_MATCH_LENGTH (kw); k++)
+    printf ("%lc", ACM_MATCH_SYMBOLS (kw)[k]);
+  printf ("'}");
+}
+
+static void
 print_match (MatchHolder (wchar_t) match, void *value)
 {
+  // Filter matching keywords which value is equal to 0.
   if (value && *(size_t *) value == 0)
     return;
-  // `ACM_MATCH_LENGTH (match)` and `ACM_MATCH_SYMBOLS (match)` can be used to get the length and the content of a retreieved match.
   if (ACM_MATCH_LENGTH (match))
   {
-    current_pos += printf ("{'");
+    current_pos += printf ("{");
+    current_pos += printf ("'");
     for (size_t k = 0; k < ACM_MATCH_LENGTH (match); k++)
       current_pos += printf ("%lc", ACM_MATCH_SYMBOLS (match)[k]);
 
@@ -77,8 +87,9 @@ print_match (MatchHolder (wchar_t) match, void *value)
     if (value)
     {
       current_pos += printf ("=");
-      current_pos += printf ("%lu", *(size_t *) value);
+      current_pos += printf ("%zu", *(size_t *) value);
     }
+    current_pos += printf ("[%zu]", ACM_MATCH_UID (match));
     current_pos += printf ("}");
   }
 }
@@ -123,16 +134,14 @@ main (void)
   X(M, L'x', L'y', L't')  \
 
 // Function applied to register a keyword in the state machine
-#define EXTRA ,0
-
 #define X(MACHINE, ...) \
   {  \
     Keyword (wchar_t) VAR;  \
     wchar_t _VAR[] = { __VA_ARGS__ };  \
     ACM_KEYWORD_SET (VAR, _VAR, sizeof (_VAR) / sizeof (*_VAR));  \
     /* 5. Add keywords (of type `Keyword (T)`) to the state machine calling `ACM_register_keyword()`, one at a time, repeatedly. */ \
-    if (ACM_register_keyword (MACHINE, VAR EXTRA EXTRA))          \
-      print_match (VAR EXTRA);  \
+    if (ACM_register_keyword (MACHINE, VAR, 0, 0))          \
+      print_keyword (VAR);  \
     else  \
       printf  ("X");  \
   }
@@ -187,7 +196,8 @@ main (void)
 
   Keyword (wchar_t) kw = {.letter = text,.length = wcslen (text) };
   current_pos = 0;
-  print_match (kw EXTRA);
+  print_keyword (kw);
+  printf ("\n");
 
   // 7. Initialize a state with `ACM_reset (machine)`
   const ACState(wchar_t) * state = ACM_reset (M);
@@ -203,6 +213,7 @@ main (void)
       // 10. If matches were found, retrieve them calling `ACM_get_match ()` for each match.
       size_t rank =
         ACM_get_match (state, j, &match, 0);
+      ACM_ASSERT (rank == ACM_MATCH_UID (match));
 
       // `ACM_MATCH_LENGTH (match)` and `ACM_MATCH_SYMBOLS (match)` can be used to get the length and the content of a retreieved match.
       if (current_pos > i + 1 - ACM_MATCH_LENGTH (match))
@@ -213,8 +224,7 @@ main (void)
       for (size_t tab = current_pos; tab < i + 1 - ACM_MATCH_LENGTH (match); tab++)
         current_pos += printf (" ");
       // Display matching pattern
-      print_match (match EXTRA);
-      current_pos += printf ("[%zu]", rank);
+      print_match (match, 0);
     }
   }
 

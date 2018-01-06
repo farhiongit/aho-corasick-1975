@@ -509,16 +509,16 @@ ACM_unregister_keyword (ACMachine * machine, Keyword y)
 #ifndef ACM_ASSOCIATED_VALUE
 static void
 foreach_keyword (const ACState * state, ACM_SYMBOL ** letters, size_t * length, size_t depth,
-                 void (*operator) (Keyword))
+                 void (*operator) (MatchHolder))
 #else
 static void
 foreach_keyword (const ACState * state, ACM_SYMBOL ** letters, size_t * length, size_t depth,
-                 void (*operator) (Keyword, void *))
+                 void (*operator) (MatchHolder, void *))
 #endif
 {
   if (state->is_matching && depth)
   {
-    Keyword k = {.letter = *letters,.length = depth };
+    MatchHolder k = {.letter = *letters,.length = depth, .rank = state->rank };
 #ifndef ACM_ASSOCIATED_VALUE
     (*operator) (k);
 #else
@@ -544,10 +544,10 @@ foreach_keyword (const ACState * state, ACM_SYMBOL ** letters, size_t * length, 
 
 #ifndef ACM_ASSOCIATED_VALUE
 ACM_PRIVATE void
-ACM_foreach_keyword (const ACMachine * machine, void (*operator) (Keyword))
+ACM_foreach_keyword (const ACMachine * machine, void (*operator) (MatchHolder))
 #else
 ACM_PRIVATE void
-ACM_foreach_keyword (const ACMachine * machine, void (*operator) (Keyword, void *))
+ACM_foreach_keyword (const ACMachine * machine, void (*operator) (MatchHolder, void *))
 #endif
 {
   if (!machine || !operator)
@@ -700,6 +700,7 @@ ACM_get_match (const ACState * state, size_t index, MatchHolder * match, void **
       match->letter[match->length - i - 1] = s->previous.state->goto_array[s->previous.i_letter].letter;
       i++;
     }
+    match->rank = state->rank;
   }
 
 #ifdef ACM_ASSOCIATED_VALUE

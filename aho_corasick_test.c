@@ -60,6 +60,15 @@ nocaseeq (wchar_t k, wchar_t t)
   return k == towlower (t);
 }
 
+static void
+print_keyword (Keyword kw)
+{
+  printf ("{'");
+  for (size_t k = 0; k < ACM_MATCH_LENGTH (kw); k++)
+    printf ("%lc", ACM_MATCH_SYMBOLS (kw)[k]);
+  printf ("'}");
+}
+
 #ifndef ACM_ASSOCIATED_VALUE
 static void
 print_match (MatchHolder match)
@@ -74,7 +83,8 @@ print_match (MatchHolder match, void *value)
 #endif
   if (ACM_MATCH_LENGTH (match))
   {
-    current_pos += printf ("{'");
+    current_pos += printf ("{");
+    current_pos += printf ("'");
     for (size_t k = 0; k < ACM_MATCH_LENGTH (match); k++)
       current_pos += printf ("%lc", ACM_MATCH_SYMBOLS (match)[k]);
 
@@ -83,9 +93,10 @@ print_match (MatchHolder match, void *value)
     if (value)
     {
       current_pos += printf ("=");
-      current_pos += printf ("%lu", *(size_t *) value);
+      current_pos += printf ("%zu", *(size_t *) value);
     }
 #endif
+    current_pos += printf ("[%zu]", ACM_MATCH_UID (match));
     current_pos += printf ("}");
   }
 }
@@ -142,7 +153,7 @@ main (void)
     if ((is = ACM_register_keyword (MACHINE, VAR EXTRA EXTRA)))  \
     {  \
       MACHINE = is;  \
-      print_match (VAR EXTRA);  \
+      print_keyword (VAR);  \
     }  \
     else  \
       printf  ("X");  \
@@ -186,7 +197,8 @@ main (void)
   ACM_MATCH_INIT (match);
   Keyword kw = {.letter = text,.length = wcslen (text) };
   current_pos = 0;
-  print_match (kw EXTRA);
+  print_keyword (kw);
+  printf ("\n");
 
   // 6. Initialize a state with `ACM_reset (machine)`
   ACState const * state = ACM_reset (M);
@@ -205,6 +217,7 @@ main (void)
 #else
         ACM_get_match (state, j, &match, 0);
 #endif
+      ACM_ASSERT (rank == ACM_MATCH_UID (match));
 
       // Display matching pattern
       if (current_pos > i + 1 - ACM_MATCH_LENGTH (match))
@@ -215,7 +228,6 @@ main (void)
       for (size_t tab = current_pos; tab < i + 1 - ACM_MATCH_LENGTH (match); tab++)
         current_pos += printf (" ");
       print_match (match EXTRA);
-      current_pos += printf ("[%zu]", rank);
     }
   }
 
@@ -316,6 +328,7 @@ main (void)
 #endif
   }
   printf ("Elapsed CPU time for scaning text for keywords: %f s.\n", (clock () - myclock) * 1.0 / CLOCKS_PER_SEC);
+  printf ("\n");
 
   fclose (stream);
 

@@ -16,9 +16,9 @@ cloc:
 .PHONY: execute
 execute: aho_corasick_test aho_corasick_template_test
 	nm --defined-only --extern-only aho_corasick_test
-	time ./aho_corasick_test
+	time ./aho_corasick_test | tee ./aho_corasick_test.out
 	nm --defined-only --extern-only aho_corasick_template_test
-	time ./aho_corasick_template_test
+	time ./aho_corasick_template_test | tee ./aho_corasick_template_test.out
 
 .PHONY: nmo
 nmo:
