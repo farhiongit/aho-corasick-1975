@@ -87,11 +87,12 @@
 /// @param [in] kw Keyword of symbols of type T.
 /// @param [in] array Array of symbols
 /// @param [in] length Length of the array
-/// Nnote: the array is not duplicated by ACM_KEYWORD_SET.
+/// Note: The array is NOT duplicated by ACM_KEYWORD_SET and should be allocated by the calling user program.
+///       Once regidtered, the array will be desallocated by ACM_release (see destructor usage in ACM_register_keyword).
 /// Exemple: ACM_KEYWORD_SET (kw, "Duck", 4);
 #  define ACM_KEYWORD_SET(keyword,symbols,length)   do { ACM_MATCH_SYMBOLS (keyword) = (symbols); ACM_MATCH_LENGTH (keyword) = (length); } while (0)
 
-/// int ACM_register_keyword(ACMachine (T) *machine, Keyword(T) kw, [void * value_ptr], [void (*destructor) (void *)])
+/// int ACM_register_keyword(ACMachine(T) *machine, Keyword(T) kw, [void * value_ptr], [void (*destructor) (void *)])
 /// Registers a keyword in the Aho-Corasick machine.
 /// @param [in] machine A pointer to a Aho-Corasick machine.
 /// @param [in] kw Keyword of symbols of type T to be registered.
@@ -111,7 +112,7 @@
 ///          ACM_register_keyword (M, kw, calloc (1, sizeof (int)), free);
 #  define ACM_register_keyword(...)                 VFUNC(ACM_register_keyword, __VA_ARGS__)
 
-/// int ACM_is_registered_keyword (const ACMachine (T) * machine, Keyword (T) kw, [void **value_ptr])
+/// int ACM_is_registered_keyword (const ACMachine(T) * machine, Keyword(T) kw, [void **value_ptr])
 /// Checks whether a keyword is already registered in the machine.
 /// @param [in] machine A pointer to a Aho-Corasick machine.
 /// @param [in] kw Keyword of symbols of type T to be checked.
@@ -120,7 +121,7 @@
 /// Note: The equality operator, either associated to the machine, or associated to the type T, is used if declared.
 #  define ACM_is_registered_keyword(...)            VFUNC(ACM_is_registered_keyword, __VA_ARGS__)
 
-/// int ACM_unregister_keyword (ACMachine (T) *machine, Keyword(T) kw, [void * value_ptr], void (*destructor) (void *))
+/// int ACM_unregister_keyword (ACMachine(T) *machine, Keyword(T) kw, [void * value_ptr], void (*destructor) (void *))
 /// Unregisters a keyword from the Aho-Corasick machine.
 /// @param [in] machine A pointer to a Aho-Corasick machine.
 /// @param [in] kw Keyword of symbols of type T to be registered.
@@ -128,7 +129,7 @@
 /// Note: The equality operator, either associated to the machine, or associated to the type T, is used if declared.
 #  define ACM_unregister_keyword(machine, keyword)  (machine)->vtable->unregister_keyword ( (machine), (keyword))
 
-/// size_t ACM_nb_keywords (const ACMachine (T) *machine)
+/// size_t ACM_nb_keywords (const ACMachine(T) *machine)
 /// Returns the number of keywords registered in the machine.
 /// @param [in] machine A pointer to a Aho-Corasick machine.
 /// @return The number of keywords registered in the machine.
@@ -136,32 +137,39 @@
 
 /// MatchHolder (T) is the type of a match composed of symbols of type T.
 /// Exemple: MatchHolder (char) match;
-#  define MatchHolder(T)                            Keyword_##T
+#  define MatchHolder(T)                            MatchHolder_##T
 
-/// size_t ACM_MATCH_LENGTH (MatchHolder (T) match)
-/// Returns the length of a match.
-/// @param [in] match A match
-/// @return The length of a match.
-/// Exemple:  MatchHolder (wchar_t) match;
+/// size_t ACM_MATCH_LENGTH (MatchHolder(T) match)
+/// Returns the length of a matching keyword.
+/// @param [in] match A matching keyword.
+/// @return The length of the matching keyword.
+/// Note: This function can also be applied to a keyword of type Keyword(T).
 #  define ACM_MATCH_LENGTH(match)                   ((match).length)
 
-/// T* ACM_MATCH_SYMBOLS (MatchHolder (T) match)
-/// Returns the array to the symbols of a match.
-/// @param [in] match A match
-/// @return The array to the symbols of a match.
+/// T* ACM_MATCH_SYMBOLS (MatchHolder(T) match)
+/// Returns the array to the symbols of a matching keyword.
+/// @param [in] match A matching keyword.
+/// @return The array to the symbols of the matching keyword.
+/// Note: This function can also be applied to a keyword of type Keyword(T).
 #  define ACM_MATCH_SYMBOLS(match)                  ((match).letter)
 
-/// void ACM_foreach_keyword (const ACMachine (T) * machine, void (*operator) (Keyword_##T, void *))
-/// Applies an operator to each registered keyword in the machine.
+/// size_t ACM_MATCH_UID (MatchHolder(T) match)
+/// Returns the unique id of a matching keyword.
+/// @param [in] match A matching keyword returned by a previous call to `ACM_get_match`.
+/// @return The unique id of the matching keyword.
+#  define ACM_MATCH_UID(match)                      ((match).rank)
+
+/// void ACM_foreach_keyword (const ACMachine(T) * machine, void (*operator) (MatchHolder(T) kw, void *value))
+/// Applies an operator to each registered keyword (by `ACM_register_keyword`) in the machine.
 /// @param [in] machine A pointer to a Aho-Corasick machine.
 /// @param [in] operator Function of type void (*operator) (Keyword (T), void *)
-/// Note: The operator is called for each keyword and pointer to associated value successively.
+/// Note: The operator is called for each registered keyword and pointer to associated value successively.
 /// Note: The order the keywords are processed in unspecified.
 /// Exemple: static void print_match (MatchHolder (wchar_t) match, void *value) { /* user code here */ }
 ///          ACM_foreach_keyword (M, print_match);
 #  define ACM_foreach_keyword(machine, operator)    (machine)->vtable->foreach_keyword ((machine), (operator))
 
-/// const ACState (T) * ACM_reset (ACMachine (T) * machine)
+/// const ACState (T) * ACM_reset (ACMachine(T) * machine)
 /// Get a valid state, ignoring all the symbols previously matched by ACM_match.
 /// @param [in] machine A pointer to a Aho-Corasick machine.
 /// @param [in] state A pointer to a valid Aho-Corasick machine state.
@@ -169,7 +177,7 @@
 ///       parse several texts concurrently (e.g. by several threads).
 #  define ACM_reset(machine)                        (machine)->vtable->reset ((machine))
 
-/// size_t ACM_match (const ACState (T) * state, T letter)
+/// size_t ACM_match (const ACState(T) * state, T letter)
 /// This is the main function used to parse a text, one symbol after the other, and search for pattern matching.
 /// Get the next state matching a symbol injected in the finite state machine.
 /// @param [in, out] state A pointer to a valid Aho-Corasick machine state. Argument passed by reference.
@@ -181,13 +189,14 @@
 /// Usage: size_t nb = ACM_match(state, letter);
 #  define ACM_match(state, letter)                  (state)->vtable->match(&(state), (letter))
 
-/// void ACM_MATCH_INIT (MatchHolder (T) match)
+/// void ACM_MATCH_INIT (MatchHolder(T) match)
 /// Initializes a match before its first use by ACM_get_match.
 /// @param [in] match A match
 /// Exemple: ACM_MATCH_INIT (match);
-#  define ACM_MATCH_INIT(match)                     ACM_KEYWORD_SET((match), 0, 0)
+/// Note: this function should only be applied to a matching keyword which reference is passed to ACM_get_match.
+#  define ACM_MATCH_INIT(match)                     ACM_KEYWORD_SET((match), 0, ((match).rank = 0))
 
-/// size_t ACM_get_match (const ACState (T) * state, size_t index, [MatchHolder (T) * match], [void **value_ptr])
+/// size_t ACM_get_match (const ACState(T) * state, size_t index, [MatchHolder(T) * match], [void **value_ptr])
 /// Gets the ith keyword matching with the last symbols.
 /// @param [in] state A pointer to a valid Aho-Corasick machine state.
 /// @param [in] index Index (ith) of the ith matching keyword.
@@ -199,10 +208,12 @@
 /// Exemple: size_t rank = ACM_get_match (state, j, &match, 0);
 #  define ACM_get_match(...)                        VFUNC(ACM_get_match, __VA_ARGS__)
 
-/// void ACM_MATCH_RELEASE (MatchHolder (T) match)
+/// void ACM_MATCH_RELEASE (MatchHolder(T) match)
 /// Releases a match after its last use by ACM_get_match.
 /// @param [in] match A match
 /// Exemple: ACM_MATCH_RELEASE (match);
+/// Note: This function should only be applied to a matching keyword which reference is passed to `ACM_get_match`.
+///       It should not ne applied to a keyword of type Keyword(T).
 #  define ACM_MATCH_RELEASE(match)                  do { free (ACM_MATCH_SYMBOLS (match)); ACM_MATCH_INIT (match); } while (0)
 
 /// Internal declarations ********************************************************************
@@ -247,6 +258,13 @@ typedef struct                                       \
   size_t length;                                     \
 } Keyword_##T;                                       \
 \
+typedef struct                                       \
+{                                                    \
+  T *letter;                                         \
+  size_t length;                                     \
+  size_t rank;                                       \
+} MatchHolder_##T;                                   \
+\
 struct _ac_state_##T;                                \
 typedef struct _ac_state_##T ACState_##T;            \
 struct _ac_machine_##T;                              \
@@ -258,57 +276,21 @@ struct _acm_vtable_##T                               \
   int (*is_registered_keyword) (const ACMachine_##T * machine, Keyword_##T keyword, void **value);            \
   int (*unregister_keyword) (ACMachine_##T * machine, Keyword_##T keyword);                                   \
   size_t (*nb_keywords) (const ACMachine_##T * machine);                                                      \
-  void (*foreach_keyword) (const ACMachine_##T * machine, void (*operator) (Keyword_##T, void *));            \
+  void (*foreach_keyword) (const ACMachine_##T * machine, void (*operator) (MatchHolder_##T, void *));        \
   void (*release) (const ACMachine_##T * machine);                                                            \
   const ACState_##T * (*reset) (const ACMachine_##T * machine);                                               \
 };                                                   \
 \
 struct _acs_vtable_##T                               \
 {                                                    \
-  size_t (*match) (const ACState_##T ** state, T letter);                                               \
-  size_t (*get_match) (const ACState_##T * statee, size_t index, Keyword_##T * match, void **value);    \
+  size_t (*match) (const ACState_##T ** state, T letter);                                                     \
+  size_t (*get_match) (const ACState_##T * statee, size_t index, MatchHolder_##T * match, void **value);      \
 };                                                                     \
 \
-struct _ac_machine_##T                               \
-{                                                    \
-  struct _ac_state_##T *state_0;                     \
-  size_t rank;                                       \
-  size_t nb_sequence;                                \
-  int reconstruct;                                   \
-  size_t size;                                       \
-  pthread_mutex_t lock;                              \
-  const struct _acm_vtable_##T *vtable;              \
-  T (*copy) (const T);                               \
-  void (*destroy) (const T);                         \
-  int (*eq) (const T, const T);                      \
-};                                                   \
-\
-struct _ac_state_##T                                 \
-{                                                    \
-  struct _ac_next_##T                                \
-  {                                                  \
-    T letter;                                        \
-    struct _ac_state_##T *state;                     \
-  } *goto_array;                                     \
-  size_t nb_goto;                                    \
-  struct                                             \
-  {                                                  \
-    size_t i_letter;                                 \
-    struct _ac_state_##T *state;                     \
-  } previous;                                        \
-  const struct _ac_state_##T *fail_state;            \
-  int is_matching;                                   \
-  size_t nb_sequence;                                \
-  size_t rank;                                       \
-  void *value;                                       \
-  void (*value_dtor) (void *);                       \
-  ACMachine_##T * machine;                           \
-  const struct _acs_vtable_##T *vtable;              \
-};                                                   \
-\
-static ACMachine_##T *ACM_create_##T (EQ_##T##_TYPE eq,        \
+__attribute__ ((unused)) ACMachine_##T *ACM_create_##T (EQ_##T##_TYPE eq,        \
                                       COPY_##T##_TYPE copier,  \
-                                      DESTROY_##T##_TYPE dtor);
+                                      DESTROY_##T##_TYPE dtor);  \
+struct __useless_struct_to_allow_trailing_semicolon__
 // END DECLARE_ACM
 
 // BEGIN MACROS
@@ -326,6 +308,14 @@ static ACMachine_##T *ACM_create_##T (EQ_##T##_TYPE eq,        \
 #  define ACM_get_match4(state, index, matchholder, value)      (state)->vtable->get_match ((state), (index), (matchholder), (value))
 #  define ACM_get_match3(state, index, matchholder)             ACM_get_match4((state), (index), (matchholder), 0)
 #  define ACM_get_match2(state, index)                          ACM_get_match4((state), (index), 0, 0)
+
+#if defined(__GNUC__) || defined (__clang__)
+#define ACM_DECL5(var, T, eq, copy, dtor)  \
+__attribute__ ((cleanup (ACM_cleanup_##T))) ACMachine_##T var; machine_init_##T (&(var), state_create_##T (), (eq), (copy), (dtor))
+#define ACM_DECL3(var, T, eq) ACM_DECL5(var, T, (eq), 0, 0)
+#define ACM_DECL2(var, T) ACM_DECL3(var, T, 0)
+#define ACM_DECL(...) VFUNC(ACM_DECL, __VA_ARGS__)
+#endif
 // END MACROS
 
 #endif

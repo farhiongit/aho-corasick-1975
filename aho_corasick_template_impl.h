@@ -169,6 +169,43 @@ __eqstring (const char * const a, const char * const b)
 // BEGIN DEFINE_ACM
 #  define ACM_DEFINE(ACM_SYMBOL)                                       \
 \
+struct _ac_machine_##ACM_SYMBOL                               \
+{                                                    \
+  struct _ac_state_##ACM_SYMBOL *state_0;                     \
+  size_t rank;                                       \
+  size_t nb_sequence;                                \
+  int reconstruct;                                   \
+  size_t size;                                       \
+  pthread_mutex_t lock;                              \
+  const struct _acm_vtable_##ACM_SYMBOL *vtable;              \
+  ACM_SYMBOL (*copy) (const ACM_SYMBOL);                               \
+  void (*destroy) (const ACM_SYMBOL);                         \
+  int (*eq) (const ACM_SYMBOL, const ACM_SYMBOL);                      \
+};                                                   \
+\
+struct _ac_state_##ACM_SYMBOL                                 \
+{                                                    \
+  struct _ac_next_##ACM_SYMBOL                                \
+  {                                                  \
+    ACM_SYMBOL letter;                                        \
+    struct _ac_state_##ACM_SYMBOL *state;                     \
+  } *goto_array;                                     \
+  size_t nb_goto;                                    \
+  struct                                             \
+  {                                                  \
+    size_t i_letter;                                 \
+    struct _ac_state_##ACM_SYMBOL *state;                     \
+  } previous;                                        \
+  const struct _ac_state_##ACM_SYMBOL *fail_state;            \
+  int is_matching;                                   \
+  size_t nb_sequence;                                \
+  size_t rank;                                       \
+  void *value;                                       \
+  void (*value_dtor) (void *);                       \
+  ACMachine_##ACM_SYMBOL * machine;                           \
+  const struct _acs_vtable_##ACM_SYMBOL *vtable;              \
+};                                                   \
+\
 static ACM_SYMBOL (*COPY_##ACM_SYMBOL) (const ACM_SYMBOL) = 0;         \
 static void (*DESTROY_##ACM_SYMBOL) (const ACM_SYMBOL) = 0;            \
 static int (*EQ_##ACM_SYMBOL) (const ACM_SYMBOL, const ACM_SYMBOL) = 0;\
@@ -309,7 +346,7 @@ ACM_match_##ACM_SYMBOL (const ACState_##ACM_SYMBOL ** pstate, ACM_SYMBOL letter)
 \
 static size_t                                                          \
 ACM_get_match_##ACM_SYMBOL (const ACState_##ACM_SYMBOL * state, size_t index,  \
-                            Keyword_##ACM_SYMBOL * match, void **value)        \
+                            MatchHolder_##ACM_SYMBOL * match, void **value)    \
 {                                                                      \
   ACM_ASSERT (index < state->nb_sequence);                             \
   size_t i = 0;                                                        \
@@ -332,6 +369,7 @@ ACM_get_match_##ACM_SYMBOL (const ACState_##ACM_SYMBOL * state, size_t index,  \
       match->letter[match->length - i - 1] = s->previous.state->goto_array[s->previous.i_letter].letter;   \
       i++;                                                             \
     }                                                                  \
+    match->rank = state->rank;                                         \
   }                                                                    \
   if (value)                                                           \
     *value = state->value;                                             \
@@ -344,7 +382,7 @@ static const struct _acs_vtable_##ACM_SYMBOL ACS_VTABLE_##ACM_SYMBOL =     \
   ACM_get_match_##ACM_SYMBOL,                                          \
 };                                                                     \
 \
-static ACState_##ACM_SYMBOL *                                          \
+__attribute__((unused)) ACState_##ACM_SYMBOL *                                          \
 state_create_##ACM_SYMBOL (void)                                       \
 {                                                                      \
   ACState_##ACM_SYMBOL *s = malloc (sizeof (*s));                      \
@@ -422,17 +460,21 @@ machine_goto_update_##ACM_SYMBOL (ACMachine_##ACM_SYMBOL * machine,    \
   return 1;                                                            \
 }                                                                      \
 \
-static ACMachine_##ACM_SYMBOL *                                        \
-machine_create_##ACM_SYMBOL (ACState_##ACM_SYMBOL * state_0,           \
+static void                                                            \
+machine_init_##ACM_SYMBOL (ACMachine_##ACM_SYMBOL *machine,            \
+                             ACState_##ACM_SYMBOL * state_0,           \
                              EQ_##ACM_SYMBOL##_TYPE eq,                \
                              COPY_##ACM_SYMBOL##_TYPE copier,          \
                              DESTROY_##ACM_SYMBOL##_TYPE dtor);        \
 \
-static ACMachine_##ACM_SYMBOL *ACM_create_##ACM_SYMBOL (EQ_##ACM_SYMBOL##_TYPE eq, \
+__attribute__ ((unused)) ACMachine_##ACM_SYMBOL *ACM_create_##ACM_SYMBOL (EQ_##ACM_SYMBOL##_TYPE eq, \
                                                  COPY_##ACM_SYMBOL##_TYPE copier,  \
                                                  DESTROY_##ACM_SYMBOL##_TYPE dtor) \
 {                                                                      \
-  return machine_create_##ACM_SYMBOL (state_create_##ACM_SYMBOL (), eq, copier, dtor); \
+  ACMachine_##ACM_SYMBOL *machine = malloc (sizeof (*machine));        \
+  ACM_ASSERT (machine);                                                \
+  machine_init_##ACM_SYMBOL (machine, state_create_##ACM_SYMBOL (), eq, copier, dtor); \
+  return machine;                                                      \
 }                                                                      \
 \
 static int                                                             \
@@ -526,11 +568,11 @@ ACM_unregister_keyword_##ACM_SYMBOL (ACMachine_##ACM_SYMBOL * machine, Keyword_#
 \
 static void                                                            \
 foreach_keyword_##ACM_SYMBOL (const ACState_##ACM_SYMBOL * state, ACM_SYMBOL ** letters, size_t * length, size_t depth, \
-                              void (*operator) (Keyword_##ACM_SYMBOL, void *)) \
+                              void (*operator) (MatchHolder_##ACM_SYMBOL, void *)) \
 {                                                                      \
   if (state->is_matching && depth)                                     \
   {                                                                    \
-    Keyword_##ACM_SYMBOL k = {.letter = *letters,.length = depth };    \
+    MatchHolder_##ACM_SYMBOL k = {.letter = *letters,.length = depth, .rank = state->rank };    \
     (*operator) (k, state->value);                                     \
   }                                                                    \
   if (state->nb_goto && depth >= *length)                              \
@@ -549,7 +591,7 @@ foreach_keyword_##ACM_SYMBOL (const ACState_##ACM_SYMBOL * state, ACM_SYMBOL ** 
 }                                                                      \
 \
 static void                                                            \
-ACM_foreach_keyword_##ACM_SYMBOL (const ACMachine_##ACM_SYMBOL * machine, void (*operator) (Keyword_##ACM_SYMBOL, void *))                     \
+ACM_foreach_keyword_##ACM_SYMBOL (const ACMachine_##ACM_SYMBOL * machine, void (*operator) (MatchHolder_##ACM_SYMBOL, void *))                     \
 {                                                                      \
   if (!operator)                                                       \
     return;                                                            \
@@ -579,10 +621,16 @@ state_release_##ACM_SYMBOL (const ACState_##ACM_SYMBOL * state,        \
 }                                                                      \
 \
 static void                                                            \
-ACM_release_##ACM_SYMBOL (const ACMachine_##ACM_SYMBOL * machine)      \
+ACM_cleanup_##ACM_SYMBOL (const ACMachine_##ACM_SYMBOL * machine)      \
 {                                                                      \
   state_release_##ACM_SYMBOL (machine->state_0, machine->destroy);     \
   pthread_mutex_destroy (&((ACMachine_##ACM_SYMBOL *) machine)->lock); \
+}                                                                      \
+\
+static void                                                            \
+ACM_release_##ACM_SYMBOL (const ACMachine_##ACM_SYMBOL * machine)      \
+{                                                                      \
+  ACM_cleanup_##ACM_SYMBOL (machine);                                  \
   free ((ACMachine_##ACM_SYMBOL *) machine);                           \
 }                                                                      \
 \
@@ -603,14 +651,13 @@ static const struct _acm_vtable_##ACM_SYMBOL ACM_VTABLE_##ACM_SYMBOL = \
   ACM_reset_##ACM_SYMBOL,                                              \
 };                                                                     \
                                                                        \
-static ACMachine_##ACM_SYMBOL *                                        \
-machine_create_##ACM_SYMBOL (ACState_##ACM_SYMBOL * state_0,           \
+static void                                                            \
+machine_init_##ACM_SYMBOL (ACMachine_##ACM_SYMBOL *machine,            \
+                             ACState_##ACM_SYMBOL * state_0,           \
                              EQ_##ACM_SYMBOL##_TYPE eq,                \
                              COPY_##ACM_SYMBOL##_TYPE copier,          \
                              DESTROY_##ACM_SYMBOL##_TYPE dtor)         \
 {                                                                      \
-  ACMachine_##ACM_SYMBOL *machine = malloc (sizeof (*machine));        \
-  ACM_ASSERT (machine);                                                \
   machine->reconstruct = 1;                                            \
   machine->size = 1;                                                   \
   machine->state_0 = state_0;                                          \
@@ -621,8 +668,8 @@ machine_create_##ACM_SYMBOL (ACState_##ACM_SYMBOL * state_0,           \
   machine->copy = copier ? copier : __COPY_##ACM_SYMBOL;               \
   machine->destroy = dtor ? dtor : __DTOR_##ACM_SYMBOL;                \
   machine->eq = eq ? eq : __EQ_##ACM_SYMBOL;                           \
-  return machine;                                                      \
 }                                                                      \
+struct __useless_struct_to_allow_trailing_semicolon__
 // END DEFINE_ACM
 
 #endif
