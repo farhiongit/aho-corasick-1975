@@ -40,18 +40,18 @@
 /// Type for equality operator is: int (*equal_operator) (const T, const T)
 #  define EQ_OPERATOR_TYPE(T)                       EQ_##T##_TYPE
 
-/// SET_DESTRUCTOR optionally declare a destructor for type T.
-/// Exemple: SET_DESTRUCTOR (mytype, mydestructor);
+/// SET_DESTRUCTOR optionally declares a destructor for type T.
+/// Example: SET_DESTRUCTOR (mytype, mydestructor);
 #  define SET_DESTRUCTOR(T, destructor)             do { DESTROY_##T = (destructor) ; } while (0)
 
-/// SET_COPY_CONSTRUCTOR optionally declare a copy constructor for type T.
-/// Exemple: SET_COPY_CONSTRUCTOR (mytype, myconstructor);
+/// SET_COPY_CONSTRUCTOR optionally declares a copy constructor for type T.
+/// Example: SET_COPY_CONSTRUCTOR (mytype, myconstructor);
 #  define SET_COPY_CONSTRUCTOR(T, constructor)      do { COPY_##T = (constructor) ; } while (0)
 
-/// SET_EQ_OPERATOR optionally declare equality operator for type T.
+/// SET_EQ_OPERATOR optionally declares equality operator for type T.
 /// A user defined equality operator can be declared for type T if needed.
 /// A default equality operator (memcmp) is used otherwise.
-/// Exemple: static int nocaseeq (wchar_t k, wchar_t t) { return k == towlower (t); }
+/// Example: static int nocaseeq (wchar_t k, wchar_t t) { return k == towlower (t); }
 ///          SET_EQ_OPERATOR (wchar_t, nocaseeq);
 #  define SET_EQ_OPERATOR(T, equal_operator)        do { EQ_##T = (equal_operator) ; } while (0)
 
@@ -68,14 +68,14 @@
 /// @param [in, optional] copy constructor Copy constructor of type COPY_CONSTRUCTOR_TYPE(T).
 /// @param [in, optional] destructor Destructor of type DESTRUCTOR_TYPE(T).
 /// @returns A pointer to a Aho-Corasick machine for type T.
-/// Exemple: ACMachine (char) * M = ACM_create (char);
+/// Example: ACMachine (char) * M = ACM_create (char);
 /// Note: ACM_create accepts optional arguments thanks to the use of the VFUNC macro (see below).
 #  define ACM_create(...)                           VFUNC(ACM_create, __VA_ARGS__)
 
 /// void ACM_release (const ACMachine (T) *machine)
 /// Releases the ressources of a Aho-Corasick machine created with ACM_create.
 /// @param [in] machine A pointer to a Aho-Corasick machine to be realeased.
-/// Exemple: ACM_release (M);
+/// Example: ACM_release (M);
 #  define ACM_release(machine)                      (machine)->vtable->release ((machine))
 
 /// Keyword (T) is the type of a keyword composed of symbols of type T.
@@ -88,7 +88,6 @@
 /// @param [in] array Array of symbols
 /// @param [in] length Length of the array
 /// Note: The array is NOT duplicated by ACM_KEYWORD_SET and should be allocated by the calling user program.
-///       Once regidtered, the array will be desallocated by ACM_release (see destructor usage in ACM_register_keyword).
 /// Exemple: ACM_KEYWORD_SET (kw, "Duck", 4);
 #  define ACM_KEYWORD_SET(keyword,symbols,length)   do { ACM_MATCH_SYMBOLS (keyword) = (symbols); ACM_MATCH_LENGTH (keyword) = (length); } while (0)
 
@@ -108,7 +107,7 @@
 ///       The rank of the registered keyword is the number of times ACM_register_keyword was previously called
 ///       since the machine was created. The rank is a 0-based sequence number.
 ///       This rank can later be retrieved by ACM_get_match.
-/// Exemple: ACM_register_keyword (M, kw);
+/// Example: ACM_register_keyword (M, kw);
 ///          ACM_register_keyword (M, kw, calloc (1, sizeof (int)), free);
 #  define ACM_register_keyword(...)                 VFUNC(ACM_register_keyword, __VA_ARGS__)
 
@@ -121,7 +120,7 @@
 /// Note: The equality operator, either associated to the machine, or associated to the type T, is used if declared.
 #  define ACM_is_registered_keyword(...)            VFUNC(ACM_is_registered_keyword, __VA_ARGS__)
 
-/// int ACM_unregister_keyword (ACMachine(T) *machine, Keyword(T) kw, [void * value_ptr], void (*destructor) (void *))
+/// int ACM_unregister_keyword (ACMachine(T) *machine, Keyword(T) kw)
 /// Unregisters a keyword from the Aho-Corasick machine.
 /// @param [in] machine A pointer to a Aho-Corasick machine.
 /// @param [in] kw Keyword of symbols of type T to be registered.
@@ -254,21 +253,52 @@ typedef int (*EQ_##T##_TYPE) (const T, const T);     \
 \
 typedef struct                                       \
 {                                                    \
-  T *letter;                                         \
-  size_t length;                                     \
+  T *letter;      /* An array of symbols */          \
+  size_t length;  /* Length of the array */          \
 } Keyword_##T;                                       \
 \
 typedef struct                                       \
 {                                                    \
-  T *letter;                                         \
-  size_t length;                                     \
-  size_t rank;                                       \
+  T *letter;      /* An array of symbols */          \
+  size_t length;  /* Length of the array */          \
+  size_t rank;    /* Rank of the regidtered keyword */\
 } MatchHolder_##T;                                   \
 \
 struct _ac_state_##T;                                \
 typedef struct _ac_state_##T ACState_##T;            \
 struct _ac_machine_##T;                              \
 typedef struct _ac_machine_##T ACMachine_##T;        \
+struct _acs_vtable_##T                               \
+{                                                    \
+  size_t (*match) (const ACState_##T ** state, T letter);                                                     \
+  size_t (*get_match) (const ACState_##T * statee, size_t index, MatchHolder_##T * match, void **value);      \
+};                                                   \
+/* A state of the state machine. */                  \
+struct _ac_state_##T             /* [state s] */     \
+{                                                    \
+  /* A link to the next states */                    \
+  struct _ac_next_##T                                \
+  {                                                  \
+    T letter;                    /* [a symbol] */    \
+    struct _ac_state_##T *state; /* [g(s, letter)] */\
+  } *goto_array;                 /* next states in the tree of the goto function */\
+  size_t nb_goto;                                    \
+  /* A link to the previous states */                \
+  struct                                             \
+  {                                                  \
+    size_t i_letter; /* Index of the letter in the goto_array */ \
+    /* letter = previous.state->goto_array[previous.i_letter].letter */ \
+    struct _ac_state_##T *state;                     \
+  } previous;                    /* Previous state */\
+  const struct _ac_state_##T *fail_state; /* [f(s)] */\
+  int is_matching; /* true if the state matches a keyword. */\
+  size_t nb_sequence; /* Number of matching keywords (Aho-Corasick : size (output (s)) */\
+  size_t rank; /* Rank (0-based) of insertion of a keyword in the machine. */\
+  void *value; /* An optional value associated to a state. */\
+  void (*value_dtor) (void *); /* Destrcutor of the associated value, called a state machine release. */\
+  ACMachine_##T * machine;                           \
+  const struct _acs_vtable_##T *vtable;              \
+};                                                   \
 \
 struct _acm_vtable_##T                               \
 {                                                    \
@@ -281,11 +311,19 @@ struct _acm_vtable_##T                               \
   const ACState_##T * (*reset) (const ACMachine_##T * machine);                                               \
 };                                                   \
 \
-struct _acs_vtable_##T                               \
+struct _ac_machine_##T                               \
 {                                                    \
-  size_t (*match) (const ACState_##T ** state, T letter);                                                     \
-  size_t (*get_match) (const ACState_##T * statee, size_t index, MatchHolder_##T * match, void **value);      \
-};                                                                     \
+  struct _ac_state_##T *state_0; /* state 0 */       \
+  size_t rank; /* Number of keywords registered in the machine. */\
+  size_t nb_sequence; /* Number of keywords in the machine. */\
+  int reconstruct;                                   \
+  size_t size;                                       \
+  pthread_mutex_t lock;                              \
+  const struct _acm_vtable_##T *vtable;              \
+  T (*copy) (const T);                               \
+  void (*destroy) (const T);                         \
+  int (*eq) (const T, const T);                      \
+};                                                   \
 \
 __attribute__ ((unused)) ACMachine_##T *ACM_create_##T (EQ_##T##_TYPE eq,        \
                                       COPY_##T##_TYPE copier,  \
