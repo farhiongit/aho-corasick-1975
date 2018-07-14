@@ -19,8 +19,7 @@ This project offers an efficient implement of the Aho-Corasick algorithm which s
 
 - It faithfully and acurately sticks, step by step, to the pseudo-code given in the original paper from Aho and Corasick
   (btw exquisitely clear and well written, see Aho, Alfred V.; Corasick, Margaret J. (June 1975).
-  "[Efficient string matching: An aid to bibliographic search]
-  (https://github.com/tpn/pdfs/blob/master/Efficient%20String%20Matching%20-%20An%20Aid%20to%20Bibliographic%20Search%20-%20Aho-Corasick%20(1975).pdf)".
+  "[Efficient string matching: An aid to bibliographic search](https://github.com/tpn/pdfs/blob/master/Efficient%20String%20Matching%20-%20An%20Aid%20to%20Bibliographic%20Search%20-%20Aho-Corasick%20(1975).pdf)".
   Communications of the ACM. 18 (6): 333–340.)
 - It is generic in the sense that it works for any kind of alphabet (of any number of signs and not limited to 256) and not only for char.
 - The interface is minimal, complete and easy to use.
@@ -489,8 +488,8 @@ gzip -d googlebooks-eng-all-1gram-20120701-0.gz
 #include <stdio.h>
 #include "aho_corasick_template_impl.h"
 
-ACM_DECLARE (char)
-ACM_DEFINE (char)
+ACM_DECLARE (char);
+ACM_DEFINE (char);
 int main (void)
 {
   ACMachine (char) * M = ACM_create (char);
