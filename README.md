@@ -3,7 +3,7 @@ A small, documented, easy to use implementation of the Aho-Corasick algorithm.
 
 ![alt text](dictionary.jpeg "A fully indexed dictionary")
 
-An Aho-Corasick Machine allows to implement a fully indexed dixtionnary of words.
+An Aho-Corasick Machine allows to implement a fully indexed dictionary of words.
 A word or pattern is to be considered here in its general meaning, that is a sequence of signs or symbols of a given user defined alphabet (set of symbols).
 
 The dictionary is used in two steps:
@@ -258,7 +258,7 @@ If a user defined type *T* uses internal allocated resources, operators can be o
 The default equality operator `memcmp` is used otherwise.
 `equal_operator` must return `0` if its two arguments are different, non `0` otherwise.
 
-### Dictionnary declarator
+### Dictionary declarator
 
 > `ACM_DECL (var, `*T*`, [equal_operator], [copy_constructor, destructor])`
 >
@@ -272,7 +272,7 @@ This macro let declare a local variable `var` of type `ACMachine (`*T*`)` where
 Specific operators `equal_operator`, `copy_constructor`, `destructor` can optionnaly be declared for type *T* and dictionary `var`.
 They supersede the operators applied to type *T*.
 
-### Dictionnary dynamic allocation
+### Dictionary dynamic allocation
 
 #### Creation
 
