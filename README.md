@@ -1,15 +1,17 @@
 A small, documented, easy to use implementation of the Aho-Corasick algorithm.
 ----------------------------------
 
+![alt text](dictionary.jpeg "A fully indexed dictionary")
+
 An Aho-Corasick Machine allows to implement a fully indexed dixtionnary of words.
 A word or pattern is to be considered here in its general meaning, that is a sequence of signs or symbols of a given user defined alphabet (set of symbols).
 
-The dictionnary is used in two steps:
+The dictionary is used in two steps:
 
-1. Register words in the dictionnary, and optionnally definitions associated to words.
-2. Read a text and compare it to words in the dictionnary.
+1. Register words in the dictionary, and optionnally definitions associated to words.
+2. Read a text and compare it to words in the dictionary.
 
-The dictionnary can also be traversed, and an operator can be applied to each word or associated value.
+The dictionary can also be traversed, and an operator can be applied to each word or associated value.
 
 # Introduction
 
@@ -60,7 +62,7 @@ then the number of possible signs would be 18446744073709551616 !
         by `ACM_release`.
       - a fourth argument is passed to `ACM_get_match` calls: the address of a pointer to an associated value.
         The pointer to associated value is modified by `ACM_get_match` to the address of the value associated to the keyword.
-6. It extends the state machine in order to be used as well as an indexed dictionnary of keywords:
+6. It extends the state machine in order to be used as well as an indexed dictionary of keywords:
       - `ACM_is_registered_keyword()` check for the existence of a keyword in the state machine.
       - `ACM_unregister_keyword()` removes a keyword from the state machine.
       - `ACM_foreach_keyword()` applies a user defined operator to each keyword of the state machine.
@@ -82,12 +84,14 @@ Therefore, a given shared Aho-Corasick machine can be used by multiple threads t
 
 ## Usage
 
+In global scope:
+
 1. Insert "aho_corasick_template_impl.h" in global scope.
 2. Declare, in global scope, the types for which the Aho-Corasick machines have to be instanciated.
 
 ```c
-    ACM_DECLARE (char)
-    ACM_DEFINE (char)
+    ACM_DECLARE (char);
+    ACM_DEFINE (char);
 ```
 
 In local scope (function or main entry point), preprocess keywords:
@@ -167,8 +171,8 @@ Here is a simple example:
 #include <string.h>
 #include "aho_corasick_template_impl.h"
 
-ACM_DECLARE (char)                            /* template */
-ACM_DEFINE (char)                             /* template */
+ACM_DECLARE (char);                            /* template */
+ACM_DEFINE (char);                             /* template */
 
 int
 main (void)
@@ -265,7 +269,7 @@ This macro let declare a local variable `var` of type `ACMachine (`*T*`)` where
 
 `var` will be properly freed when going out of scope.
 
-Specific operators `equal_operator`, `copy_constructor`, `destructor` can optionnaly be declared for type *T* and dictionnary `var`.
+Specific operators `equal_operator`, `copy_constructor`, `destructor` can optionnaly be declared for type *T* and dictionary `var`.
 They supersede the operators applied to type *T*.
 
 ### Dictionnary dynamic allocation
@@ -286,9 +290,9 @@ They supersede the operators applied to type *T*.
 >
 > Returns: A pointer to a Aho-Corasick machine for type *T*.
 
-This function `ACM_create` creates a dictionnary (implemented with a Aho-Corasick finite state machine) for type *T*.
+This function `ACM_create` creates a dictionary (implemented with a Aho-Corasick finite state machine) for type *T*.
 
-Specific operators `equal_operator`, `copy_constructor`, `destructor` can optionnaly be declared for type *T* and the allocated dictionnary.
+Specific operators `equal_operator`, `copy_constructor`, `destructor` can optionnaly be declared for type *T* and the allocated dictionary.
 They supersede the operators applied to type *T*.
 
 *Example*: `ACMachine (char) * M = ACM_create (char);`
@@ -299,7 +303,7 @@ They supersede the operators applied to type *T*.
 >
 > [in] machine A pointer to a Aho-Corasick machine to be realeased.
 
-`ACM_release` must be called to release the ressources of a dictionnary created with `ACM_create`.
+`ACM_release` must be called to release the ressources of a dictionary created with `ACM_create`.
 
 *Example*: `ACM_release (M);`
 
@@ -322,9 +326,11 @@ The `array` is **NOT** duplicated by `ACM_KEYWORD_SET` and should be allocated a
 
 Example: `ACM_KEYWORD_SET (kw, "Duck", 4);`
 
-### Word registration
+### Dictionary initializarion
 
-`ACM_register_keyword` add a word in the dictionnary, together with an optional pointer to an associated value.
+#### Word registration
+
+`ACM_register_keyword` add a word in the dictionary, together with an optional pointer to an associated value.
 
 > `int ACM_register_keyword (ACMachine (`*T*`) *machine, Keyword (`*T*`) kw, [void * value_ptr], [void (*destructor) (void *)])`
 
@@ -350,8 +356,9 @@ Notes:
      ACM_register_keyword (M, kw);
      ACM_register_keyword (M, kw, calloc (1, sizeof (int)), free);
 
+#### Word deletion
 
-`ACM_unregister_keyword` removes a word from the dictionnary.
+`ACM_unregister_keyword` removes a word from the dictionary.
 
 > `int ACM_unregister_keyword (ACMachine(`*T*`) *machine, Keyword(T) kw)`
 
@@ -363,7 +370,7 @@ Parameters:
 
 The equality operator, either associated to the machine, or associated to the type T, is used if declared.
 
-`ACM_is_registered_keyword` checks whether a word is already registered in the dictionnary and optionally retrieves the associated value.
+`ACM_is_registered_keyword` checks whether a word is already registered in the dictionary and optionally retrieves the associated value.
 
 > `int ACM_is_registered_keyword (const ACMachine(`*T*`) * machine, Keyword(`*T*`) kw, [void **value_ptr])`
 
@@ -372,16 +379,36 @@ Parameters:
 - [in] kw Keyword of symbols of type T to be checked.
 - [out, optional] value_ptr *value_ptr is set to the pointer of the value associated to the keyword after the call.
 
+#### Word checking
+
 `ACM_is_registered_keyword` returns 1 if the keyword is registered in the machine, 0 otherwise.
 
 The equality operator, either associated to the machine, or associated to the type T, is used if declared.
 
 > `size_t ACM_nb_keywords (const ACMachine (`*T*`) *machine)
 
-returns the number of keywords registered in the dictionnary.
+returns the number of keywords registered in the dictionary.
 
 Parameters:
 - [in] machine A pointer to a Aho-Corasick machine.
+
+#### Dictionary iterator
+
+> `void ACM_foreach_keyword (const ACMachine(`*T*`) * machine, void (*operator) (MatchHolder(`*T*`) kw, void *value))`
+
+`ACM_foreach_keyword` applies an operator to every registered keyword (by `ACM_register_keyword`) in the machine.
+
+Parameters:
+- [in] machine A pointer to a Aho-Corasick machine.
+- [in] operator Function of type void (*operator) (Keyword (T), void *)
+
+The operator is called for each registered keyword and pointer to associated value successively.
+The order in which the keywords are processed in unspecified.
+
+*Example*:
+
+     static void print_match (MatchHolder (wchar_t) match, void *value) { /* user code here */ }
+     ACM_foreach_keyword (M, print_match);
 
 ### Word matching
 
@@ -396,16 +423,18 @@ Parameters:
 Calls to `ACM_reset` on the same machine can be used to parse several texts concurrently (e.g. by several threads).
 
 
-> `size_t ACM_match (const ACState(`*T*`) * state, `*T*` letter)`
+> `size_t ACM_match (const ACState(`*T*`) *& state, `*T*` letter)`
 
+`ACM_match` sends a symbol `letter` into the Aho-Corasick machine and counts the number of registered word in the dictionary matching with
+the last symbols sent since the last call to `ACM_reset`.
 This is the main function used to parse a text, one symbol after the other, and to search for pattern matching.
 
 Parameters:
 - [in, out] state A pointer to a valid Aho-Corasick machine state, initialized by `ACM_reset`.
-  `state` is *passed by reference*. It is modified by the function.
+  `state` is *passed by reference* (à la C++): it is modified by the function call.
 - [in] letter A symbol.
 
-Returns the number of registered keywords that match a sequence of last letters matched by ACM_nb_matches.
+`ACM_match` returns the number of registered keywords that match a sequence of last letters sent to the last calls to ACM_match.
 
 The equality operator, either associated to the machine, or associated to the type T, is used if declared.
 

@@ -176,12 +176,12 @@
 ///       parse several texts concurrently (e.g. by several threads).
 #  define ACM_reset(machine)                        (machine)->vtable->reset ((machine))
 
-/// size_t ACM_match (const ACState(T) * state, T letter)
+/// size_t ACM_match (const ACState(T) *& state, T letter)
 /// This is the main function used to parse a text, one symbol after the other, and search for pattern matching.
 /// Get the next state matching a symbol injected in the finite state machine.
 /// @param [in, out] state A pointer to a valid Aho-Corasick machine state. Argument passed by reference.
 /// @param [in] letter A symbol.
-/// @return The number of registered keywords that match a sequence of last letters matched by ACM_nb_matches.
+/// @return The number of registered keywords that match a sequence of last letters sent to the last calls to `ACM_match`.
 /// Note: The equality operator, either associated to the machine, or associated to the type T, is used if declared.
 /// Note: The optional argument `nb_matches` avoids the call to ACM_nb_matches.
 /// Note: `state` is passed by reference. It is modified by the function.
@@ -270,8 +270,8 @@ struct _ac_machine_##T;                              \
 typedef struct _ac_machine_##T ACMachine_##T;        \
 struct _acs_vtable_##T                               \
 {                                                    \
-  size_t (*match) (const ACState_##T ** state, T letter);                                                     \
-  size_t (*get_match) (const ACState_##T * statee, size_t index, MatchHolder_##T * match, void **value);      \
+  size_t (*match) (const ACState_##T ** state, T letter);                                                    \
+  size_t (*get_match) (const ACState_##T * state, size_t index, MatchHolder_##T * match, void **value);      \
 };                                                   \
 /* A state of the state machine. */                  \
 struct _ac_state_##T             /* [state s] */     \
