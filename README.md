@@ -19,7 +19,8 @@ This project offers an efficient implement of the Aho-Corasick algorithm which s
 
 - It faithfully and acurately sticks, step by step, to the pseudo-code given in the original paper from Aho and Corasick
   (btw exquisitely clear and well written, see Aho, Alfred V.; Corasick, Margaret J. (June 1975).
-  "[Efficient string matching: An aid to bibliographic search](https://pdfs.semanticscholar.org/3547/ac839d02f6efe3f6f76a8289738a22528442.pdf)".
+  "[Efficient string matching: An aid to bibliographic search]
+  (https://github.com/tpn/pdfs/blob/master/Efficient%20String%20Matching%20-%20An%20Aid%20to%20Bibliographic%20Search%20-%20Aho-Corasick%20(1975).pdf)".
   Communications of the ACM. 18 (6): 333–340.)
 - It is generic in the sense that it works for any kind of alphabet (of any number of signs and not limited to 256) and not only for char.
 - The interface is minimal, complete and easy to use.
@@ -67,7 +68,7 @@ then the number of possible signs would be 18446744073709551616 !
       - `ACM_unregister_keyword()` removes a keyword from the state machine.
       - `ACM_foreach_keyword()` applies a user defined operator to each keyword of the state machine.
 7. Search for matching patterns is thread safe: several texts can be parsed concurrently (by several threads).
-8. It is short: aho_corasick.c is about 700 effective lines of code.
+8. It is short: aho_corasick_template_impl.h is about 700 effective lines of code.
 9. Last but not least, it is very fast. On my slow HD and slow CPU old computer, it takes 0.92 seconds to register 370,099 keywords
    with a total of 3,864,776 characters, and 0.12 seconds to find (and count occurencies of) those keywords in a text of 376,617 characters.
 
@@ -211,15 +212,21 @@ main (void)
 
 ## Files
 
-Source code:
+### Source code:
 
 - aho_corasick_template.h defines and fully documents the interface.
 - aho_corasick_template_impl.h defines the implementation.
 
-Examples:
+### [Examples](examples):
+
+#### `aho_corasick_template_test.c`
 
 - aho_corasick_template_test.c gives a complete and commented example.
 - words and mrs_dalloway.txt are input files used by the example.
+
+#### `ahoperftest.c` and `aho_corasick_template_speed_test.c`
+
+Two very similar simple examples for performance tests.
 
 ## API
 
