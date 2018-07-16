@@ -137,10 +137,11 @@ main (void)
 #define X(MACHINE, ...) \
   {  \
     Keyword (wchar_t) VAR;  \
+    size_t *pul;  \
     wchar_t _VAR[] = { __VA_ARGS__ };  \
     ACM_KEYWORD_SET (VAR, _VAR, sizeof (_VAR) / sizeof (*_VAR));  \
     /* 5. Add keywords (of type `Keyword (T)`) to the state machine calling `ACM_register_keyword()`, one at a time, repeatedly. */ \
-    if (ACM_register_keyword (MACHINE, VAR, 0, 0))          \
+    if (ACM_register_keyword (MACHINE, VAR, (*(pul = malloc(sizeof (*pul))) = __COUNTER__ + 100, pul)))          \
       print_keyword (VAR);  \
     else  \
       printf  ("X");  \
@@ -211,8 +212,9 @@ main (void)
     for (size_t j = 0; j < nb_matches; j++)
     {
       // 10. If matches were found, retrieve them calling `ACM_get_match ()` for each match.
+      void *pul;
       size_t rank =
-        ACM_get_match (state, j, &match, 0);
+        ACM_get_match (state, j, &match, &pul);
       ACM_ASSERT (rank == ACM_MATCH_UID (match));
 
       // `ACM_MATCH_LENGTH (match)` and `ACM_MATCH_SYMBOLS (match)` can be used to get the length and the content of a retreieved match.
@@ -224,7 +226,7 @@ main (void)
       for (size_t tab = current_pos; tab < i + 1 - ACM_MATCH_LENGTH (match); tab++)
         current_pos += printf (" ");
       // Display matching pattern
-      print_match (match, 0);
+      print_match (match, pul);
     }
   }
 

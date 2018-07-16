@@ -32,6 +32,7 @@
 #  include <string.h>
 #  include <signal.h>
 
+#  define ACM_KEEP_VALUE 0  //  Configures the behavior of ACM_register_keyword_##ACM_SYMBOL if a keyword was already previously registered.
 #  include "aho_corasick_template.h"
 
 #  define ACM_ASSERT(cond) do { if (!(cond)) { \
@@ -474,8 +475,10 @@ machine_goto_update_##ACM_SYMBOL (ACMachine_##ACM_SYMBOL * machine,    \
     state = newstate;                                                  \
     machine->size++;                                                   \
   }                                                                    \
-  /* If the keyword was already previously registered, its rank and associated value are left unchanged. */\
-  if (state->is_matching)                                              \
+  /* If the keyword was already previously registered, state->is_matching != 0 */ \
+  /*   if !ACM_KEEP_VALUE: the new value replaces the old one: the associated old value is forgotten. */\
+  /*   if  ACM_KEEP_VALUE: rank and associated value are left unchanged. */\
+  if (ACM_KEEP_VALUE && state->is_matching)                            \
     return 0;                                                          \
   if (state->value && state->value_dtor)                               \
     state->value_dtor (state->value);                                  \
