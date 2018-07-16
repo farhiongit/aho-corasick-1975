@@ -290,7 +290,7 @@ state_fail_state_construct_##ACM_SYMBOL (ACMachine_##ACM_SYMBOL * machine) \
 }                                                                      \
 \
 static const ACState_##ACM_SYMBOL *                                    \
-state_goto_##ACM_SYMBOL (const ACState_##ACM_SYMBOL * state, ACM_SYMBOL letter,\
+state_goto_##ACM_SYMBOL (const ACState_##ACM_SYMBOL * state, ACM_SYMBOL letter /* a[i] */,\
                          EQ_##ACM_SYMBOL##_TYPE eq)                    \
 {                                                                      \
   /* Aho-Corasick Algorithm 1: while g(state, a[i]) = fail [and state != 0] do state <- f(state)           [2] */\
@@ -320,7 +320,7 @@ state_goto_##ACM_SYMBOL (const ACState_##ACM_SYMBOL * state, ACM_SYMBOL letter,\
     state = state->fail_state;                                         \
   }                                                                    \
 }                                                                      \
-/* Aho-Corasick Algorithm 1: Pattern matching machine - if output (stat) != empty */\
+/* Aho-Corasick Algorithm 1: Pattern matching machine - if output (state) != empty */\
 static size_t                                                          \
 ACM_match_##ACM_SYMBOL (const ACState_##ACM_SYMBOL ** pstate, ACM_SYMBOL letter)     \
 {                                                                      \
@@ -424,10 +424,10 @@ machine_goto_update_##ACM_SYMBOL (ACMachine_##ACM_SYMBOL * machine,    \
   /* Aho-Corasick Algorithm 2: state <- 0 */                           \
   ACState_##ACM_SYMBOL *state = state_0;                               \
   /* Aho-Corasick Algorithm 2: j <- 1 */                               \
-  size_t j = 0;                                                        \
+  size_t j = 0; /* j is 0-based here (and not 1-based like in original text) */\
   /* Aho-Corasick Algorithm 2: while g(state, a[j]) != fail [and j <= m] do */\
   /* Iterations on i and s until a final state */                      \
-  for (; j < sequence.length /* [m] */ ;)                              \
+  for (; j < sequence.length /* [j <= m] */ ;)                         \
   {                                                                    \
     ACState_##ACM_SYMBOL *next = 0;                                    \
     /* Aho-Corasick Algorithm 2: "g(s, l) = fail if l is undefined or if g(s, l) has not been defined." */\
@@ -455,7 +455,7 @@ machine_goto_update_##ACM_SYMBOL (ACMachine_##ACM_SYMBOL * machine,    \
   }                                                                    \
   /* Aho-Corasick Algorithm 2: for p <- j until m do */                \
   /* Appending states for the new sequence to the final state found */ \
-  for (size_t p = j; p < sequence.length /* [m] */ ; p++)              \
+  for (size_t p = j; p < sequence.length /* [p <= m] */ ; p++)         \
   {                                                                    \
     state->nb_goto++;                                                  \
     ACM_ASSERT (state->goto_array = realloc (state->goto_array,        \
