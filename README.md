@@ -123,7 +123,8 @@ In local scope (function or main entry point), preprocess keywords:
         to be used to destroy the associated value.
       - The macro helper `ACM_KEYWORD_SET (keyword,symbols,length)` can be used to initialize keywords with a single statement.
       - The rank of insertion of a keyword is registered together with the keyword.
-      - If a keywords was already registered in the machine, its rank (and possibly associated value) is left unchanged.
+      - If a keywords was already previously registered in the machine, its associated old value is forgotten
+        and replaced by the associated value.
       - `ACM_nb_keywords (machine)` returns the number of keywords already inserted in the state machine.
 ```c
     int has_been_registered = ACM_register_keyword (machine, keyword, [value], [destructor]);

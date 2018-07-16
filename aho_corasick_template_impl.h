@@ -475,24 +475,27 @@ machine_goto_update_##ACM_SYMBOL (ACMachine_##ACM_SYMBOL * machine,    \
     state = newstate;                                                  \
     machine->size++;                                                   \
   }                                                                    \
-  /* If the keyword was already previously registered, state->is_matching != 0 */ \
-  /*   if !ACM_KEEP_VALUE: the new value replaces the old one: the associated old value is forgotten. */\
-  /*   if  ACM_KEEP_VALUE: rank and associated value are left unchanged. */\
-  if (ACM_KEEP_VALUE && state->is_matching)                            \
+  if (!state->is_matching)                                             \
+  {                                                                    \
+    /* Aho-Corasick Algorithm 2: output (state) <- { a[1] a[2] ... a[n] } */\
+    /* Aho-Corasick Algorithm 2: "We assume output(s) is empty when state s is first created." */\
+    /* Adding the sequence to the last found state (created or not) */ \
+    state->is_matching = 1;                                            \
+    state->nb_sequence = 1;                                            \
+    state->rank = machine->rank++; /* rank is a 0-based index */       \
+    machine->nb_sequence++;                                            \
+    if (!machine->reconstruct)                                         \
+      machine->reconstruct = 2; /* f(s) must be recomputed */          \
+  }                                                                    \
+  else if (ACM_KEEP_VALUE)                                             \
+    /* If the keyword was already previously registered, state->is_matching != 0 */\
+    /*   if !ACM_KEEP_VALUE: the new value replaces the old one: the associated old value is forgotten. */\
+    /*   if  ACM_KEEP_VALUE: rank and associated value are left unchanged. */\
     return 0;                                                          \
   if (state->value && state->value_dtor)                               \
     state->value_dtor (state->value);                                  \
   state->value = value;                                                \
   state->value_dtor = dtor;                                            \
-  /* Aho-Corasick Algorithm 2: output (state) <- { a[1] a[2] ... a[n] } */\
-  /* Aho-Corasick Algorithm 2: "We assume output(s) is empty when state s is first created." */\
-  /* Adding the sequence to the last found state (created or not) */   \
-  state->is_matching = 1;                                              \
-  state->nb_sequence = 1;                                              \
-  state->rank = machine->rank++; /* rank is a 0-based index */         \
-  machine->nb_sequence++;                                              \
-  if (!machine->reconstruct)                                           \
-    machine->reconstruct = 2; /* f(s) must be recomputed */            \
   return 1;                                                            \
 }                                                                      \
 \
