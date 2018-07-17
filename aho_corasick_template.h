@@ -100,7 +100,8 @@
 ///                                  The default destructor is the standard library function `free.
 ///                                  Use `0` if the allocated value need not be managed by the finite state machine
 ///                                  (in case of automatic or static values).
-/// @return 1 if the keyword was successfully registered, 0 otherwise.
+/// @return 1 if the keyword was successfully registered, 0 otherwise (if the keyword is empty).
+/// Note: When returning 0, the destructor, if any, is called on value, if any.
 /// Note: If the keywpord is already registered in the machine, its associated value is forgotten and replaced by the new value.
 /// Note: Keyword kw is duplicated and can be released after its registration.
 /// Note: The equality operator, either associated to the machine, or associated to the type T, is used if declared.

@@ -418,7 +418,11 @@ machine_goto_update_##ACM_SYMBOL (ACMachine_##ACM_SYMBOL * machine,    \
                                   void *value, void (*dtor) (void *))  \
 {                                                                      \
   if (!sequence.length)                                                \
+  {                                                                    \
+    if (value && dtor)                                                 \
+      dtor (value);                                                    \
     return 0;                                                          \
+  }                                                                    \
   ACState_##ACM_SYMBOL *state_0 = machine->state_0; /* [state 0] */    \
   /* Iterators */                                                      \
   /* Aho-Corasick Algorithm 2: state <- 0 */                           \
@@ -491,7 +495,11 @@ machine_goto_update_##ACM_SYMBOL (ACMachine_##ACM_SYMBOL * machine,    \
     /* If the keyword was already previously registered, state->is_matching != 0 */\
     /*   if !ACM_KEEP_VALUE: the new value replaces the old one: the associated old value is forgotten. */\
     /*   if  ACM_KEEP_VALUE: rank and associated value are left unchanged. */\
+  {                                                                    \
+    if (value && dtor)                                                 \
+      dtor (value);                                                    \
     return 0;                                                          \
+  }                                                                    \
   if (state->value && state->value_dtor)                               \
     state->value_dtor (state->value);                                  \
   state->value = value;                                                \

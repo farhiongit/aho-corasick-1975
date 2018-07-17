@@ -329,11 +329,11 @@ Parameters:
 
 `ACM_KEYWORD_SET` initializes a keyword from an array of symbols
 
-The `array` is **NOT** duplicated by `ACM_KEYWORD_SET` and should be allocated and desallocated by the calling user program.
+The `array` is **NOT** duplicated by `ACM_KEYWORD_SET` and should be allocated and deallocated by the calling user program, if necessary.
 
 Example: `ACM_KEYWORD_SET (kw, "Duck", 4);`
 
-### Dictionary initializarion
+### Dictionary initialization
 
 #### Word registration
 
@@ -349,7 +349,9 @@ Parameters:
   - The default destructor is the standard library function `free.
   - Use `0` if the allocated value need not be managed by the finite state machine (in case of automatic or static values).
 
-`ACM_register_keyword` returns 1 if the keyword was successfully registered, 0 otherwise (if the keywpord is already registered in the machine).
+`ACM_register_keyword` returns 1 if the keyword was successfully registered, 0 otherwise (if the keywpord is empty).
+- When returning 0, the `destructor` (if any) is called on `value` (if any).
+- When returning 1, the `destructor` (if any) will be called on `value` (if any) when the dictionary is deallocated.
 
 Notes:
 - Keyword `kw` is passed by value and can be released after its registration.
