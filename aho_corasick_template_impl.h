@@ -419,7 +419,7 @@ machine_goto_update_##ACM_SYMBOL (ACMachine_##ACM_SYMBOL * machine,    \
 {                                                                      \
   if (!sequence.length)                                                \
   {                                                                    \
-    if (value && dtor)                                                 \
+    if (dtor)                                                          \
       dtor (value);                                                    \
     return 0;                                                          \
   }                                                                    \
@@ -496,11 +496,11 @@ machine_goto_update_##ACM_SYMBOL (ACMachine_##ACM_SYMBOL * machine,    \
     /*   if !ACM_KEEP_VALUE: the new value replaces the old one: the associated old value is forgotten. */\
     /*   if  ACM_KEEP_VALUE: rank and associated value are left unchanged. */\
   {                                                                    \
-    if (value && dtor)                                                 \
+    if (dtor)                                                          \
       dtor (value);                                                    \
     return 0;                                                          \
   }                                                                    \
-  if (state->value && state->value_dtor)                               \
+  if (state->value_dtor)                                               \
     state->value_dtor (state->value);                                  \
   state->value = value;                                                \
   state->value_dtor = dtor;                                            \
@@ -621,7 +621,7 @@ ACM_unregister_keyword_##ACM_SYMBOL (ACMachine_##ACM_SYMBOL * machine, Keyword_#
     prev->goto_array = realloc (prev->goto_array, sizeof (*prev->goto_array) * prev->nb_goto);  \
     ACM_ASSERT (!prev->nb_goto || prev->goto_array);                   \
     /* Release associated value; */                                    \
-    if (last->value && last->value_dtor)                               \
+    if (last->value_dtor)                                              \
       last->value_dtor (last->value);                                  \
     /* Release last */                                                 \
     free (last);                                                       \
@@ -685,7 +685,7 @@ state_release_##ACM_SYMBOL (const ACState_##ACM_SYMBOL * state,        \
   }                                                                    \
   free (state->goto_array);                                            \
   /* Release associated value */                                       \
-  if (state->value && state->value_dtor)                               \
+  if (state->value_dtor)                                               \
     state->value_dtor (state->value);                                  \
   /* Release state */                                                  \
   free ((ACState_##ACM_SYMBOL *) state);                               \

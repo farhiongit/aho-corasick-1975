@@ -123,7 +123,7 @@ In local scope (function or main entry point), preprocess keywords:
         to be used to destroy the associated value.
       - The macro helper `ACM_KEYWORD_SET (keyword,symbols,length)` can be used to initialize keywords with a single statement.
       - The rank of insertion of a keyword is registered together with the keyword.
-      - If a keywords was already previously registered in the machine, its associated old value is forgotten
+      - If a keyword was already previously registered in the dictionary, its associated old value is deallocated, forgotten
         and replaced by the associated value.
       - `ACM_nb_keywords (machine)` returns the number of keywords already inserted in the state machine.
 ```c
@@ -345,8 +345,9 @@ Parameters:
 - [in] machine A pointer to a Aho-Corasick machine.
 - [in] kw Keyword of symbols of type T to be registered.
 - [in, optional] value_ptr Pointer to a previously allocated value to associate with keyword kw.
+  - The default pointer is `0`.
 - [in, optional] destructor A destructor to be used to free the value pointed by value_ptr.
-  - The default destructor is the standard library function `free.
+  - The default destructor is the standard library function `free` if `value_ptr` is not null, 0 otherwise.
   - Use `0` if the allocated value need not be managed by the finite state machine (in case of automatic or static values).
 
 `ACM_register_keyword` returns 1 if the keyword was successfully registered, 0 otherwise (if the keywpord is empty).
@@ -359,6 +360,8 @@ Notes:
 - The keyword is registered together with its rank.
   The rank is a unique 0-based identifier of the registered keyword.
   It can later be retrieved by `ACM_get_match`.
+- If the keyword was already previously registered in the dictionary, its associated old value is deallocated, forgotten
+  and replaced by the new associated value (or 0).
 
 *Example*:
 
