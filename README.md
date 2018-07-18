@@ -230,6 +230,34 @@ Two very similar simple examples for performance tests.
 
 ## API
 
+|| Description                                                           | Function name               |
+|-----------------------------------------------------------------------|-----------------------------|
+|**Type operators setters**|
+|| Declares destructor                                                   | `SET_DESTRUCTOR`            |
+|| Declares copy constructor                                             | `SET_COPY_CONSTRUCTOR`      |
+|| Declares equality operator                                            | `SET_EQ_OPERATOR`           |
+|**Dictionary instanciators**|
+|| Declares a local dictionary                                           | `ACM_DECL`                  |
+|| Allocates a dictionary dynamically                                    | `ACM_create`                |
+|| Deallocates a dictionary                                              | `ACM_release`               |
+|**Keyword management**|
+|| Initializes a keyword for registrattion                               | `ACM_KEYWORD_SET`           |
+|| Registers a keyword in a dictionary                                   | `ACM_register_keyword`      |
+|| Unregisters a keyword in a dictionary                                 | `ACM_unregister_keyword`    |
+|| Indicates whether or not a keyword is registered in a dictionary      | `ACM_is_registered_keyword` |
+|| Gets the number of registered keywords in a dictionary                | `ACM_nb_keywords`           |
+|| Calls a callback function for each keyword registered in a dictionary | `ACM_foreach_keyword`       |
+|**Helpers for registered keywords retrieved from dictionary**|
+|| Initializes a container for registered keywords from a dictionary     | `ACM_MATCH_INIT`            |
+|| Gets the length of a registered keyword from a dictionary             | `ACM_MATCH_LENGTH`          |
+|| Gets the array of symbols of a registered keyword from a dictionary   | `ACM_MATCH_SYMBOLS`         |
+|| Gets the unique identifier of a registered keyword from a dictionary  | `ACM_MATCH_UID`             |
+|| Releases a container for registered keywords from a dictionary        | `ACM_MATCH_RELEASE`         |
+|**Keyword matching**|
+|| Prepares a dictionary for keyword matching                            | `ACM_reset`                 |
+|| Searches text for matching keywords registered in a dictionary        | `ACM_match`                 |
+|| Retrieves one of the found matching keywords                          | `ACM_get_match`             |
+
 ### User defined type helpers
 
 #### Instanciator
@@ -247,27 +275,27 @@ These macros let declare and define tools to use a Aho-Corasick machine for a us
      ACM_DECLARE (int);
      ACM_DEFINE (int);
 
-#### Operators
+#### Operators setters
 
 If a user defined type *T* uses internal allocated resources, operators can be optionnaly defined.
 
-> `SET_DESTRUCTOR (`*T*`, destructor)`
+> `SET_DESTRUCTOR (`*T*`, DESTRUCTOR_TYPE (`*T*`) destructor)`
 >
-> `SET_COPY_CONSTRUCTOR (`*T*`, copy_constructor)`
+> `SET_COPY_CONSTRUCTOR (`*T*`, COPY_CONSTRUCTOR_TYPE (`*T*`) copy_constructor)`
 >
-> `SET_EQ_OPERATOR (`*T*`, equal_operator)`
+> `SET_EQ_OPERATOR (`*T*`, EQ_OPERATOR_TYPE (`*T*`) equal_operator)`
 
-`SET_DESTRUCTOR` optionally declares a destructor for type *T*, of type: `void (*destructor) (const `*T*`)` (a.k.a `DESTRUCTOR_TYPE(`*T*`)`).
+- `SET_DESTRUCTOR` optionally declares a destructor for type *T*, of type: `void (*destructor) (const `*T*`)` (a.k.a `DESTRUCTOR_TYPE(`*T*`)`).
 
-`SET_COPY_CONSTRUCTOR` optionally declares a copy constructor for type *T*, of type: *T*` (*copy_constructor) (const `*T*`)` (a.k.a `COPY_CONSTRUCTOR_TYPE(`*T*`)`).
+- `SET_COPY_CONSTRUCTOR` optionally declares a copy constructor for type *T*, of type: *T*` (*copy_constructor) (const `*T*`)` (a.k.a `COPY_CONSTRUCTOR_TYPE(`*T*`)`).
 
-`SET_EQ_OPERATOR` optionally declares equality operator for type *T*, of type: `int (*equal_operator) (const `*T*`, const `*T*`)` (a.k.a `EQ_OPERATOR_TYPE(`*T*`)`).
-The default equality operator `memcmp` is used otherwise.
-`equal_operator` must return `0` if its two arguments are different, non `0` otherwise.
+- `SET_EQ_OPERATOR` optionally declares equality operator for type *T*, of type: `int (*equal_operator) (const `*T*`, const `*T*`)` (a.k.a `EQ_OPERATOR_TYPE(`*T*`)`).
+   - `equal_operator` must return `0` if its two arguments are different, non `0` otherwise.
+   - The default equality operator `memcmp` is used otherwise.
 
-### Dictionary declarator
+### Dictionary instanciators
 
-> `ACM_DECL (var, `*T*`, [equal_operator], [copy_constructor, destructor])`
+> `ACM_DECL (var, `*T*`, [EQ_OPERATOR_TYPE (`*T*`) equal_operator], [COPY_CONSTRUCTOR_TYPE (`*T*`) copy_constructor, DESTRUCTOR_TYPE (`*T*`) destructor])`
 >
 > Available with compilers `gcc` and `clang`.
 
@@ -283,7 +311,7 @@ They supersede the operators applied to type *T*.
 
 #### Creation
 
-> `ACMachine (`*T*`) *ACM_create (`*T*`, [equality_operator], [copy constructor, destructor])`
+> `ACMachine (`*T*`) *ACM_create (`*T*`, [EQ_OPERATOR_TYPE (`*T*`) equality_operator], [COPY_CONSTRUCTOR_TYPE (`*T*`) copy constructor, DESTRUCTOR_TYPE (`*T*`) destructor])`
 >
 > Parameters:
 >
@@ -314,7 +342,9 @@ They supersede the operators applied to type *T*.
 
 *Example*: `ACM_release (M);`
 
-### Words
+### Keyword management
+
+#### Words initialization
 
 Words are any sequences of symbols of type *T*.
 
@@ -323,17 +353,15 @@ They can be instanciated with
 > `void ACM_KEYWORD_SET (Keyword(T) kw, T* array, size_t length)`
 
 Parameters:
-- [in] kw Keyword of symbols of type T.
+- [in] kw Keyword of symbols of type T to be initialized.
 - [in] array Array of symbols
 - [in] length Length of the array
 
-`ACM_KEYWORD_SET` initializes a keyword from an array of symbols
+`ACM_KEYWORD_SET` initializes a keyword `kw` from an array of symbols.
 
 The `array` is **NOT** duplicated by `ACM_KEYWORD_SET` and should be allocated and deallocated by the calling user program, if necessary.
 
 Example: `ACM_KEYWORD_SET (kw, "Duck", 4);`
-
-### Dictionary initialization
 
 #### Word registration
 
@@ -368,7 +396,7 @@ Notes:
      ACM_register_keyword (M, kw);
      ACM_register_keyword (M, kw, calloc (1, sizeof (int)), free);
 
-#### Word deletion
+#### Word unregistration
 
 `ACM_unregister_keyword` removes a word from the dictionary.
 
@@ -382,20 +410,22 @@ Parameters:
 
 The equality operator, either associated to the machine, or associated to the type T, is used if declared.
 
-`ACM_is_registered_keyword` checks whether a word is already registered in the dictionary and optionally retrieves the associated value.
+#### Word checking
 
-> `int ACM_is_registered_keyword (const ACMachine(`*T*`) * machine, Keyword(`*T*`) kw, [void **value_ptr])`
+> `int ACM_is_registered_keyword (const ACMachine (`*T*`) * machine, Keyword(`*T*`) kw, [void **value_ptr])`
+
+`ACM_is_registered_keyword` checks whether a word is already registered in the dictionary and optionally retrieves the associated value.
 
 Parameters:
 - [in] machine A pointer to a Aho-Corasick machine.
 - [in] kw Keyword of symbols of type T to be checked.
 - [out, optional] value_ptr *value_ptr is set to the pointer of the value associated to the keyword after the call.
 
-#### Word checking
-
-`ACM_is_registered_keyword` returns 1 if the keyword is registered in the machine, 0 otherwise.
+`ACM_is_registered_keyword` returns 1 if the keyword is `kw` registered in the machine, 0 otherwise.
 
 The equality operator, either associated to the machine, or associated to the type T, is used if declared.
+
+#### Word counting
 
 > `size_t ACM_nb_keywords (const ACMachine (`*T*`) *machine)
 
@@ -424,9 +454,11 @@ The order in which the keywords are processed in unspecified.
 
 ### Word matching
 
+#### Preparation
+
 > `const ACState (`*T*`) * ACM_reset (ACMachine(`*T*`) * machine)`
 
-gets a valid state, ignoring all the symbols previously matched by ACM_match.
+gets a valid initial state (ignoring all the symbols previously matched by `ACM_match`) prior to keyword search with `ACM_match`.
 
 Parameters:
 - [in] machine A pointer to a Aho-Corasick machine.
@@ -434,6 +466,7 @@ Parameters:
 
 Calls to `ACM_reset` on the same machine can be used to parse several texts concurrently (e.g. by several threads).
 
+#### Search
 
 > `size_t ACM_match (const ACState(`*T*`) *& state, `*T*` letter)`
 
@@ -451,6 +484,8 @@ Parameters:
 The equality operator, either associated to the machine, or associated to the type T, is used if declared.
 
 *Example*: `size_t nb = ACM_match(state, letter);`
+
+#### Retrieval
 
 > `size_t ACM_get_match (const ACState(T) * state, size_t index, [MatchHolder(T) * match], [void **value_ptr])`
 
@@ -498,26 +533,24 @@ ACM_DECLARE (char);
 ACM_DEFINE (char);
 int main (void)
 {
-  ACMachine (char) * M = ACM_create (char);
+  ACM_DECL (M, char);   // local automatic variable 'M' of type 'ACMachine (char)' declared.
   Keyword (char) kw;
 
   ACM_KEYWORD_SET (kw, "1984", 4);
-  ACM_register_keyword (M, kw);
+  ACM_register_keyword (&M, kw);
 
   ACM_KEYWORD_SET (kw, "1985", 4);
-  ACM_register_keyword (M, kw);
+  ACM_register_keyword (&M, kw);
 
   size_t nb_matches = 0;
   FILE *f = fopen ("googlebooks-eng-all-1gram-20120701-0", "r");
   char line[4096];
-  const ACState (char) *state = ACM_reset (M);
+  const ACState (char) *state = ACM_reset (&M);
   while (fgets (line, sizeof (line) / sizeof (*line), f))
     for (char *c = line; *c; c++)
       nb_matches += ACM_match (state, *c);
   fclose (f);
   printf ("%lu\n", nb_matches);
-
-  ACM_release (M);
 }
 ```
 - Build and run:
