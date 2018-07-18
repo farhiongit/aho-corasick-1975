@@ -231,7 +231,7 @@ Two very similar simple examples for performance tests.
 ## API
 
 || Description                                                           | Function name               |
-|-----------------------------------------------------------------------|-----------------------------|
+|-|----------------------------------------------------------------------|-----------------------------|
 |**Type operators setters**|
 || Declares destructor                                                   | `SET_DESTRUCTOR`            |
 || Declares copy constructor                                             | `SET_COPY_CONSTRUCTOR`      |
