@@ -513,6 +513,36 @@ Parameters:
      int* word = ACM_MATCH_SYMBOLS (match);
      ACM_MATCH_RELEASE (match);
 
+#### Machine displayer
+
+> `void ACM_print (ACMachine(`*T*`) * machine, FILE * stream, int (*symbol_displayer) (FILE *, const `*T*`))`
+
+For debugging purpose, `ACM_print` displays the states of the Aho-Corasick machine `machine` into the stream `stream`.
+A displayer for symbols can be provided by the function `symbol_displayer`.
+
+*Example of a displayed machine:*
+
+```
+(000)---h-->(001)---e-->(002)[0]---r-->(011)---s-->(012)[5](-->003)
+                L---i-->(009)[4]---s-->(010)[3](-->003)
+(000)---s-->(003)---h-->(004)(-->001)---e-->(005)[1](-->002)---e-->(006)---r-->(007)---s-->(008)[2](-->003)
+(000)---u-->(013)---s-->(014)(-->003)---h-->(015)(-->004)---e-->(016)(-->005)---r-->(017)(-->011)---s-->(018)[6](-->012)
+(000)---a-->(019)---b-->(020)(-->024)---c-->(021)(-->025)---d-->(022)(-->026)---e-->(023)[7]
+(000)---b-->(024)---c-->(025)(-->029)---d-->(026)[8]
+(000)---z-->(027)[11]---z-->(028)[9](-->027)---z-->(033)[13](-->028)
+(000)---c-->(029)[10]
+(000)---p-->(030)---e-->(031)---n-->(032)[12]
+(000)---x-->(034)---y-->(035)[16]---z-->(036)[14](-->027)
+                                L---t-->(037)[15]
+```
+
+Legend:
+
+- (*n*): states *n*.
+- ---*x*-->: state transition by symbol *x* between two states ; *x* is displayed by `symbol_displayer` (if provided.)
+- (-->*f*): fail state to state *f*.
+- [*k*]: keyword identifier *k* composed by all symbols from initial state (000).
+
 # Performance test
 
 This implementation is fast.

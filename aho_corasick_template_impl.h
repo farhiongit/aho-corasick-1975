@@ -738,13 +738,13 @@ state_print_##ACM_SYMBOL (ACState_##ACM_SYMBOL *state,                 \
       for (size_t t = 0 ; t < indent - cur_pos ; t++)                  \
         cur_pos += fprintf (stream, " ");                              \
     if (state == state->machine->state_0)                              \
-      cur_pos += fprintf (stream, "%03zu", id_state);                  \
+      cur_pos += fprintf (stream, "(%03zu)", id_state);                \
     cur_pos += fprintf (stream, "---");                                \
     if (printer)                                                       \
       cur_pos += printer (stream, state->goto_array[i].letter);        \
     cur_pos += fprintf (stream, "-->");                                \
     /* cur_pos += fprintf (stream, "%03zu", ++nb_states); */           \
-    cur_pos += fprintf (stream, "%03zu", state->goto_array[i].state->id);\
+    cur_pos += fprintf (stream, "(%03zu)", state->goto_array[i].state->id);\
     if (state->goto_array[i].state->is_matching)                       \
       cur_pos += fprintf (stream, "[%zu]", state->goto_array[i].state->rank);\
     if (state->goto_array[i].state->fail_state &&                      \
