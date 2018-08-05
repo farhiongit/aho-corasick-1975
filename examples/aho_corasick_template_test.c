@@ -95,7 +95,8 @@ print_match (MatchHolder (wchar_t) match, void *value)
 }
 
 // Must return the number of shifts to the right (that is the number of printed characters)
-int print_wchar_t (FILE *f, const wchar_t wc)
+static int
+print_wchar_t (FILE *f, const wchar_t wc)
 {
   return fprintf (f, "%lc", wc);
 }
