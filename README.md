@@ -515,7 +515,7 @@ Parameters:
 
 #### Machine displayer
 
-> `void ACM_print (ACMachine(`*T*`) * machine, FILE * stream, int (*symbol_displayer) (FILE *, const `*T*`))`
+> `void ACM_print (ACMachine(`*T*`) * machine, FILE * stream, int (*symbol_displayer) (FILE *, `*T*`))`
 
 For debugging purpose, `ACM_print` displays the states of the Aho-Corasick machine `machine` into the stream `stream`.
 A displayer for symbols can be provided by the function `symbol_displayer`.

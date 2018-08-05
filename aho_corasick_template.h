@@ -272,7 +272,7 @@ struct _ac_state_##T;                                \
 typedef struct _ac_state_##T ACState_##T;            \
 struct _ac_machine_##T;                              \
 typedef struct _ac_machine_##T ACMachine_##T;        \
-typedef int (*PRINT_##T##_TYPE) (FILE *, const T);   \
+typedef int (*PRINT_##T##_TYPE) (FILE *, T);         \
 struct _acs_vtable_##T                               \
 {                                                    \
   size_t (*match) (const ACState_##T ** state, T letter);                                                    \
