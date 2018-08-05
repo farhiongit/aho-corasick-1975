@@ -518,9 +518,14 @@ Parameters:
 > `void ACM_print (ACMachine(`*T*`) * machine, FILE * stream, int (*symbol_displayer) (FILE *, `*T*`))`
 
 For debugging purpose, `ACM_print` displays the states of the Aho-Corasick machine `machine` into the stream `stream`.
-A displayer for symbols can be provided by the function `symbol_displayer`.
+A displayer for symbols can be provided by the function pointed by the third argument `symbol_displayer` of `ACM_print`:
+this function should print, on a single line, the symbol passed as
+its second argument to the output stream passed as its first argument, and return the number of characters printed
+(excluding the null byte used to end output to strings). For instance, a displayer for symbols as wide characters could be
 
-*Example of a displayed machine:*
+     int print_wchar_t (FILE *f, wchar_t wc) { return fprintf (f, "%lc", wc); }
+
+*Example of a displayed machine (from `example/aho_corasick_template_test.c`):*
 
 ```
 (000)---h-->(001)---e-->(002)[0]---r-->(011)---s-->(012)[5](-->003)
