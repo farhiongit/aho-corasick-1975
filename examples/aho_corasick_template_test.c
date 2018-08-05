@@ -84,14 +84,20 @@ print_match (MatchHolder (wchar_t) match, void *value)
       current_pos += printf ("%lc", ACM_MATCH_SYMBOLS (match)[k]);
 
     current_pos += printf ("'");
+    current_pos += printf ("[%zu]", ACM_MATCH_UID (match));
     if (value)
     {
       current_pos += printf ("=");
       current_pos += printf ("%zu", *(size_t *) value);
     }
-    current_pos += printf ("[%zu]", ACM_MATCH_UID (match));
     current_pos += printf ("}");
   }
+}
+
+// Must return the number of shifts to the right (that is the number of printed characters)
+int print_wchar_t (FILE *f, const wchar_t wc)
+{
+  return fprintf (f, "%lc", wc);
 }
 
 // A unit test
@@ -113,7 +119,7 @@ main (void)
   ACMachine (wchar_t) * M = ACM_create (wchar_t);
 
 // Declares all the keywords
-// "hers" appears twice but will be registerd once.
+// "hers" appears twice and will be registered twice, replacing the first registration.
 #define LIST_OF_KEYWORDS  \
   X(M, L'h', L'e')  \
   X(M, L's', L'h', L'e')  \
@@ -132,6 +138,7 @@ main (void)
   X(M, L'z', L'z', L'z')  \
   X(M, L'x', L'y', L'z')  \
   X(M, L'x', L'y', L't')  \
+  X(M, L'x', L'y')  \
 
 // Function applied to register a keyword in the state machine
 #define X(MACHINE, ...) \
@@ -141,7 +148,8 @@ main (void)
     wchar_t _VAR[] = { __VA_ARGS__ };  \
     ACM_KEYWORD_SET (VAR, _VAR, sizeof (_VAR) / sizeof (*_VAR));  \
     /* 5. Add keywords (of type `Keyword (T)`) to the state machine calling `ACM_register_keyword()`, one at a time, repeatedly. */ \
-    if (ACM_register_keyword (MACHINE, VAR, (*(pul = malloc(sizeof (*pul))) = __COUNTER__ + 100, pul)))          \
+    if (ACM_register_keyword (MACHINE, VAR, (*(pul = malloc(sizeof (*pul))) = __COUNTER__ + 100, pul)) && \
+        ACM_is_registered_keyword (MACHINE, VAR, 0))  \
       print_keyword (VAR);  \
     else  \
       printf  ("X");  \
@@ -152,6 +160,7 @@ main (void)
 #undef X
 
   printf (" [%zu]\n", ACM_nb_keywords (M));
+  ACM_print (M, stdout, print_wchar_t);
   {
     /* *INDENT-OFF* */
     // Template: define keyword

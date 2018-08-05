@@ -377,6 +377,8 @@ Parameters:
 - [in, optional] destructor A destructor to be used to free the value pointed by value_ptr.
   - The default destructor is the standard library function `free` if `value_ptr` is not null, 0 otherwise.
   - Use `0` if the allocated value need not be managed by the finite state machine (in case of automatic or static values).
+  - the expected signature of `destructor` is `void destructor (void *)`
+  - `destructor` must accept the null pointer `0`.
 
 `ACM_register_keyword` returns 1 if the keyword was successfully registered, 0 otherwise (if the keywpord is empty).
 - When returning 0, the `destructor` (if any) is called on `value` (if any).
@@ -388,8 +390,8 @@ Notes:
 - The keyword is registered together with its rank.
   The rank is a unique 0-based identifier of the registered keyword.
   It can later be retrieved by `ACM_get_match`.
-- If the keyword was already previously registered in the dictionary, its associated old value is deallocated, forgotten
-  and replaced by the new associated value (or 0).
+- If the keyword was already previously registered in the dictionary, its associated old value is deallocated,
+  forgotten and replaced by the new associated value (or 0).
 
 *Example*:
 

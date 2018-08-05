@@ -178,6 +178,8 @@
 ///       parse several texts concurrently (e.g. by several threads).
 #  define ACM_reset(machine)                        (machine)->vtable->reset ((machine))
 
+#  define ACM_print(machine, stream, printer)       (machine)->vtable->print ((machine), (stream), (printer))
+
 /// size_t ACM_match (const ACState(T) *& state, T letter)
 /// This is the main function used to parse a text, one symbol after the other, and search for pattern matching.
 /// Get the next state matching a symbol injected in the finite state machine.
@@ -270,6 +272,7 @@ struct _ac_state_##T;                                \
 typedef struct _ac_state_##T ACState_##T;            \
 struct _ac_machine_##T;                              \
 typedef struct _ac_machine_##T ACMachine_##T;        \
+typedef int (*PRINT_##T##_TYPE) (FILE *, const T);   \
 struct _acs_vtable_##T                               \
 {                                                    \
   size_t (*match) (const ACState_##T ** state, T letter);                                                    \
@@ -296,6 +299,7 @@ struct _ac_state_##T             /* [state s] */     \
   int is_matching; /* true if the state matches a keyword. */\
   size_t nb_sequence; /* Number of matching keywords (Aho-Corasick : size (output (s)) */\
   size_t rank; /* Rank (0-based) of insertion of a keyword in the machine. */\
+  size_t id;   /* state UID */                       \
   void *value; /* An optional value associated to a state. */\
   void (*value_dtor) (void *); /* Destrcutor of the associated value, called a state machine release. */\
   ACMachine_##T * machine;                           \
@@ -311,6 +315,7 @@ struct _acm_vtable_##T                               \
   void (*foreach_keyword) (const ACMachine_##T * machine, void (*operator) (MatchHolder_##T, void *));        \
   void (*release) (const ACMachine_##T * machine);                                                            \
   const ACState_##T * (*reset) (const ACMachine_##T * machine);                                               \
+  void (*print) (ACMachine_##T * machine, FILE * stream, PRINT_##T##_TYPE printer);                           \
 };                                                   \
 \
 struct _ac_machine_##T                               \
@@ -318,6 +323,7 @@ struct _ac_machine_##T                               \
   struct _ac_state_##T *state_0; /* state 0 */       \
   size_t rank; /* Number of keywords registered in the machine. */\
   size_t nb_sequence; /* Number of keywords in the machine. */\
+  size_t state_counter;                              \
   int reconstruct;                                   \
   size_t size;                                       \
   pthread_mutex_t lock;                              \

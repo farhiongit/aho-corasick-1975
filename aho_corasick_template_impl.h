@@ -142,7 +142,7 @@ __eqstring (const char * const a, const char * const b)
   return strcoll (a, b) == 0;
 }
 
-#  define EQ_DEFAULT(ACM_SYMBOL) _Generic(*(ACM_SYMBOL *)0,              \
+#  define EQ_DEFAULT(ACM_SYMBOL) _Generic(*(ACM_SYMBOL *)0,            \
   char:               __eqchar,                                        \
   unsigned char:      __equchar,                                       \
   short:              __eqshort,                                       \
@@ -198,7 +198,7 @@ static int EQ_##ACM_SYMBOL##_DEFAULT (const ACM_SYMBOL a, const ACM_SYMBOL b)   
 \
   for (size_t i = 0 ; i < size ; i++)                                  \
     if (pa[i] != pb[i])                                                \
-      return 0;       /* a < b */                                      \
+      return 0;       /* a != b */                                     \
 \
   return 1;           /* a = b */                                      \
 }                                                                      \
@@ -402,7 +402,7 @@ state_create_##ACM_SYMBOL (void)                                       \
   s->previous.i_letter = 0;                                            \
   /* Aho-Corasick Algorithm 2: "We assume output(s) is empty when state s is first created." */ \
   s->nb_sequence = 0;           /* number of outputs in [output(s)] */ \
-  s->is_matching = 0; /* indicates that the state is the last node of a registered keyword */   \
+  s->is_matching = 0; /* if 1, indicates that the state is the last node of a registered keyword */   \
   s->fail_state = 0;                                                   \
   s->rank = 0;                                                         \
   s->value = 0;                                                        \
@@ -468,6 +468,7 @@ machine_goto_update_##ACM_SYMBOL (ACMachine_##ACM_SYMBOL * machine,    \
     /* Aho-Corasick Algorithm 2: newstate <- newstate + 1 */           \
     ACState_##ACM_SYMBOL *newstate = state_create_##ACM_SYMBOL ();     \
     newstate->machine = machine;                                       \
+    newstate->id = ++machine->state_counter; /* state UID */           \
     /* Aho-Corasick Algorithm 2: g(state, a[p]) <- newstate */         \
     state->goto_array[state->nb_goto - 1].state = newstate;            \
     state->goto_array[state->nb_goto - 1].letter = machine->copy (sequence.letter[p]);  \
@@ -491,15 +492,16 @@ machine_goto_update_##ACM_SYMBOL (ACMachine_##ACM_SYMBOL * machine,    \
     if (!machine->reconstruct)                                         \
       machine->reconstruct = 2; /* f(s) must be recomputed */          \
   }                                                                    \
+  /* If the keyword was already previously registered (state->is_matching != 0) */\
   else if (ACM_KEEP_VALUE)                                             \
-    /* If the keyword was already previously registered, state->is_matching != 0 */\
     /*   if !ACM_KEEP_VALUE: the new value replaces the old one: the associated old value is forgotten. */\
-    /*   if  ACM_KEEP_VALUE: rank and associated value are left unchanged. */\
+    /*   if  ACM_KEEP_VALUE: the rank and associated value are left unchanged. */\
   {                                                                    \
     if (dtor)                                                          \
       dtor (value);                                                    \
     return 0;                                                          \
   }                                                                    \
+  /* if (!state->is_matching || !ACM_KEEP_VALUE) */                    \
   if (state->value_dtor)                                               \
     state->value_dtor (state->value);                                  \
   state->value = value;                                                \
@@ -593,22 +595,22 @@ static int                     \
 ACM_unregister_keyword_##ACM_SYMBOL (ACMachine_##ACM_SYMBOL * machine, Keyword_##ACM_SYMBOL y)  \
 {                                                                      \
   ACState_##ACM_SYMBOL *last = get_last_state_##ACM_SYMBOL (machine, y); \
-  if (!last)                                                           \
+  if (!last)    /* The keyword y is not a registered keyword */        \
     return 0;                                                          \
   ACState_##ACM_SYMBOL *state_0 = machine->state_0; /* [state 0] */    \
   /* machine->rank is not decreased, so as to ensure unicity. */       \
   machine->nb_sequence--;                                              \
-  if (last->nb_goto)                                                   \
+  if (last->nb_goto)  /* The keyword y is the prefix of another registered keyword */ \
   {                                                                    \
-    last->is_matching = 0;                                             \
+    last->is_matching = 0; /* not matching  nymore */                  \
     last->nb_sequence = 0;                                             \
     last->rank = 0;                                                    \
     return 1;                                                          \
   }                                                                    \
+  /* From here, last->nb_goto == 0 */                                  \
   ACState_##ACM_SYMBOL *prev = 0;                                      \
-  do                                                                   \
+  do  /* backward processing the keyword y */                          \
   {                                                                    \
-    /* last->nb_goto == 0 */                                           \
     prev = last->previous.state;                                       \
     /* Remove last from prev->goto_array */                            \
     prev->nb_goto--;                                                   \
@@ -629,8 +631,10 @@ ACM_unregister_keyword_##ACM_SYMBOL (ACMachine_##ACM_SYMBOL * machine, Keyword_#
     last = prev;                                                       \
   }                                                                    \
   while (prev && prev != state_0 && !prev->is_matching && !prev->nb_goto);  \
+                                                                       \
   if (!machine->reconstruct)                                           \
     machine->reconstruct = 2;   /* f(s) must be recomputed */          \
+                                                                       \
   return 1;                                                            \
 }                                                                      \
 \
@@ -710,6 +714,63 @@ ACM_reset_##ACM_SYMBOL (const ACMachine_##ACM_SYMBOL * machine)        \
 {                                                                      \
   return machine->state_0;                                             \
 }                                                                      \
+                                                                       \
+static void                                                            \
+state_print_##ACM_SYMBOL (ACState_##ACM_SYMBOL *state,                 \
+                          FILE* stream, size_t indent, size_t id_state,\
+                          PRINT_##ACM_SYMBOL##_TYPE printer)           \
+{                                                                      \
+  static size_t nb_states, cur_pos;                                    \
+  for (size_t i = 0 ; i < state->nb_goto ; i++)                        \
+  {                                                                    \
+    if (indent < cur_pos)                                              \
+    {                                                                  \
+      cur_pos = 0;                                                     \
+      fprintf (stream, "\n");                                          \
+      if (indent)                                                      \
+      {                                                                \
+        for (size_t t = 0 ; t < indent - 1 ; t++)                      \
+          cur_pos += fprintf (stream, " ");                            \
+        cur_pos += fprintf (stream, "L");                              \
+      }                                                                \
+    }                                                                  \
+    else if (indent > cur_pos)                                         \
+      for (size_t t = 0 ; t < indent - cur_pos ; t++)                  \
+        cur_pos += fprintf (stream, " ");                              \
+    if (state == state->machine->state_0)                              \
+      cur_pos += fprintf (stream, "%03zu", id_state);                  \
+    cur_pos += fprintf (stream, "---");                                \
+    if (printer)                                                       \
+      cur_pos += printer (stream, state->goto_array[i].letter);        \
+    cur_pos += fprintf (stream, "-->");                                \
+    /* cur_pos += fprintf (stream, "%03zu", ++nb_states); */           \
+    cur_pos += fprintf (stream, "%03zu", state->goto_array[i].state->id);\
+    if (state->goto_array[i].state->is_matching)                       \
+      cur_pos += fprintf (stream, "[%zu]", state->goto_array[i].state->rank);\
+    if (state->goto_array[i].state->fail_state &&                      \
+        state->goto_array[i].state->fail_state != state->machine->state_0)\
+      cur_pos += fprintf (stream, "(-->%03zu)", state->goto_array[i].state->fail_state->id);\
+    state_print_##ACM_SYMBOL (state->goto_array[i].state, stream,      \
+      cur_pos, nb_states, printer);                                    \
+  }                                                                    \
+}                                                                      \
+                                                                       \
+void                                                                   \
+ACM_print_##ACM_SYMBOL (ACMachine_##ACM_SYMBOL *machine,               \
+                        FILE* stream,                                  \
+                        PRINT_##ACM_SYMBOL##_TYPE printer)             \
+{                                                                      \
+  if (machine->reconstruct)                                            \
+  {                                                                    \
+    pthread_mutex_lock (&machine->lock);                               \
+    if (machine->reconstruct)                                          \
+      state_fail_state_construct_##ACM_SYMBOL (machine);               \
+    pthread_mutex_unlock (&machine->lock);                             \
+  }                                                                    \
+  fprintf (stream, "\n");                                              \
+  state_print_##ACM_SYMBOL (machine->state_0, stream, 0, 0, printer);  \
+  fprintf (stream, "\n");                                              \
+}                                                                      \
 \
 static const struct _acm_vtable_##ACM_SYMBOL ACM_VTABLE_##ACM_SYMBOL = \
 {                                                                      \
@@ -720,6 +781,7 @@ static const struct _acm_vtable_##ACM_SYMBOL ACM_VTABLE_##ACM_SYMBOL = \
   ACM_foreach_keyword_##ACM_SYMBOL,                                    \
   ACM_release_##ACM_SYMBOL,                                            \
   ACM_reset_##ACM_SYMBOL,                                              \
+  ACM_print_##ACM_SYMBOL,                                              \
 };                                                                     \
                                                                        \
 static void                                                            \
@@ -733,7 +795,7 @@ machine_init_##ACM_SYMBOL (ACMachine_##ACM_SYMBOL *machine,            \
   machine->size = 1;                                                   \
   machine->state_0 = state_0;                                          \
   state_0->machine = machine;                                          \
-  machine->rank = machine->nb_sequence = 0;                            \
+  machine->rank = machine->nb_sequence = machine->state_counter = 0;   \
   pthread_mutex_init (&machine->lock, 0);                              \
   machine->vtable = &(ACM_VTABLE_##ACM_SYMBOL);                        \
   machine->copy = copier ? copier : __COPY_##ACM_SYMBOL;               \

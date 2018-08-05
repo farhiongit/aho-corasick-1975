@@ -1,5 +1,6 @@
-CFLAGS = -Wall -O3 -pthread -Werror
+CFLAGS = -Wall -pthread -Werror
 #CFLAGS += -g
+CFLAGS += -O3
 #CC = cc -Wno-error=cpp
 CC = clang -I.. -Wno-error=\#warnings -fmacro-backtrace-limit=0
 INCLUDES=../aho_corasick_template_impl.h ../aho_corasick_template.h
