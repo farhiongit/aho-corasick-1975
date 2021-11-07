@@ -51,6 +51,8 @@ then the number of possible signs would be 18446744073709551616 !
    Instead, it reconstructs the matching keywords by traversing the branch of the tree backward.
    (Attributes `previous` and `is_matching` are added the the state object ACState, see code of `ACM_get_match`).
 3. It permits to search for keywords even though all keywords have not been registered yet.
+   In other words, new keywords can be registered with `ACM_register_keyword` between calls to `ACM_match`
+   without disrupting the current match search.
    To achieve this, failure states are reconstructed after every registration of a new keyword
    (see `ACM_register_keyword` which alternates calls to algorithms 2 and 3.)
 4. It keeps track of the rank of each registered keyword as returned by ACM_get_match().
@@ -302,7 +304,7 @@ If a user defined type *T* uses internal allocated resources, operators can be o
 This macro let declare a local variable `var` of type `ACMachine (`*T*`)` where
 `ACMachine (`*T*`)` is the type of the Aho-Corasick finite state machine for type T
 
-`var` will be properly freed when going out of scope.
+`var` will be properly free'd when going out of scope.
 
 Specific operators `equal_operator`, `copy_constructor`, `destructor` can optionnaly be declared for type *T* and dictionary `var`.
 They supersede the operators applied to type *T*.
@@ -608,6 +610,12 @@ Genericity (alphabet is user defined and not restricted to 256 characters as mos
 with a slight loss of performance.
 
 Anyway, it can process 184 MB against matching keywords is few seconds.
+
+# License
+
+This library is distributed under the terms of the GNU Lesser General Public License, version 3.
+
+You should give prominent notice with each copy your files that the library (modified or not) is used in it and that the library and its use are covered by this license, accompanied with a copy of it. 
 
 Hopes this helps. Let me know !
 
