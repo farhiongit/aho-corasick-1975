@@ -13,6 +13,13 @@ The dictionary is used in two steps:
 
 The dictionary can also be traversed, and an operator can be applied to each word or associated value.
 
+# License
+
+This library is distributed under the terms of the GNU *Lesser* General Public License, version 3
+(see [COPYING](COPYING) and [COPYING LESSER](COPYING LESSER) as well as headers of [aho_corasick_template.h](aho_corasick_template.h) and [aho_corasick_template_impl.h](aho_corasick_template_impl.h)).
+
+Therefore, you should give prominent notice, with each copy of your files using the library (modified or not), that the library is used in it and that the library and its use are covered by this license, accompanied with a copy of it and the cpyright notice.
+
 # Introduction
 
 This project offers an efficient implement of the Aho-Corasick algorithm which shows several benefits:
@@ -72,6 +79,8 @@ then the number of possible signs would be 18446744073709551616 !
 8. It is short: aho_corasick_template_impl.h is about 700 effective lines of code.
 9. Last but not least, it is very fast. On my slow HD and slow CPU old computer, it takes 0.92 seconds to register 370,099 keywords
    with a total of 3,864,776 characters, and 0.12 seconds to find (and count occurencies of) those keywords in a text of 376,617 characters.
+
+Hope this helps. Let me know !
 
 # Implementation
 
@@ -610,13 +619,5 @@ Genericity (alphabet is user defined and not restricted to 256 characters as mos
 with a slight loss of performance.
 
 Anyway, it can process 184 MB against matching keywords is few seconds.
-
-# License
-
-This library is distributed under the terms of the GNU Lesser General Public License, version 3.
-
-You should give prominent notice with each copy your files that the library (modified or not) is used in it and that the library and its use are covered by this license, accompanied with a copy of it. 
-
-Hopes this helps. Let me know !
 
 **Have fun !**
