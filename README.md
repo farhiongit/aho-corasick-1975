@@ -16,7 +16,7 @@ The dictionary can also be traversed, and an operator can be applied to each wor
 # License
 
 This library is distributed under the terms of the GNU *Lesser* General Public License, version 3
-(see [COPYING](COPYING) and [COPYING LESSER](COPYING LESSER) as well as headers of [aho_corasick_template.h](aho_corasick_template.h) and [aho_corasick_template_impl.h](aho_corasick_template_impl.h)).
+(see [COPYING](COPYING) and [COPYING.LESSER](COPYING.LESSER) as well as headers of [aho_corasick_template.h](aho_corasick_template.h) and [aho_corasick_template_impl.h](aho_corasick_template_impl.h)).
 
 Therefore, you should give prominent notice, with each copy of your files using the library (modified or not), that the library is used in it and that the library and its use are covered by this license, accompanied with a copy of it and the cpyright notice.
 
