@@ -1,8 +1,8 @@
 CFLAGS = -Wall -pthread -Werror
 #CFLAGS += -g
-CFLAGS += -O3
+CFLAGS += -O3 -I..
 #CC = cc -Wno-error=cpp
-CC = clang -I.. -Wno-error=\#warnings -fmacro-backtrace-limit=0
+#CC = clang -I.. -Wno-error=\#warnings -fmacro-backtrace-limit=0
 INCLUDES=../aho_corasick_template_impl.h ../aho_corasick_template.h
 
 all: cloc execute speed

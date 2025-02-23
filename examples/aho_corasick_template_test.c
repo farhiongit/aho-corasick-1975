@@ -41,7 +41,7 @@ static int current_pos;
 static int
 nocaseeq (wchar_t k, wchar_t t)
 {
-  return k == towlower (t);
+  return k == (wchar_t) towlower ((wint_t) t);
 }
 
 // User defined alphabet only comparison:
@@ -50,15 +50,15 @@ alphaeq (wchar_t k, wchar_t t)
 {
   if (words)
   {
-    int nak = !iswalpha (k);
-    int nat = !iswalpha (t);
+    int nak = !iswalpha ((wint_t) k);
+    int nat = !iswalpha ((wint_t) t);
     if (nak)
       return nat;
     else if (nat)
       return 0;
   }
 
-  return k == towlower (t);
+  return nocaseeq (k, t);
 }
 
 static void
@@ -66,7 +66,7 @@ print_keyword (Keyword (wchar_t) kw)
 {
   printf ("{'");
   for (size_t k = 0; k < ACM_MATCH_LENGTH (kw); k++)
-    printf ("%lc", ACM_MATCH_SYMBOLS (kw)[k]);
+    printf ("%lc", (wint_t) ACM_MATCH_SYMBOLS (kw)[k]);
   printf ("'}");
 }
 
@@ -81,7 +81,7 @@ print_match (MatchHolder (wchar_t) match, void *value)
     current_pos += printf ("{");
     current_pos += printf ("'");
     for (size_t k = 0; k < ACM_MATCH_LENGTH (match); k++)
-      current_pos += printf ("%lc", ACM_MATCH_SYMBOLS (match)[k]);
+      current_pos += printf ("%lc", (wint_t) ACM_MATCH_SYMBOLS (match)[k]);
 
     current_pos += printf ("'");
     current_pos += printf ("[%zu]", ACM_MATCH_UID (match));
@@ -98,7 +98,7 @@ print_match (MatchHolder (wchar_t) match, void *value)
 static int
 print_wchar_t (FILE *f, wchar_t wc)
 {
-  return fprintf (f, "%lc", wc);
+  return fprintf (f, "%lc", (wint_t) wc);
 }
 
 // A unit test
@@ -116,12 +116,13 @@ main (void)
   wchar_t text[] =
     L"He found his pencil, but she could not find hers (Hi! Ushers !!) ; abcdz ; bCz ; cZZ ; _abcde_xyzxyt";
 
-  // 4. Initialize a state machine of type ACMachine (T) using ACM_create (T):
+  // 4. Initialise a state machine of type ACMachine (T) using ACM_create (T):
   ACMachine (wchar_t) * M = ACM_create (wchar_t);
 
 // Declares all the keywords
 // "hers" appears twice and will be registered twice, replacing the first registration.
 #define LIST_OF_KEYWORDS  \
+  do {\
   X(M, L'h', L'e')  \
   X(M, L's', L'h', L'e')  \
   X(M, L's', L'h', L'e', L'e', L'r', L's')  \
@@ -140,6 +141,7 @@ main (void)
   X(M, L'x', L'y', L'z')  \
   X(M, L'x', L'y', L't')  \
   X(M, L'x', L'y')  \
+  } while (0)
 
 // Function applied to register a keyword in the state machine
 #define X(MACHINE, ...) \
@@ -157,7 +159,7 @@ main (void)
   }
 
   // Function applied to register a keyword in the state machine
-  LIST_OF_KEYWORDS;             // Ending ';' is not necessary and is only here for 'indent' to switch to correct indentation.
+  LIST_OF_KEYWORDS;
 #undef X
 
   printf (" [%zu]\n", ACM_nb_keywords (M));
@@ -228,12 +230,12 @@ main (void)
       ACM_ASSERT (rank == ACM_MATCH_UID (match));
 
       // `ACM_MATCH_LENGTH (match)` and `ACM_MATCH_SYMBOLS (match)` can be used to get the length and the content of a retreieved match.
-      if (current_pos > i + 1 - ACM_MATCH_LENGTH (match))
+      if (current_pos > (int) i + 1 - (int) ACM_MATCH_LENGTH (match))
       {
         current_pos = 0;
         printf ("\n");
       }
-      for (size_t tab = current_pos; tab < i + 1 - ACM_MATCH_LENGTH (match); tab++)
+      for (int tab = current_pos; tab < (int) i + 1 - (int) ACM_MATCH_LENGTH (match); tab++)
         current_pos += printf (" ");
       // Display matching pattern
       print_match (match, pul);
@@ -249,66 +251,41 @@ main (void)
   printf ("\n");
 
   /****************** Second test ************************/
-  // This test counts the number of time the words in the english dictionnary ("words") appear
+  // This test counts the number of time the words in the English dictionnary ("words") appear
   // in the Woolf's book Mrs Dalloway ("mrs_dalloway.txt").
   words = 1;
 
   FILE *stream;
 
-  stream = fopen ("words", "r");
-  if (stream == 0)
-    exit (EXIT_FAILURE);
-
   wchar_t line[100] = L" ";     // keywords start with ' '
 
-  // 4. Initialize a state machine of type ACMachine (T) using ACM_create (T)
+  // 4. Initialise a state machine of type ACMachine (T) using ACM_create (T)
   //    An optional second argument of type EQ_OPERATOR_TYPE(*T*) can specify a user defined equality operator.
   M = ACM_create (wchar_t, alphaeq);
-
-  clock_t myclock = clock ();
-  while (fgetws (line + 1, sizeof (line) / sizeof (*line) - 1, stream))
-  {
-    // Template: declare a keyword for type wchar_t.
-    Keyword (wchar_t) k;
-
-    if (line[wcslen (line) - 1] == L'\n')
-      line[wcslen (line) - 1] = L' ';   // keywords end with ' \0'
-    line[1] = towlower (line[1]);
-    // The macro helper `ACM_KEYWORD_SET (keyword,symbols,length)` can be used to initialize keywords with a single statement.
-    ACM_KEYWORD_SET (k, line, wcsnlen (line, sizeof (line) / sizeof (*line)));
-    // 5. Add keywords to the state machine calling `ACM_register_keyword()`, one at a time, repeatedly.
-    //    An optional third argument, if not 0, can point to a value to be associated to the registerd keyword.
-    //    An optional fourth argument, if not 0, provides a pointer to a destructor to be used to destroy the associated value.
-    //    Values are allocated in the user program.
-    //    This memory will be freed by the function passed as the 4th argument (here 'free', but it could be a user defined finction).
-    //    That function will be called for each registered keyword by ACM_release.
-    size_t *v = malloc (sizeof (*v));
-
-    // Initialize the value associated to the keyword.
-    *v = 0;
-    ACM_register_keyword (M, k, v, free);
-  }
-  printf ("Elapsed CPU time for processing keywords: %f s.\n", (clock () - myclock) * 1.0 / CLOCKS_PER_SEC);
-
-  fclose (stream);
-
-  // 7. Initialize a state with `ACM_reset (machine)`
-  state = ACM_reset (M);
-  // 8. Inject symbols of the text, one at a time by calling `ACM_match (state, symbol)`.
-  ACM_match (state, L' ');
-  // `ACM_nb_keywords (machine)` yields the number of registered keywords.
-  printf ("[%zu] keywords registered.\n", ACM_nb_keywords (M));
 
   stream = fopen ("mrs_dalloway.txt", "r");
   if (stream == 0)
     exit (EXIT_FAILURE);
 
-  myclock = clock ();
+  clock_t myclock = clock ();
+  // 7. Initialise a state with `ACM_reset (machine)`
+  state = ACM_reset (M);
+  // 8. Inject symbols of the text, one at a time by calling `ACM_match (state, symbol)`.
+  ACM_match (state, L' ');
+  line[0] = L' ';
+  line[1] = 0;
   for (wint_t wc; (wc = fgetwc (stream)) != WEOF;)
   {
+    if (!iswalpha (wc))
+      wc = L' ';
+    if (iswupper (wc))
+      wc = towlower (wc);
     // 8. Inject symbols of the text, one at a time by calling `ACM_match (state, symbol)`.
     // 9. After each insertion of a symbol, check the returned value to know if the last inserted symbols match at least one keyword.
-    size_t nb = ACM_match (state, wc);
+    size_t nb = ACM_match (state, (wchar_t) wc);
+    size_t len = wcsnlen (line, sizeof (line) / sizeof (*line) - 1);
+    line[len] = (wchar_t) wc;
+    line[len + 1] = L'\0';
 
     if (nb)
     {
@@ -322,14 +299,32 @@ main (void)
         // Increment the value associated to the keyword.
         (*(size_t *) v)++;
       }
+      assert (wc == L' ');
+      line[0] = L' ';
+      line[1] = L'\0';
     }
-  }
-  printf ("Elapsed CPU time for scaning text for keywords: %f s.\n", (clock () - myclock) * 1.0 / CLOCKS_PER_SEC);
+    else if (wc == L' ')
+    {
+      if (wcscmp (line, L"  "))
+      {
+        Keyword (wchar_t) k;   // Keywords are made of wchar_t.
+        ACM_KEYWORD_SET (k, line, wcsnlen (line, sizeof (line) / sizeof (*line)));
+        size_t *v = malloc (sizeof (*v));
+        *v = 1;
+        ACM_register_keyword (M, k, v, free);  // keywords can be added to the state-machine while scanning.
+      }
+      line[0] = L' ';
+      line[1] = L'\0';
+    }
+  }  // for (wint_t wc; (wc = fgetwc (stream)) != WEOF;)
+  printf ("Elapsed CPU time for scanning text for keywords: %f s.\n", (double) (clock () - myclock) / CLOCKS_PER_SEC);
   printf ("\n");
 
   fclose (stream);
 
-  // `ACM_foreach_keyword (machine, function)` applies a function (`void (*function) (Keyword (T), void *)`) on each registerd keyword.
+  // `ACM_nb_keywords (machine)` yields the number of registered keywords.
+  printf ("[%zu] keywords registered.\n", ACM_nb_keywords (M));
+  // `ACM_foreach_keyword (machine, function)` applies a function (`void (*function) (Keyword (T), void *)`) on each registered keyword.
   // Display keywords and their associated value.
   ACM_foreach_keyword (M, print_match);
 

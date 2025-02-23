@@ -8,7 +8,7 @@ A word or pattern is to be considered here in its general meaning, that is a seq
 
 The dictionary is used in two steps:
 
-1. Register words in the dictionary, and optionnally definitions associated to words.
+1. Register words in the dictionary, and optionally definitions associated to words.
 2. Read a text and compare it to words in the dictionary.
 
 The dictionary can also be traversed, and an operator can be applied to each word or associated value.
@@ -18,21 +18,23 @@ The dictionary can also be traversed, and an operator can be applied to each wor
 This library is distributed under the terms of the GNU *Lesser* General Public License, version 3
 (see [COPYING](COPYING) and [COPYING.LESSER](COPYING.LESSER) as well as headers of [aho_corasick_template.h](aho_corasick_template.h) and [aho_corasick_template_impl.h](aho_corasick_template_impl.h)).
 
-Therefore, you should give prominent notice, with each copy of your files using the library (modified or not), that the library is used in it and that the library and its use are covered by this license, accompanied with a copy of it and the cpyright notice.
+Therefore, you should give prominent notice, with each copy of your files using the library (modified or not), that the library is used in it and that the library and its use are covered by this license, accompanied with a copy of it and the copyright notice.
 
 # Introduction
 
 This project offers an efficient implement of the Aho-Corasick algorithm which shows several benefits:
 
-- It faithfully and acurately sticks, step by step, to the pseudo-code given in the original paper from Aho and Corasick
+- It faithfully and accurately sticks, step by step, to the pseudo-code given in the original paper from Aho and Corasick
   (btw exquisitely clear and well written, see Aho, Alfred V.; Corasick, Margaret J. (June 1975).
   "[Efficient string matching: An aid to bibliographic search](https://github.com/tpn/pdfs/blob/master/Efficient%20String%20Matching%20-%20An%20Aid%20to%20Bibliographic%20Search%20-%20Aho-Corasick%20(1975).pdf)".
   Communications of the ACM. 18 (6): 333–340.)
-- It is generic in the sense that it works for any kind of alphabet (of any number of signs and not limited to 256) and not only for char.
+- It is generic in the sense that it works for any kind of alphabet (of any type) and not only for `char`.
+- It works with alphabets of any number of signs (and not limited to 256).
+- The Aho Corasick state machine is stable: new keywords can be registered (`ACM_register_keyword`) while scanning is already in progress (`ACM_match`).
 - The interface is minimal, complete and easy to use.
 - The implementation has low memory footprint and is fast.
 
-In more details, compared to the implementation proposed by Aho and Corasick, this one adds several enhancements:
+In more details, compared to the implementation proposed by Aho and Corasick, this one adds several original enhancements (not seen anywhere else):
 
 1. First of all, it does not make any assumption on the size of the alphabet used.
 Particularly, unlike most implementations, the alphabet is not limited to 256 signs.
@@ -87,8 +89,8 @@ Hope this helps. Let me know !
 This implementation provides a syntax similar to the C++ templates.
 It makes use of a nice idea of Randy Gaul for [Generic Programming in C](http://www.randygaul.net/2012/08/10/generic-programming-in-c/).
 
-It allows to instanciate the Aho-Corasick machine at compile-time for one or several type specified in the user program
-(to be compared to the standard implementation which instanciate the machine for a unique type defined in ACM_SYMBOL.)
+It allows to instantiate the Aho-Corasick machine at compile-time for one or several type specified in the user program
+(to be compared to the standard implementation which instantiate the machine for a unique type defined in ACM_SYMBOL.)
 
 Except for ACM_register_keyword() and ACM_unregister_keyword(), all functions are thread-safe.
 Therefore, a given shared Aho-Corasick machine can be used by multiple threads to scan different texts for matching keywords.
@@ -118,7 +120,7 @@ In local scope (function or main entry point), preprocess keywords:
     SET_DESTRUCTOR (*T*, destructor);
 ```
 
-4. Initialize a state machine of type ACMachine (*T*) using ACM_create (*T*):
+4. Initialise a state machine of type ACMachine (*T*) using ACM_create (*T*):
       - An optional second argument of type EQ_OPERATOR_TYPE(*T*) can specify a user defined equality operator for type *T*.
       - An optional third argument of type COPY_OPERATOR_TYPE(*T*) can specify a user defined constructor operator for type *T*.
       - An optional fourth argument of type DESTRUCTOR_OPERATOR_TYPE(*T*) can specify a user defined destuctor operator for type *T*.
@@ -132,7 +134,7 @@ In local scope (function or main entry point), preprocess keywords:
       - An optional third argument, if not 0, can point to a value to be associated to the registerd keyword.
       - An optional fourth argument, if not 0, provides a pointer to a destructor (`void (*dtor) (void *)`)
         to be used to destroy the associated value.
-      - The macro helper `ACM_KEYWORD_SET (keyword,symbols,length)` can be used to initialize keywords with a single statement.
+      - The macro helper `ACM_KEYWORD_SET (keyword,symbols,length)` can be used to initialise keywords with a single statement.
       - The rank of insertion of a keyword is registered together with the keyword.
       - If a keyword was already previously registered in the dictionary, its associated old value is deallocated, forgotten
         and replaced by the associated value.
@@ -143,15 +145,15 @@ In local scope (function or main entry point), preprocess keywords:
 
 Then, parse any sequence of any number of texts, searching for previously registered keywords:
 
-6. (Optionally) Initialize a match holder (of type `MatchHolder` (*T*)) with `ACM_MATCH_INIT (match)`
+6. (Optionally) Initialise a match holder (of type `MatchHolder` (*T*)) with `ACM_MATCH_INIT (match)`
    before the first use by ACM_get_match (if necessary).
-7. Initialize a state (of type `const ACState` (*T*)) with `ACM_reset (machine)`
+7. Initialise a state (of type `const ACState` (*T*)) with `ACM_reset (machine)`
 8. Inject symbols of the text, one at a time by calling `ACM_match (state, symbol)`.
 9. After each insertion of a symbol, check the returned value to know if the last inserted symbols match at least one keyword.
       - If a new text has to be processed by the state machine, reset it to its initial state (`ACM_reset`) so that the next symbol will
         be matched against the first letter of each keyword.
 10. (Optionally) If matches were found, retrieve them calling `ACM_get_match ()` for each match (if necessary).
-      - `ACM_MATCH_LENGTH (match)` and `ACM_MATCH_SYMBOLS (match)` can be used to get the length and the content of a retreieved match.
+      - `ACM_MATCH_LENGTH (match)` and `ACM_MATCH_SYMBOLS (match)` can be used to get the length and the content of a retrieved match.
       - An optional third argument, a pointer to a `MatchHolder` (*T*), if not 0, will point to the matching keyword on return.
       - An optional fourth argument, a pointer to a `(void *)` pointer, if not 0, will point to the pointer to the value associated
         with the matching keyword.
@@ -169,11 +171,11 @@ Finally, when all texts have been parsed:
 
 Extra features are available to manage keywords:
 
-- `ACM_is_registered_keyword (machine, keyword, [value])` can check if a keyword is already registered, and retreives its associated value
+- `ACM_is_registered_keyword (machine, keyword, [value])` can check if a keyword is already registered, and retrieves its associated value
   if the third argument (of type `void **`) is provided and not equal to 0.
 - `ACM_unregister_keyword (machine, keyword)` allows to unregister a keyword (if previously registered).
 - `ACM_foreach_keyword (machine, function)` applies a function (`void (*function) (Keyword (T), void *)`) on each
-  registerd keyword. The `function` is called for each keyword and should keep it unchanged.
+  registered keyword. The `function` is called for each keyword and should keep it unchanged.
   The first argument of this function is the keyword, the second is the pointer to the value associated to the keyword.
 - `ACM_nb_keywords (machine)` yields the number of registered keywords.
 
@@ -288,7 +290,7 @@ These macros let declare and define tools to use a Aho-Corasick machine for a us
 
 #### Operators setters
 
-If a user defined type *T* uses internal allocated resources, operators can be optionnaly defined.
+If a user defined type *T* uses internal allocated resources, operators can be optionally defined.
 
 > `SET_DESTRUCTOR (`*T*`, DESTRUCTOR_TYPE (`*T*`) destructor)`
 >
@@ -315,7 +317,7 @@ This macro let declare a local variable `var` of type `ACMachine (`*T*`)` where
 
 `var` will be properly free'd when going out of scope.
 
-Specific operators `equal_operator`, `copy_constructor`, `destructor` can optionnaly be declared for type *T* and dictionary `var`.
+Specific operators `equal_operator`, `copy_constructor`, `destructor` can optionally be declared for type *T* and dictionary `var`.
 They supersede the operators applied to type *T*.
 
 ### Dictionary dynamic allocation
@@ -347,9 +349,9 @@ They supersede the operators applied to type *T*.
 
 > `void ACM_release (const ACMachine (`*T*`) *machine)`
 >
-> [in] machine A pointer to a Aho-Corasick machine to be realeased.
+> [in] machine A pointer to a Aho-Corasick machine to be released.
 
-`ACM_release` must be called to release the ressources of a dictionary created with `ACM_create`.
+`ACM_release` must be called to release the resources of a dictionary created with `ACM_create`.
 
 *Example*: `ACM_release (M);`
 
@@ -359,16 +361,16 @@ They supersede the operators applied to type *T*.
 
 Words are any sequences of symbols of type *T*.
 
-They can be instanciated with
+They can be instantiated with
 
 > `void ACM_KEYWORD_SET (Keyword(T) kw, T* array, size_t length)`
 
 Parameters:
-- [in] kw Keyword of symbols of type T to be initialized.
+- [in] kw Keyword of symbols of type T to be initialised.
 - [in] array Array of symbols
 - [in] length Length of the array
 
-`ACM_KEYWORD_SET` initializes a keyword `kw` from an array of symbols.
+`ACM_KEYWORD_SET` initialises a keyword `kw` from an array of symbols.
 
 The `array` is **NOT** duplicated by `ACM_KEYWORD_SET` and should be allocated and deallocated by the calling user program, if necessary.
 
@@ -391,7 +393,7 @@ Parameters:
   - the expected signature of `destructor` is `void destructor (void *)`
   - `destructor` must accept the null pointer `0`.
 
-`ACM_register_keyword` returns 1 if the keyword was successfully registered, 0 otherwise (if the keywpord is empty).
+`ACM_register_keyword` returns 1 if the keyword was successfully registered, 0 otherwise (if the keyword is empty).
 - When returning 0, the `destructor` (if any) is called on `value` (if any).
 - When returning 1, the `destructor` (if any) will be called on `value` (if any) when the dictionary is deallocated.
 
@@ -488,7 +490,7 @@ the last symbols sent since the last call to `ACM_reset`.
 This is the main function used to parse a text, one symbol after the other, and to search for pattern matching.
 
 Parameters:
-- [in, out] state A pointer to a valid Aho-Corasick machine state, initialized by `ACM_reset`.
+- [in, out] state A pointer to a valid Aho-Corasick machine state, initialised by `ACM_reset`.
   `state` is *passed by reference* (à la C++): it is modified by the function call.
 - [in] letter A symbol.
 
@@ -513,7 +515,7 @@ Parameters:
 
 `ACM_get_match` returns the rank (unique id) of the ith matching keyword.
 
-`*match` should have been declared as a variable of type `MatchHolder (`*T*`)` and initialized by ACM_MATCH_INIT before use, and released by ACM_MACTH_RELEASE after use.
+`*match` should have been declared as a variable of type `MatchHolder (`*T*`)` and initialised by ACM_MATCH_INIT before use, and released by ACM_MACTH_RELEASE after use.
 
 *Example*:
 

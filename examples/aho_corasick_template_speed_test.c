@@ -28,7 +28,7 @@ print_match (MatchHolder (char) match, void *value)
 {
   printf ("{'");
   for (size_t k = 0; k < ACM_MATCH_LENGTH (match); k++)
-    printf ("%lc", ACM_MATCH_SYMBOLS (match)[k]);
+    printf ("%c", ACM_MATCH_SYMBOLS (match)[k]);
   printf ("'=%i}", *(int *) value);
 }
 

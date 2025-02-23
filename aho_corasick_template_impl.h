@@ -49,7 +49,7 @@ __str_copy__ (const char *v)
 }
 
 static void
-__str_free__ (const char *v)
+__str_free__ (char *v)
 {
   if (!v)
     return;
@@ -118,24 +118,6 @@ __equllong (const unsigned long long a, const unsigned long long b)
 }
 
 static int
-__eqfloat (const float a, const float b)
-{
-  return a == b;
-}
-
-static int
-__eqdouble (const double a, const double b)
-{
-  return a == b;
-}
-
-static int
-__eqldouble (const long double a, const long double b)
-{
-  return a == b;
-}
-
-static int
 __eqstring (const char * const a, const char * const b)
 {
   return strcoll (a, b) == 0;
@@ -152,9 +134,6 @@ __eqstring (const char * const a, const char * const b)
   unsigned long:      __equlong,                                       \
   long long:          __eqllong,                                       \
   unsigned long long: __equllong,                                      \
-  float:              __eqfloat,                                       \
-  double:             __eqdouble,                                      \
-  long double:        __eqldouble,                                     \
   char*:              __eqstring,                                      \
   default:            EQ_##ACM_SYMBOL##_DEFAULT                        \
   )
@@ -192,8 +171,8 @@ __COPY_##ACM_SYMBOL(const ACM_SYMBOL letter)                           \
 static int EQ_##ACM_SYMBOL##_DEFAULT (const ACM_SYMBOL a, const ACM_SYMBOL b)      \
 {                                                                      \
   const size_t size = sizeof (ACM_SYMBOL);                             \
-  unsigned char *pa = (unsigned char *)(&a);                           \
-  unsigned char *pb = (unsigned char *)(&b);                           \
+  const unsigned char *pa = (const unsigned char *)(&a);               \
+  const unsigned char *pb = (const unsigned char *)(&b);               \
 \
   for (size_t i = 0 ; i < size ; i++)                                  \
     if (pa[i] != pb[i])                                                \
@@ -246,17 +225,19 @@ state_fail_state_construct_##ACM_SYMBOL (ACMachine_##ACM_SYMBOL * machine) \
   ACState_##ACM_SYMBOL **queue = 0;                                    \
   ACM_ASSERT (queue = malloc (sizeof (*queue) * (machine->size - 1))); \
   /* Aho-Corasick Algorithm 3: for each a such that s != 0 [fail], where s <- g(0, a) do   [1] */\
-  struct _ac_next_##ACM_SYMBOL *p = state_0->goto_array;               \
-  struct _ac_next_##ACM_SYMBOL *end = p + state_0->nb_goto;            \
-  for (; p < end; p++) /* loop on state_0->goto_array */               \
   {                                                                    \
-    ACState_##ACM_SYMBOL *s = p->state; /* [for each a such that s != 0 [fail], where s <- g(0, a)] */\
-    /* Aho-Corasick Algorithm 3: queue <- queue U {s} */               \
-    queue_length++;                                                    \
-    queue[queue_length - 1] = s; /* s */                               \
-    /* Aho-Corasick Algorithm 3: f(s) <- 0 */                          \
-    s->fail_state = state_0;                                           \
-  }   /* loop on state_0->goto_array */                                \
+    struct _ac_next_##ACM_SYMBOL *p = state_0->goto_array;             \
+    struct _ac_next_##ACM_SYMBOL *end = p + state_0->nb_goto;          \
+    for (; p < end; p++) /* loop on state_0->goto_array */             \
+    {                                                                  \
+      ACState_##ACM_SYMBOL *s = p->state; /* [for each a such that s != 0 [fail], where s <- g(0, a)] */\
+      /* Aho-Corasick Algorithm 3: queue <- queue U {s} */             \
+      queue_length++;                                                  \
+      queue[queue_length - 1] = s; /* s */                             \
+      /* Aho-Corasick Algorithm 3: f(s) <- 0 */                        \
+      s->fail_state = state_0;                                         \
+    }   /* loop on state_0->goto_array */                              \
+  }                                                                    \
   size_t queue_read_pos = 0;                                           \
   /* Aho-Corasick Algorithm 3: while queue != empty do */              \
   while (queue_read_pos < queue_length)                                \
@@ -389,7 +370,7 @@ static const struct _acs_vtable_##ACM_SYMBOL ACS_VTABLE_##ACM_SYMBOL = \
   ACM_get_match_##ACM_SYMBOL,                                          \
 };                                                                     \
 \
-ACState_##ACM_SYMBOL *                                                 \
+static ACState_##ACM_SYMBOL *                                          \
 state_create_##ACM_SYMBOL (void)                                       \
 {                                                                      \
   ACState_##ACM_SYMBOL *s = malloc (sizeof (*s)); /* [state s] */      \
@@ -554,7 +535,7 @@ ACM_nb_keywords_##ACM_SYMBOL (const ACMachine_##ACM_SYMBOL * machine)  \
   return machine->nb_sequence;                                         \
 }                                                                      \
 \
-static ACState_##ACM_SYMBOL *                     \
+static ACState_##ACM_SYMBOL *                                          \
 get_last_state_##ACM_SYMBOL (const ACMachine_##ACM_SYMBOL * machine, Keyword_##ACM_SYMBOL sequence) \
 {                                                                      \
   if (!sequence.length)                                                \
@@ -674,7 +655,7 @@ ACM_foreach_keyword_##ACM_SYMBOL (const ACMachine_##ACM_SYMBOL * machine, void (
 }                                                                      \
 \
 static void                                                            \
-state_release_##ACM_SYMBOL (const ACState_##ACM_SYMBOL * state,        \
+state_release_##ACM_SYMBOL (ACState_##ACM_SYMBOL * state,              \
                             DESTROY_##ACM_SYMBOL##_TYPE dtor)          \
 {                                                                      \
   /* Release goto_array */                                             \
@@ -695,14 +676,14 @@ state_release_##ACM_SYMBOL (const ACState_##ACM_SYMBOL * state,        \
 }                                                                      \
 \
 static void                                                            \
-ACM_cleanup_##ACM_SYMBOL (const ACMachine_##ACM_SYMBOL * machine)      \
+ACM_cleanup_##ACM_SYMBOL (ACMachine_##ACM_SYMBOL * machine)            \
 {                                                                      \
   state_release_##ACM_SYMBOL (machine->state_0, machine->destroy);     \
   pthread_mutex_destroy (&((ACMachine_##ACM_SYMBOL *) machine)->lock); \
 }                                                                      \
 \
 static void                                                            \
-ACM_release_##ACM_SYMBOL (const ACMachine_##ACM_SYMBOL * machine)      \
+ACM_release_##ACM_SYMBOL (ACMachine_##ACM_SYMBOL * machine)            \
 {                                                                      \
   ACM_cleanup_##ACM_SYMBOL (machine);                                  \
   free ((ACMachine_##ACM_SYMBOL *) machine);                           \
@@ -716,10 +697,11 @@ ACM_reset_##ACM_SYMBOL (const ACMachine_##ACM_SYMBOL * machine)        \
                                                                        \
 static void                                                            \
 state_print_##ACM_SYMBOL (ACState_##ACM_SYMBOL *state,                 \
-                          FILE* stream, size_t indent, size_t id_state,\
+                          FILE* stream, int indent, size_t id_state,   \
                           PRINT_##ACM_SYMBOL##_TYPE printer)           \
 {                                                                      \
-  static size_t nb_states, cur_pos;                                    \
+  static size_t nb_states;                                             \
+  static int cur_pos;                                                  \
   for (size_t i = 0 ; i < state->nb_goto ; i++)                        \
   {                                                                    \
     if (indent < cur_pos)                                              \
@@ -728,13 +710,13 @@ state_print_##ACM_SYMBOL (ACState_##ACM_SYMBOL *state,                 \
       fprintf (stream, "\n");                                          \
       if (indent)                                                      \
       {                                                                \
-        for (size_t t = 0 ; t < indent - 1 ; t++)                      \
+        for (int t = 0 ; t < indent - 1 ; t++)                         \
           cur_pos += fprintf (stream, " ");                            \
         cur_pos += fprintf (stream, "L");                              \
       }                                                                \
     }                                                                  \
     else if (indent > cur_pos)                                         \
-      for (size_t t = 0 ; t < indent - cur_pos ; t++)                  \
+      for (int t = 0 ; t < indent - cur_pos ; t++)                     \
         cur_pos += fprintf (stream, " ");                              \
     if (state == state->machine->state_0)                              \
       cur_pos += fprintf (stream, "(%03zu)", id_state);                \
@@ -754,7 +736,7 @@ state_print_##ACM_SYMBOL (ACState_##ACM_SYMBOL *state,                 \
   }                                                                    \
 }                                                                      \
                                                                        \
-void                                                                   \
+static void                                                            \
 ACM_print_##ACM_SYMBOL (ACMachine_##ACM_SYMBOL *machine,               \
                         FILE* stream,                                  \
                         PRINT_##ACM_SYMBOL##_TYPE printer)             \
