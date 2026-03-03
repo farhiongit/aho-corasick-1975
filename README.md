@@ -95,7 +95,7 @@ Hope this helps. Let me know !
 
 # Usage
 
-The usage of the Aho-Corasick dictionary is traight forward.
+The usage of the Aho-Corasick dictionary is straight forward.
 
 ## Declare a dictionary
 
@@ -252,10 +252,8 @@ void acm_foreach_keyword (ACMachine *machine, void (*operator) (MatchHolder, voi
 
 # Files
 
-## Source code:
-
-- [`aho_corasick.h`](./aho_corasick.h) defines and fully documents the interface.
-- [`aho_corasick.c`](./aho_corasick.c) defines the fully commented implementation.
+- [`aho_corasick.h`](./aho_corasick.h) defines and fully documents the interface (28 effective lines).
+- [`aho_corasick.c`](./aho_corasick.c) defines the fully commented implementation (379 effective lines).
 
 # API
 
