@@ -16,10 +16,10 @@ The dictionary is used in two steps:
 The algorithm proposed by Aho and Corasick in a paper of 1975 is efficient when the alphabet contains a limited number of signs and words are composed of several of those signs.
 
 > [!IMPORTANT]
-> If the dictionary is populated with words of only one sign from a large or unbound alphabet, a traditional map should be preferred.
+> If the dictionary is populated with words of only one sign from a large or unbound alphabet, a [traditional map](https://github.com/farhiongit/minimaps) should be preferred.
 
 > [!TIP]
-> This is a recommended generic implementation of the algorithm, that applies to any type of signs (not only `char`).
+> This is a recommended generic implementation of the algorithm, that applies to any type of signs (not only `char`, it could also be a complex structure as long as an equality operator exists for it).
 > There is a template version of the same algorithm [here](./template).
 
 # License
@@ -113,18 +113,24 @@ ACMachine *acm_create (EQ_TYPE eq, void *eq_arg, DESTROY_TYPE dtor);
 
 > [!NOTE]
 > An equality operator `eq` must be provided. The optional argument `eq_arg` will be passed to each call to `eq`.
+>
+> If the signs fed to the machine are automatically or statically allocated (until the machine is releases (with `acm_release`)), then `0` must be passed as `dtor`.
+>
 > If the signs fed to the machine are not statically allocated until the machine is releases (with `acm_release`),
-> - signs must be dynamically allocated before each call to `acm_insert_letter_of_keyword`.
-> - a destructor `dtor` must be provided.
+> - signs (and possibly its internals) must be dynamically allocated before each call to `acm_insert_letter_of_keyword`.
+> - a destructor `dtor` must be provided. It must deallocate the sign (and possibly its internals) with as many calls to `free` as calls needed to `malloc` to allocate a sign (see `acm_insert_letter_of_keyword`).
 > - signs will be automatically deallocated by the machine.
 > - if signs are allocated by a single call to `malloc`, `free` is a suitable destructor.
+>
 > `acm_release` must be subsequently called when the machine is not needed anymore.
 
 > [!TIP]
 > A handy default equality operator `ACM_EQ_DEFAULT` can be used for a simple lexical comparison (based on `memcmp`).
 > `&(size_t){ sizeof (` *T* `)` must then be passed as second argument, where *T* is the type of the signs.
 
-## Feed the dictionary with words
+## Create the dictionary with words
+
+### Initialise
 
 To fill the dictionary with words :
 
@@ -133,6 +139,8 @@ To fill the dictionary with words :
 ```c
 ACState *acm_initiate (ACMachine *machine);
 ```
+
+### Add words in the dictionary
 
 - Then, for each word compose of a sequence of sign,
 
@@ -144,7 +152,8 @@ void acm_insert_letter_of_keyword (ACState **state, void *letter);
 
 > [!NOTE]
 > A state must have been initialised with `acm_initiate` before the first call to `acm_insert_letter_of_keyword`.
-> A `letter` must be provided. If it was allocated dynamically, it will be automatically deallocated by the machine using the destructor previously passed to `acm_create`.
+> A `letter` must be provided. It is a pointer to an allocated sign that must persist until the machine is release with (`acm_release`).
+> If it was allocated dynamically, it will be automatically deallocated by the machine using the destructor previously passed to `acm_create`.
 
   - Call `acm_insert_end_of_keyword`. A definition associated to the word can be passed as second argument.
 
@@ -162,12 +171,13 @@ void acm_insert_end_of_keyword (ACState **state, void *value, void (*dtor) (void
 > - if `value` is allocated by a single call to `malloc`, `free` is a suitable destructor.
 > The keyword is given a unique internal rank in the machine that will be later returned by calls to `acm_get_match`.
 
+## Scan a text for words of the dictionary
 
-## Search a text for words of the dictionary and retrieve the found words
+### Initialise
 
 To search for the words of the dictionary in a text composed of a sequence of signs :
 
-- Call first `acm_initiate` once for all.
+- Call first `acm_initiate` once for each text to scan.
 
 > [!NOTE]
 > The very same previously used to feed the dictionary with words.
@@ -182,7 +192,11 @@ void acm_matcher_init (MatchHolder *matcher);
 > A `MatchHolder` can be used to retrieve several matches (with `acm_get_match`) of different match searches (with `acm_match`).
 > a `MatchHolder` must be release by a subsequent call to `acm_match_release` after use.
 
-- Then make successive calls to `acm_match` for each sign of the text, in sequence, from beginning to end of the text.
+### Search for words and retrieve the found words
+
+Then,
+
+- make successive calls to `acm_match` for each sign of the text, in sequence, from beginning to end of the text.
 
 ```c
 size_t acm_match (ACState **state, void *letter);
@@ -190,7 +204,7 @@ size_t acm_match (ACState **state, void *letter);
 
 > [!NOTE]
 > A state msut have been initialised with `acm_initiate` before the first call to `acm_match`.
-> A `letter` must be provided.
+> A `letter` must be provided. It is a pointer to a sign that must persist until to call to `acm_match` has returned.
 > Returns the number of matches found.
 
   - If one or several matches are found by `acm_match` while reading the text, `acm_match` will return a non-zero value of the number of matches found.
@@ -208,6 +222,9 @@ size_t acm_get_match (const ACState *state, size_t index, MatchHolder *matcher, 
 > - it will be filled with the found match (with a keyword defined by a previous call to `acm_insert_end_of_keyword`).
 > If `value` is not null, `*value` will be set to the value passed to a previous call to `acm_insert_end_of_keyword`.
 > Returns the unique internal rank of the found keyword, as given by `acm_insert_end_of_keyword`.
+
+> [!TIP]
+> [Adding words](#add-words-in-the-dictionary) to the dictionary and [searching](#search-for-words-and-retrieve-the-found-words) can be realised consecutively, alternatively or concurrently (by different threads).
 
 - Release the resources used by the matcher with `acm_matcher_release`.
 
@@ -228,9 +245,6 @@ void acm_release (ACMachine *machine);
 
 > [!NOTE]
 > The `machine` must have been initialised by a previous call to `acm_create`.
-
-> [!NOTE]
-> Feeding and searching can be realised consecutively, alternatively or concurrently (by different threads).
 
 ## Extra features
 

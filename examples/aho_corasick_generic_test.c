@@ -48,17 +48,14 @@ print_match (MatchHolder match, void *value) {
 // User defined alphabet only comparison:
 // 3. Optionally, user defined operators can be specified.
 // User defined case insensitive comparison:
-static int words;
 static int
 walphaeq (wchar_t k, wchar_t t) {
-  if (words) {
-    int nak = !iswalpha ((wint_t)k);
-    int nat = !iswalpha ((wint_t)t);
-    if (nak)
-      return nat;
-    else if (nat)
-      return 0;
-  }
+  int nak = !iswalpha ((wint_t)k);
+  int nat = !iswalpha ((wint_t)t);
+  if (nak)
+    return nat;
+  else if (nat)
+    return 0;
 
   return (wchar_t)towlower ((wint_t)k) == (wchar_t)towlower ((wint_t)t);
 }
@@ -79,46 +76,43 @@ main (void) {
   static wchar_t text[] = L"He found his pencil, but she could not find hers (Hi! Ushers !!)";
 
   // 4. Initialise a state machine of type ACMachine (T) using ACM_create (T):
-  ACMachine *M = acm_create (ACM_EQ_DEFAULT, &(size_t){ sizeof (*text) } /* creates a static variable on the fly */, free);
+  ACMachine *M = acm_create (ACM_EQ_DEFAULT, &(size_t){ sizeof (*text) } /* creates a automatic variable on the fly */, 0 /* letters are automatically allocated */);
   assert (acm_match (&(ACState *){ acm_initiate (M) }, &(wchar_t){ L'a' }) == 0); // No keyword in the dictionary yet.
 
   // Declares all the keywords
   // "hers" appears twice and will be registered twice, replacing the first registration.
-#define LIST_OF_KEYWORDS                      \
-  do {                                        \
-    X (M, L'h', L'e')                         \
-    X (M, L's', L'h', L'e')                   \
-    X (M, L's', L'h', L'e', L'e', L'r', L's') \
-    X (M, L'h', L'i', L's')                   \
-    X (M, L'h', L'i')                         \
-    X (M, L'h', L'e', L'r', L's')             \
-    X (M, L'u', L's', L'h', L'e', L'r', L's') \
-    X (M, L'a', L'b', L'c', L'd', L'e')       \
-    X (M, L'b', L'c', L'd')                   \
-    X (M, L'h', L'e', L'r', L's')             \
-    X (M, L'p', L'e', L'n')                   \
-    X (M, L'p', L'e', L'n')                   \
-  } while (0)
+#define LIST_OF_KEYWORDS                 \
+  X (L'h', L'e')                         \
+  X (L's', L'h', L'e')                   \
+  X (L's', L'h', L'e', L'e', L'r', L's') \
+  X (L'h', L'i', L's')                   \
+  X (L'h', L'i')                         \
+  X (L'h', L'e', L'r', L's')             \
+  X (L'u', L's', L'h', L'e', L'r', L's') \
+  X (L'a', L'b', L'c', L'd', L'e')       \
+  X (L'b', L'c', L'd')                   \
+  X (L'h', L'e', L'r', L's')             \
+  X (L'p', L'e', L'n')                   \
+  X (L'p', L'e', L'n')
 
   ACState *state = acm_initiate (M);
 
-// Loop on LIST_OF_KEYWORDS
-#define X(MACHINE, ...)                                                                                                           \
-  {                                                                                                                               \
-    /* 5. Add keywords (of type `Keyword (T)`) to the state machine calling `acm_insert_keyword()`, one at a time, repeatedly. */ \
-    size_t *pul;                                                                                                                  \
-    wchar_t word[] = { __VA_ARGS__ };                                                                                             \
-    for (size_t i = 0; i < sizeof (word) / sizeof (*word); i++) {                                                                 \
-      wchar_t *letter = malloc (sizeof (*letter));                                                                                \
-      assert (letter);                                                                                                            \
-      *letter = word[i];                                                                                                          \
-      acm_insert_letter_of_keyword (&state, letter);                                                                              \
-    }                                                                                                                             \
-    acm_insert_end_of_keyword (&state, (*(pul = malloc (sizeof (*pul))) = __COUNTER__ + 100, pul), free);                         \
-    print_keyword (word, sizeof (word) / sizeof (*word));                                                                         \
-  }
+#define X(...) +1
+  wchar_t *words[LIST_OF_KEYWORDS];
+  size_t length[LIST_OF_KEYWORDS];
+#undef X
 
-  // Function applied to register a keyword in the state machine
+  // Loop on LIST_OF_KEYWORDS
+  size_t index = 0;
+#define X(...)                                                                         \
+  words[index] = (wchar_t[]){ __VA_ARGS__ }; /* letters are automatically allocated */ \
+  length[index] = sizeof ((wchar_t[]){ __VA_ARGS__ }) / sizeof (wchar_t);              \
+  for (size_t i = 0; i < length[index]; i++)                                           \
+    acm_insert_letter_of_keyword (&state, &words[index][i]);                           \
+  acm_insert_end_of_keyword (&state, &(size_t){ __COUNTER__ + 100 }, 0);               \
+  print_keyword (words[index], length[index]);                                         \
+  index++;
+
   LIST_OF_KEYWORDS;
 #undef X
 
@@ -130,7 +124,7 @@ main (void) {
   print_keyword (text, wcslen (text));
   printf ("\n");
 
-  // 6. Initialise a match holder with `ACM_MATCH_INIT (match)`
+  // 6. Initialise a match holder.
   MatchHolder match;
   acm_matcher_init (&match);
 
@@ -138,13 +132,13 @@ main (void) {
   current_pos = 0;
   state = acm_initiate (M);
   for (size_t i = 0; i < wcslen (text); i++) {
-    // 8. Inject symbols of the text, one at a time by calling `ACM_match`.
+    // 8. Inject symbols of the text, one at a time.
     size_t nb_matches = acm_match (&state, &text[i]);
     // 9. After each insertion of a symbol, check the returned value to know
     //    if the last inserted symbols match at least one keyword.
 
     for (size_t j = 0; j < nb_matches; j++) {
-      // 10. If matches were found, retrieve them calling `ACM_get_match ()` for each match.
+      // 10. If matches were found, retrieve them for each match.
       void *pul;
       size_t rank = acm_get_match (state, j, &match, &pul);
       assert (rank == match.rank);
@@ -161,23 +155,20 @@ main (void) {
   }
   printf ("\n");
 
-  // 11. After the last call to `ACM_get_match ()`, release to match holder by calling `ACM_MATCH_RELEASE (match)`.
+  // 11. Release to match holder.
   acm_matcher_release (&match);
   acm_release (M);
 
   /****************** Second test ************************/
-  // This test counts the number of time the words in the English dictionnary ("words") appear
+  // This test counts the number of time the words in the English dictionary ("words") appear
   // in the Woolf's book Mrs Dalloway ("mrs_dalloway.txt").
   // The dictionary is built up incrementally from the novel and not list of words.
-  words = 1;
-
   FILE *stream;
 
   wchar_t line[100] = L" "; // keywords start with ' '
 
-  // 4. Initialise a state machine of type ACMachine (T) using ACM_create (T)
-  //    An optional second argument of type EQ_OPERATOR_TYPE(*T*) can specify a user defined equality operator.
-  M = acm_create (alphaeq, 0, free);
+  // 4. Initialise a state machine with a user defined equality operator.
+  M = acm_create (alphaeq, 0, free /* letters are dynamically allocated */);
 
   stream = fopen ("mrs_dalloway.txt", "r");
   if (stream == 0)
@@ -186,7 +177,7 @@ main (void) {
   clock_t myclock = clock ();
   // 7. Initialise a state with `acm_initiate (machine)`
   state = acm_initiate (M);
-  // 8. Inject symbols of the text, one at a time by calling `ACM_match (state, symbol)`.
+  // 8. Inject symbols of the text, one at a time.
   acm_match (&state, &(wchar_t){ L' ' });
   line[0] = L' ';
   line[1] = 0;
@@ -195,7 +186,7 @@ main (void) {
       wc = L' ';
     if (iswupper (wc))
       wc = towlower (wc);
-    // 8. Inject symbols of the text, one at a time by calling `ACM_match (state, symbol)`.
+    // 8. Inject symbols of the text, one at a time.
     // 9. After each insertion of a symbol, check the returned value to know if the last inserted symbols match at least one keyword.
     size_t nb = acm_match (&state, &wc);
     size_t len = wcsnlen (line, sizeof (line) / sizeof (*line) - 1);
@@ -206,7 +197,7 @@ main (void) {
       for (size_t j = 0; j < nb; j++) {
         void *v;
 
-        // 10. If matches were found, retrieve them calling `ACM_get_match ()` for each match.
+        // 10. If matches were found, retrieve them for each match.
         //     An optional fourth argument will point to the pointer to the value associated with the matching keyword.
         acm_get_match (state, j, 0, &v);
         // Increment the value associated to the keyword.
@@ -221,7 +212,7 @@ main (void) {
         // The dictionary is built up incrementally from the novel and not list of words.
         ACState *state2 = acm_initiate (M);
         for (size_t i = 0; i < wcsnlen (line, sizeof (line) / sizeof (*line)); i++) {
-          wchar_t *letter = malloc (sizeof (*letter));
+          wchar_t *letter = malloc (sizeof (*letter) /* letters are dynamically allocated */);
           assert (letter);
           *letter = line[i];
           acm_insert_letter_of_keyword (&state2, letter);
@@ -237,15 +228,14 @@ main (void) {
   printf ("\nElapsed CPU time for scanning text for keywords: %f s.\n", (double)(clock () - myclock) / CLOCKS_PER_SEC);
   fclose (stream);
 
-  // `ACM_nb_keywords (machine)` yields the number of registered keywords.
+  // Get the number of registered keywords.
   printf ("[%zu] keywords registered.\n", acm_nb_keywords (M));
-  // `ACM_foreach_keyword (machine, function)` applies a function (`void (*function) (Keyword (T), void *)`) on each registered keyword.
-  // Display keywords and their associated value.
+  // Applies a function on each registered keyword (display keywords and their associated value.)
   acm_foreach_keyword (M, print_match);
 
   printf ("\n");
 
-  // 12. After usage, release the state machine calling ACM_release() on M.
+  // 12. After usage, release the state machine.
   //     ACM_release also frees the values associated to registered keywords.
   acm_release (M);
 }
