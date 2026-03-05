@@ -117,7 +117,7 @@ void acm_insert_end_of_keyword (ACState **state, void *value, void (*dtor) (void
 ```
 
 > [!NOTE]
-> `acm_insert_letter_of_keyword` should have been previously called at least once before `acm_insert_end_of_keyword` is called.
+> `acm_insert_letter_of_keyword` must have been previously called at least once before `acm_insert_end_of_keyword` is called.
 > The `value` will be later retrieved by a subsequent call to `acm_get_match`.
 > If the `value` fed to the machine is not statically allocated until the machine is releases (with `acm_release`),
 > - `value` must be dynamically allocated.

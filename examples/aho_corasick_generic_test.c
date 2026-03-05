@@ -26,9 +26,6 @@ print_wchar_t (FILE *f, const void *wc) {
 
 static void
 print_match (MatchHolder match, void *value) {
-  // Filter matching keywords which value is equal to 0.
-  if (value && *(size_t *)value == 0)
-    return;
   if (match.length) {
     current_pos += printf ("{");
     current_pos += printf ("'");
@@ -36,7 +33,7 @@ print_match (MatchHolder match, void *value) {
       current_pos += printf ("%lc", *(const wint_t *)match.letters[k]);
 
     current_pos += printf ("'");
-    current_pos += printf ("[%zu]", match.rank);
+    current_pos += printf ("[#%zu]", match.rank);
     if (value) {
       current_pos += printf ("=");
       current_pos += printf ("%zu", *(size_t *)value);
@@ -50,14 +47,10 @@ print_match (MatchHolder match, void *value) {
 // User defined case insensitive comparison:
 static int
 walphaeq (wchar_t k, wchar_t t) {
-  int nak = !iswalpha ((wint_t)k);
-  int nat = !iswalpha ((wint_t)t);
-  if (nak)
-    return nat;
-  else if (nat)
-    return 0;
-
-  return (wchar_t)towlower ((wint_t)k) == (wchar_t)towlower ((wint_t)t);
+  if (!iswalpha ((wint_t)k) || !iswalpha ((wint_t)t))
+    return (k == t);
+  else
+    return (wchar_t)towlower ((wint_t)k) == (wchar_t)towlower ((wint_t)t);
 }
 
 static int
@@ -81,36 +74,33 @@ main (void) {
 
   // Declares all the keywords
   // "hers" appears twice and will be registered twice, replacing the first registration.
-#define LIST_OF_KEYWORDS                 \
-  X (L'h', L'e')                         \
-  X (L's', L'h', L'e')                   \
-  X (L's', L'h', L'e', L'e', L'r', L's') \
-  X (L'h', L'i', L's')                   \
-  X (L'h', L'i')                         \
-  X (L'h', L'e', L'r', L's')             \
-  X (L'u', L's', L'h', L'e', L'r', L's') \
-  X (L'a', L'b', L'c', L'd', L'e')       \
-  X (L'b', L'c', L'd')                   \
-  X (L'h', L'e', L'r', L's')             \
-  X (L'p', L'e', L'n')                   \
-  X (L'p', L'e', L'n')
+#define LIST_OF_KEYWORDS \
+  X (L"he")              \
+  X (L"she")             \
+  X (L"sheers")          \
+  X (L"his")             \
+  X (L"hi")              \
+  X (L"hers")            \
+  X (L"ushers")          \
+  X (L"abcde")           \
+  X (L"bcd")             \
+  X (L"hers")            \
+  X (L"pen")             \
+  X (L"pen")
 
   ACState *state = acm_initiate (M);
-
 #define X(...) +1
-  wchar_t *words[LIST_OF_KEYWORDS];
-  size_t length[LIST_OF_KEYWORDS];
+  wchar_t *words[LIST_OF_KEYWORDS]; /* letters are automatically allocated */
 #undef X
 
   // Loop on LIST_OF_KEYWORDS
   size_t index = 0;
-#define X(...)                                                                         \
-  words[index] = (wchar_t[]){ __VA_ARGS__ }; /* letters are automatically allocated */ \
-  length[index] = sizeof ((wchar_t[]){ __VA_ARGS__ }) / sizeof (wchar_t);              \
-  for (size_t i = 0; i < length[index]; i++)                                           \
-    acm_insert_letter_of_keyword (&state, &words[index][i]);                           \
-  acm_insert_end_of_keyword (&state, &(size_t){ __COUNTER__ + 100 }, 0);               \
-  print_keyword (words[index], length[index]);                                         \
+#define X(...)                                                                             \
+  words[index] = (wchar_t[]){ __VA_ARGS__ }; /* letters are automatically allocated */     \
+  for (size_t i = 0; i < wcslen (words[index]); i++)                                       \
+    acm_insert_letter_of_keyword (&state, &words[index][i]);                               \
+  acm_insert_end_of_keyword (&state, &(size_t){ index } /* automatically allocated */, 0); \
+  print_keyword (words[index], wcslen (words[index]));                                     \
   index++;
 
   LIST_OF_KEYWORDS;

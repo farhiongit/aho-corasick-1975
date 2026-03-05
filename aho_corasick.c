@@ -21,18 +21,17 @@
 #include <string.h>
 #include <threads.h>
 
-#define ACM_ASSERT(cond, msg)                                                                               \
-  do {                                                                                                      \
-    if (!(cond)) {                                                                                          \
-      if ((msg)[0] != 0)                                                                                    \
-        fprintf (stderr, "FATAL ERROR: %s\n", #msg);                                                        \
-      else {                                                                                                \
-        fprintf (stderr, "FATAL ERROR: The prerequisites are not fulfilled in function '%s'.\n", __func__); \
-        fprintf (stderr, "             The condition (%s) is not fulfilled.\n", #cond);                     \
-        fprintf (stderr, "             Please read the documentation for insights.\n");                     \
-      }                                                                                                     \
-      abort ();                                                                                             \
-    }                                                                                                       \
+#define ACM_ASSERT(cond, msg)                                                                       \
+  do {                                                                                              \
+    if (!(cond)) {                                                                                  \
+      fprintf (stderr, "FATAL ERROR: A prerequisite is not fulfilled in function %s.\n", __func__); \
+      fprintf (stderr, "             ");                                                            \
+      if ((msg)[0] != 0)                                                                            \
+        fprintf (stderr, "%s\n", msg);                                                              \
+      else                                                                                          \
+        fprintf (stderr, "The condition (%s) is false.\n", #cond);                                  \
+      abort ();                                                                                     \
+    }                                                                                               \
   } while (0)
 
 /* A state of the state machine. */
@@ -198,7 +197,8 @@ acm_match (ACState **state, void *letter) {
 size_t
 acm_get_match (const ACState *state, size_t index, MatchHolder *matcher, void **value) {
   /* Aho-Corasick Algorithm 1: if output(state) [ith element] */
-  ACM_ASSERT (state && index < state->nb_sequence, "");
+  ACM_ASSERT (state, "");
+  ACM_ASSERT (index < state->nb_sequence, "Index out of bounds");
   size_t i = 0;
   for (; state; state = state->fail_state, i++ /* skip to the next failing state */) {
     /* Look for the first state in the "failing states" chain which matches a keyword. */
@@ -265,7 +265,7 @@ machine_init (ACMachine *machine, ACState *state_0, EQ_TYPE eq, void *eq_arg, DE
 
 ACMachine *
 acm_create (EQ_TYPE eq, void *eq_arg, DESTROY_TYPE dtor) {
-  ACM_ASSERT (eq, "");
+  ACM_ASSERT (eq, "An equality operator should be provided.");
   ACMachine *machine = malloc (sizeof (*machine)); // ACMachine allocation
   ACM_ASSERT (machine, "Out of memory.");
   /* Aho-Corasick Algorithm 2: newstate <- 0 */
@@ -304,6 +304,7 @@ acm_insert_keyword (ACState **state /* Iterator */, void *letter, void *value, v
   ACMachine *machine = (*state)->machine;
   mtx_lock (&machine->lock);
   if (letter == ACM_KEYWORD_SEPARATOR) {
+    ACM_ASSERT (*state != machine->state_0, "acm_insert_letter_of_keyword should be called first.");
     if (*state == machine->state_0) {
       if (dtor)
         dtor (value);
