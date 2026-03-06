@@ -73,20 +73,22 @@ main (void) {
   assert (acm_match (&(ACState *){ acm_initiate (M) }, &(wchar_t){ L'a' }) == 0); // No keyword in the dictionary yet.
 
   // Declares all the keywords
-  // "hers" appears twice and will be registered twice, replacing the first registration.
+  // "hers" appears twice and will not be registered twice, not replacing the first registration.
 #define LIST_OF_KEYWORDS \
-  X (L"he")              \
-  X (L"she")             \
-  X (L"sheers")          \
-  X (L"his")             \
-  X (L"hi")              \
-  X (L"hers")            \
-  X (L"ushers")          \
-  X (L"abcde")           \
-  X (L"bcd")             \
-  X (L"hers")            \
-  X (L"pen")             \
-  X (L"pen")
+  X (L"he", 1)           \
+  X (L"she", 1)          \
+  X (L"sheers", 1)       \
+  X (L"his", 1)          \
+  X (L"hi", 1)           \
+  X (L"hers", 1)         \
+  X (L"ushers", 1)       \
+  X (L"abcde", 1)        \
+  X (L"bcd", 1)          \
+  X (L"hers", 0)         \
+  X (L"hen", 1)          \
+  X (L"hen", 0)          \
+  X (L"pen", 1)          \
+  X (L"pen", 0)
 
   ACState *state = acm_initiate (M);
 #define X(...) +1
@@ -95,12 +97,14 @@ main (void) {
 
   // Loop on LIST_OF_KEYWORDS
   size_t index = 0;
-#define X(...)                                                                             \
-  words[index] = (wchar_t[]){ __VA_ARGS__ }; /* letters are automatically allocated */     \
-  for (size_t i = 0; i < wcslen (words[index]); i++)                                       \
-    acm_insert_letter_of_keyword (&state, &words[index][i]);                               \
-  acm_insert_end_of_keyword (&state, &(size_t){ index } /* automatically allocated */, 0); \
-  print_keyword (words[index], wcslen (words[index]));                                     \
+  int check;
+#define X(KW, CHECK)                                                                                                             \
+  words[index] = (wchar_t[]){ (KW) }; /* letters are automatically allocated */                                                  \
+  for (size_t i = 0; i < wcslen (words[index]); i++)                                                                             \
+    acm_insert_letter_of_keyword (&state, &words[index][i]);                                                                     \
+  check = acm_insert_end_of_keyword (&state, &(size_t){ index } /* automatically allocated unnamed object in block scope */, 0); \
+  assert (check == (CHECK));                                                                                                     \
+  print_keyword (words[index], wcslen (words[index]));                                                                           \
   index++;
 
   LIST_OF_KEYWORDS;
@@ -209,7 +213,8 @@ main (void) {
         }
         size_t *v = malloc (sizeof (*v));
         *v = 1;
-        acm_insert_end_of_keyword (&state2, v, free);
+        if (!acm_insert_end_of_keyword (&state2, v, free))
+          free (v);
       }
       line[0] = L' ';
       line[1] = L'\0';

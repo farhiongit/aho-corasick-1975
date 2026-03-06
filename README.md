@@ -34,7 +34,7 @@ This project offers an efficient [implementation](#implementation) of the Aho-Co
 
 - It faithfully and accurately sticks, step by step, to the pseudo-code given in the original paper from Aho and Corasick
   (btw exquisitely clear and well written, see Aho, Alfred V.; Corasick, Margaret J. (June 1975).
-  "[Efficient string matching: An aid to bibliographic search](https://github.com/tpn/pdfs/blob/master/Efficient%20String%20Matching%20-%20An%20Aid%20to%20Bibliographic%20Search%20-%20Aho-Corasick%20(1975).pdf)".
+  "[Efficient string matching: An aid to bibliographic search](https://dl.acm.org/doi/10.1145/360825.360855)".
   Communications of the ACM. 18 (6): 333–340.)
 - The code is commented and annotated with excerpts from the original text of Aho and Corasick.
 - The original algorithm is refactored so that it can used iteratively and not be constrained by a given type of container for words.
@@ -113,18 +113,26 @@ void acm_insert_letter_of_keyword (ACState **state, void *letter);
   - Call `acm_insert_end_of_keyword`. A definition associated to the word can be passed as second argument.
 
 ```c
-void acm_insert_end_of_keyword (ACState **state, void *value, void (*dtor) (void *));
+int acm_insert_end_of_keyword (ACState **state, void *value, void (*dtor) (void *));
 ```
 
 > [!NOTE]
 > `acm_insert_letter_of_keyword` must have been previously called at least once before `acm_insert_end_of_keyword` is called.
-> The `value` will be later retrieved by a subsequent call to `acm_get_match`.
+>
 > If the `value` fed to the machine is not statically allocated until the machine is releases (with `acm_release`),
+>
 > - `value` must be dynamically allocated.
 > - a destructor `dtor` must be provided.
 > - `value` will be automatically deallocated by the machine.
 > - if `value` is allocated by a single call to `malloc`, `free` is a suitable destructor.
+>
 > The keyword is given a unique internal rank in the machine that will be later returned by calls to `acm_get_match`.
+>
+> Returns `1` if the same keyword had not already been previously inserted or had not already an associated value.
+> The `value` will be later retrieved by a subsequent call to `acm_get_match`.
+>
+> Otherwise, returns `0` and the passed `value` won't be managed by the machine and should be handled by the caller.
+
 
 ## Scan a text for words of the dictionary
 

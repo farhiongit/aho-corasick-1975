@@ -59,7 +59,9 @@ void acm_insert_letter_of_keyword (ACState **state, void *letter);
 // - `value` will be automatically deallocated by the machine.
 // - if `value` is allocated by a single call to `malloc`, `free` is a suitable destructor.
 // The keyword is given a unique internal rank in the machine.
-void acm_insert_end_of_keyword (ACState **state, void *value, void (*dtor) (void *));
+// Returns 1 if the same keyword had not already been previously inserted or had not already an associated value.
+// Otherwise, returns 0 and the passed value won't be managed by the machine and should be handled by the caller.
+int acm_insert_end_of_keyword (ACState **state, void *value, void (*dtor) (void *));
 
 // A state msut have been initialised with `acm_initiate` before the first call to `acm_match`.
 // A `letter` must be provided.
@@ -88,11 +90,11 @@ size_t acm_nb_keywords (ACMachine *machine);
 // A machine must have been initialised by a previous call to `acm_create`.
 void acm_foreach_keyword (ACMachine *machine, void (*operator) (MatchHolder, void *value));
 
+// The machine must have been initialised by a previous call to `acm_create`.
+void acm_release (ACMachine *machine);
+
 // For debugging purpose.
 typedef int (*PRINT_TYPE) (FILE *, const void *letter);
 void acm_print (ACMachine *machine, FILE *stream, PRINT_TYPE printer);
-
-// The machine must have been initialised by a previous call to `acm_create`.
-void acm_release (ACMachine *machine);
 
 #endif
