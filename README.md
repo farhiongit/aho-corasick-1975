@@ -110,7 +110,7 @@ void acm_insert_letter_of_keyword (ACState **state, void *letter);
 > A `letter` must be provided. It is a pointer to an allocated sign that must persist until the machine is release with (`acm_release`).
 > If it was allocated dynamically, it will be automatically deallocated by the machine using the destructor previously passed to `acm_create`.
 
-  - Call `acm_insert_end_of_keyword`. A definition associated to the word can be passed as second argument.
+  - Call `acm_insert_end_of_keyword`.
 
 ```c
 void *acm_insert_end_of_keyword (ACState **state, void *value, void (*dtor) (void *));
@@ -119,15 +119,21 @@ void *acm_insert_end_of_keyword (ACState **state, void *value, void (*dtor) (voi
 > [!NOTE]
 > `acm_insert_letter_of_keyword` must have been previously called at least once before `acm_insert_end_of_keyword` is called.
 >
-> The `value` fed to the machine can be allocated statically; automatically pr dynamically, as long as it persists until the machine is releases with `acm_release`.
+> The keyword is given a unique internal rank in the machine that will later be returned by calls to `acm_get_match`.
+>
+> Returns `0` if the keyword has not been previously inserted yet or has not already an associated value.
+> Otherwise, returns the previously associated value.
+>
+> A user-defined value, passed as second argument `value`, can be associated to the keyword.
+> This `value` fed to the machine can be allocated statically, automatically or dynamically, as long as it persists until the machine is releases with `acm_release`.
 >
 > If `value` is dynamically allocated:
 >
-> - a destructor `dtor` must be provided (if `value` is allocated by a single call to `malloc`, `free` is a suitable destructor.);
-> - if `acm_insert_end_of_keyword` returns `0`,
+> - A destructor `dtor` must be provided (if `value` is allocated by a single call to `malloc`, `free` is a suitable destructor.).
+> - If `acm_insert_end_of_keyword` returns `0`,
 >   - `value` could later be retrieved by a subsequent call to `acm_get_match`;
->   - `value` will be automatically deallocated by the machine at release (with a call to `acm_release`);
-> - otherwise, the passed `value` won't be managed by the machine and should be handled and free'd by the caller. For instance by:
+>   - `value` will be automatically deallocated with `dtor` by the machine at release (`acm_release`).
+> - Otherwise, the passed `value` won't be managed by the machine and should be handled and free'd by the caller. For instance by:
 
 ```c
   void *prev;
@@ -137,13 +143,6 @@ void *acm_insert_end_of_keyword (ACState **state, void *value, void (*dtor) (voi
     destructor (value);                // Deallocated by the caller.
   }
 ```
-
->
-> The keyword is given a unique internal rank in the machine that will later be returned by calls to `acm_get_match`.
->
-> Returns `0` if the keyword has not been previously inserted yet or has not already an associated value.
-> Otherwise, returns the previously associated value.
-
 
 ## Scan a text for words of the dictionary
 
