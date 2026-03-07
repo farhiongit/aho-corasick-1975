@@ -71,6 +71,26 @@ struct _ac_machine {
   DESTROY_TYPE destroy;
   mtx_t lock;
 };
+//-----------------------------------------------------------------
+static ACState *
+state_create (void) {
+  ACState *s = malloc (sizeof (*s)); /* [state s] */ // ACState allocation
+  ACM_ASSERT (s, "Out of memory.");
+  /* [g(s, a) is undefined (= fail) for all input symbol a] */
+  s->goto_array = 0;
+  s->nb_goto = 0;
+  s->previous.state = 0;
+  s->previous.i_letter = 0;
+  /* Aho-Corasick Algorithm 2: "We assume output(s) is empty when state s is first created." */
+  s->nb_sequence = 0; /* number of outputs in [output(s)] */
+  s->is_matching = 0; /* if 1, indicates that the state is the last node of a registered keyword */
+  s->fail_state = 0;
+  s->rank = 0;
+  s->value = 0;
+  s->value_dtor = 0;
+  s->machine = 0;
+  return s;
+}
 
 static ACState *
 state_goto (ACState *state, void *letter /* a[i] */) {
@@ -136,29 +156,27 @@ state_fail_state_construct (ACMachine *machine) {
   ACState **queue = 0;
   ACM_ASSERT (queue = malloc (sizeof (*queue) * (machine->size - 1)), "Out of memory.");
   /* Aho-Corasick Algorithm 3: for each a such that s != 0 [fail], where s <- g(0, a) do   [1] */
+  struct _ac_next *p = state_0->goto_array;
+  struct _ac_next *end = p + state_0->nb_goto;
+  for (; p < end; p++) /* loop on state_0->goto_array */
   {
-    struct _ac_next *p = state_0->goto_array;
-    struct _ac_next *end = p + state_0->nb_goto;
-    for (; p < end; p++) /* loop on state_0->goto_array */
-    {
-      ACState *s = p->state; /* [for each a such that s != 0 [fail], where s <- g(0, a)] */
-      /* Aho-Corasick Algorithm 3: queue <- queue U {s} */
-      queue_length++;
-      queue[queue_length - 1] = s; /* s */
-      /* Aho-Corasick Algorithm 3: f(s) <- 0 */
-      s->fail_state = state_0;
-    } /* loop on state_0->goto_array */
-  }
+    ACState *s = p->state; /* [for each a such that s != 0 [fail], where s <- g(0, a)] */
+    /* Aho-Corasick Algorithm 3: queue <- queue U {s} */
+    queue_length++;
+    queue[queue_length - 1] = s; /* s */
+    /* Aho-Corasick Algorithm 3: f(s) <- 0 */
+    s->fail_state = state_0;
+  } /* loop on state_0->goto_array */
   size_t queue_read_pos = 0;
   /* Aho-Corasick Algorithm 3: while queue != empty do */
-  while (queue_read_pos < queue_length) {
+  while (queue_read_pos < queue_length) { // Breadth-first search
     /* Aho-Corasick Algorithm 3: let r be the next state in queue */
     ACState *r = queue[queue_read_pos];
     /* Aho-Corasick Algorithm 3: queue <- queue - {r} */
     queue_read_pos++;
     /* Aho-Corasick Algorithm 3: for each a such that s != fail, where s <- g(r, a) */
-    struct _ac_next *p = r->goto_array;
-    struct _ac_next *end = p + r->nb_goto;
+    p = r->goto_array;
+    end = p + r->nb_goto;
     for (; p < end; p++) /* loop on r->goto_array */
     {
       ACState *s = p->state; /* [s <- g(r, a)] */
@@ -178,6 +196,19 @@ state_fail_state_construct (ACMachine *machine) {
   free (queue);
   machine->reconstruct = 0;
   mtx_unlock (&machine->lock);
+}
+//-----------------------------------------------------------------
+void
+acm_matcher_init (MatchHolder *matcher) {
+  ACM_ASSERT (matcher, "");
+  *matcher = (MatchHolder){ 0 };
+}
+
+void
+acm_matcher_release (MatchHolder *matcher) {
+  ACM_ASSERT (matcher, "");
+  free (matcher->letters);
+  acm_matcher_init (matcher);
 }
 
 /* Aho-Corasick Algorithm 1: Pattern matching machine - if output (state) != empty */
@@ -232,26 +263,12 @@ acm_get_match (const ACState *state, size_t index, MatchHolder *matcher, void **
     *value = state->value;
   return state->rank;
 }
-
-static ACState *
-state_create (void) {
-  ACState *s = malloc (sizeof (*s)); /* [state s] */ // ACState allocation
-  ACM_ASSERT (s, "Out of memory.");
-  /* [g(s, a) is undefined (= fail) for all input symbol a] */
-  s->goto_array = 0;
-  s->nb_goto = 0;
-  s->previous.state = 0;
-  s->previous.i_letter = 0;
-  /* Aho-Corasick Algorithm 2: "We assume output(s) is empty when state s is first created." */
-  s->nb_sequence = 0; /* number of outputs in [output(s)] */
-  s->is_matching = 0; /* if 1, indicates that the state is the last node of a registered keyword */
-  s->fail_state = 0;
-  s->rank = 0;
-  s->value = 0;
-  s->value_dtor = 0;
-  s->machine = 0;
-  return s;
+//-----------------------------------------------------------------
+static int
+acm_eq_default (const void *a, const void *b, void *eq_arg) {
+  return !memcmp (a, b, *(size_t *)eq_arg);
 }
+EQ_TYPE ACM_EQ_DEFAULT = acm_eq_default;
 
 static void
 machine_init (ACMachine *machine, ACState *state_0, EQ_TYPE eq, void *eq_arg, DESTROY_TYPE dtor) {
@@ -277,61 +294,39 @@ acm_create (EQ_TYPE eq, void *eq_arg, DESTROY_TYPE dtor) {
   return machine;
 }
 
-static void *ACM_KEYWORD_SEPARATOR = &ACM_KEYWORD_SEPARATOR;
+ACState *
+acm_initiate (ACMachine *machine) {
+  ACM_ASSERT (machine, "");
+  return machine->state_0;
+}
 
-static void *
-acm_insert_keyword (ACState **state /* Iterator */, void *letter, void *value, void (*dtor) (void *)) {
-  /* Aho-Corasick Algorithm 2: for all a such that g(0, a) = fail do g(0, a) <- 0 */
-  /* This statement is aimed to set the following property (here called the Aho-Corasick LOOP_0 property): */
-  /*   "All our pattern matching machines have the property that g(0, l) != fail for all input symbol l. */
-  /*    [...] this property of the goto function [g] on state 0 [root] ensures that one input symbol will be processed */
-  /*    by the machine in every machine cycle [state_goto]." */
-  /*   "We add a loop from state 0 to state 0 on all input symbols other than [the symbols l for which g(0, l) is already defined]. */
+/* Aho-Corasick Algorithm 2: for all a such that g(0, a) = fail do g(0, a) <- 0 */
+/* This statement is aimed to set the following property (here called the Aho-Corasick LOOP_0 property): */
+/*   "All our pattern matching machines have the property that g(0, l) != fail for all input symbol l. */
+/*    [...] this property of the goto function [g] on state 0 [root] ensures that one input symbol will be processed */
+/*    by the machine in every machine cycle [state_goto]." */
+/*   "We add a loop from state 0 to state 0 on all input symbols other than [the symbols l for which g(0, l) is already defined]. */
 
-  /* N.B.: This property is *NOT* implemented in this code after calls to enter(y[i]) because */
-  /*       it requires that the alphabet of all possible symbols is known in advance. */
-  /*       This would kill the genericity of the code. */
-  /*       Therefore, Algorithms 1, 3 and 4 *CANNOT* consider that g(0, l) never fails for any symbol l. */
-  /*       g(0, l) can fail like any other state transition. */
-  /*       Thus, the implementation slightly differs from the one proposed by Aho-Corasick. */
+/* N.B.: This property is *NOT* implemented in this code after calls to enter(y[i]) because */
+/*       it requires that the alphabet of all possible symbols is known in advance. */
+/*       This would kill the genericity of the code. */
+/*       Therefore, Algorithms 1, 3 and 4 *CANNOT* consider that g(0, l) never fails for any symbol l. */
+/*       g(0, l) can fail like any other state transition. */
+/*       Thus, the implementation slightly differs from the one proposed by Aho-Corasick. */
 
-  /* Aho-Corasick Algorithm 2: construction of the goto function - procedure enter(a[1] a[2] ... a[n]). */
-  /* Aho-Corasick Algorithm 2: state <- 0 */
+/* Aho-Corasick Algorithm 2: construction of the goto function - procedure enter(a[1] a[2] ... a[n]). */
+/* Aho-Corasick Algorithm 2: state <- 0 */
 
-  /* Should first be called with: */
-  /* Aho-Corasick Algorithm 2: state <- 0 */
-  /* Aho-Corasick Algorithm 2: j <- 1 */
-  /* Aho-Corasick Algorithm 2: while g(state, a[j]) != fail [and j <= m] do */
-  /* Iterations on i and s until a final state */
+/* Should first be called with: */
+/* Aho-Corasick Algorithm 2: state <- 0 */
+/* Aho-Corasick Algorithm 2: j <- 1 */
+/* Aho-Corasick Algorithm 2: while g(state, a[j]) != fail [and j <= m] do */
+/* Iterations on i and s until a final state */
+void
+acm_insert_letter_of_keyword (ACState **state, void *letter) {
   ACM_ASSERT (state && *state && letter, "");
   ACMachine *machine = (*state)->machine;
   mtx_lock (&machine->lock);
-  if (letter == ACM_KEYWORD_SEPARATOR) {
-    ACM_ASSERT (*state != machine->state_0, "acm_insert_letter_of_keyword should be called first.");
-    if (!(*state)->is_matching) {
-      /* Aho-Corasick Algorithm 2: output (state) <- { a[1] a[2] ... a[n] } */
-      /* Aho-Corasick Algorithm 2: "We assume output(s) is empty when state s is first created." */
-      /* Adding the sequence to the last found state (created or not) */
-      (*state)->is_matching = 1;
-      (*state)->nb_sequence = 1;
-      (*state)->rank = machine->rank++; /* rank is a 0-based index */
-      machine->nb_sequence++;
-      if (!machine->reconstruct)
-        machine->reconstruct = 2; /* f(s) must be recomputed */
-    }
-    /* Set the keyword associated value. */
-    void *ret = (*state)->value; // Previously associated value.
-    if ((*state)->value == 0) {
-      (*state)->value = value;
-      (*state)->value_dtor = dtor;
-    }
-    *state = machine->state_0; /* [state 0] */
-    mtx_unlock (&machine->lock);
-    return ret;
-  } // if (letter == ACM_KEYWORD_SEPARATOR)
-
-  // letter != ACM_KEYWORD_SEPARATOR
-  ACM_ASSERT (!value && !dtor, "");
   ACState *next = 0;
   /* Aho-Corasick Algorithm 2: "g(s, l) = fail if l is undefined or if g(s, l) has not been defined." */
   /* Loop on all symbols a for which g(state, a) is defined. */
@@ -351,7 +346,7 @@ acm_insert_keyword (ACState **state /* Iterator */, void *letter, void *value, v
     if (machine->destroy)
       machine->destroy ((void *)letter); // letter deallocation
     mtx_unlock (&machine->lock);
-    return 0;
+    return;
   }
 
   /* [g(state, a[j]) is not defined (= fail)] */
@@ -375,21 +370,62 @@ acm_insert_keyword (ACState **state /* Iterator */, void *letter, void *value, v
   *state = newstate;
   machine->size++;
   mtx_unlock (&machine->lock);
-  return 0;
-}
-
-void
-acm_insert_letter_of_keyword (ACState **state, void *letter) {
-  ACM_ASSERT (state && *state && letter, "");
-  acm_insert_keyword (state, letter, 0, 0);
 }
 
 void *
 acm_insert_end_of_keyword (ACState **state, void *value, void (*dtor) (void *)) {
   ACM_ASSERT (state && *state, "");
-  return acm_insert_keyword (state, ACM_KEYWORD_SEPARATOR, value, dtor);
+  ACMachine *machine = (*state)->machine;
+  mtx_lock (&machine->lock);
+  ACM_ASSERT (*state != machine->state_0, "acm_insert_letter_of_keyword should be called first.");
+  if (!(*state)->is_matching) {
+    /* Aho-Corasick Algorithm 2: output (state) <- { a[1] a[2] ... a[n] } */
+    /* Aho-Corasick Algorithm 2: "We assume output(s) is empty when state s is first created." */
+    /* Adding the sequence to the last found state (created or not) */
+    (*state)->is_matching = 1;
+    (*state)->nb_sequence = 1;
+    (*state)->rank = machine->rank++; /* rank is a 0-based index */
+    machine->nb_sequence++;
+    if (!machine->reconstruct)
+      machine->reconstruct = 2; /* f(s) must be recomputed */
+  }
+  /* Set the keyword associated value. */
+  void *ret = (*state)->value; // Previously associated value.
+  if ((*state)->value == 0) {
+    (*state)->value = value;
+    (*state)->value_dtor = dtor;
+  }
+  *state = machine->state_0; /* [state 0] */
+  mtx_unlock (&machine->lock);
+  return ret;
 }
 
+static void
+state_release (ACState *state, DESTROY_TYPE dtor) {
+  /* Release goto_array */
+  struct _ac_next *p = state->goto_array;
+  struct _ac_next *end = p + state->nb_goto;
+  for (; p < end; p++) {
+    state_release (p->state, dtor);
+    if (dtor)
+      dtor ((void *)p->letter); // letter deallocation
+  }
+  free (state->goto_array);
+  /* Release associated value */
+  if (state->value_dtor)
+    state->value_dtor (state->value);
+  /* Release state */
+  free ((ACState *)state);
+}
+
+void
+acm_release (ACMachine *machine) {
+  ACM_ASSERT (machine, "");
+  state_release (machine->state_0, machine->destroy);
+  mtx_destroy (&machine->lock);
+  free ((ACMachine *)machine);
+}
+//-----------------------------------------------------------------
 size_t
 acm_nb_keywords (ACMachine *machine) {
   ACM_ASSERT (machine, "");
@@ -426,39 +462,7 @@ acm_foreach_keyword (ACMachine *machine, void (*operator) (MatchHolder, void *))
   foreach_keyword (state_0, &letters, &max_length, 0, operator);
   free (letters); // letters deallocation
 }
-
-static void
-state_release (ACState *state, DESTROY_TYPE dtor) {
-  /* Release goto_array */
-  struct _ac_next *p = state->goto_array;
-  struct _ac_next *end = p + state->nb_goto;
-  for (; p < end; p++) {
-    state_release (p->state, dtor);
-    if (dtor)
-      dtor ((void *)p->letter); // letter deallocation
-  }
-  free (state->goto_array);
-  /* Release associated value */
-  if (state->value_dtor)
-    state->value_dtor (state->value);
-  /* Release state */
-  free ((ACState *)state);
-}
-
-void
-acm_release (ACMachine *machine) {
-  ACM_ASSERT (machine, "");
-  state_release (machine->state_0, machine->destroy);
-  mtx_destroy (&machine->lock);
-  free ((ACMachine *)machine);
-}
-
-ACState *
-acm_initiate (ACMachine *machine) {
-  ACM_ASSERT (machine, "");
-  return machine->state_0;
-}
-
+//-----------------------------------------------------------------
 static void
 state_print (ACState *state, FILE *stream, int indent, size_t id_state, PRINT_TYPE printer) {
   static size_t nb_states;
@@ -502,23 +506,3 @@ acm_print (ACMachine *machine, FILE *stream, PRINT_TYPE printer) {
     fprintf (stream, "\n");
   }
 }
-
-void
-acm_matcher_init (MatchHolder *matcher) {
-  ACM_ASSERT (matcher, "");
-  *matcher = (MatchHolder){ 0 };
-}
-
-void
-acm_matcher_release (MatchHolder *matcher) {
-  ACM_ASSERT (matcher, "");
-  free (matcher->letters);
-  acm_matcher_init (matcher);
-}
-
-static int
-acm_eq_default (const void *a, const void *b, void *eq_arg) {
-  return !memcmp (a, b, *(size_t *)eq_arg);
-}
-
-EQ_TYPE ACM_EQ_DEFAULT = acm_eq_default;
