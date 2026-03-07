@@ -51,17 +51,17 @@ ACState *acm_initiate (ACMachine *machine);
 // If it was allocated dynamically, it will be automatically deallocated by the machine.
 void acm_insert_letter_of_keyword (ACState **state, void *letter);
 
-// `acm_insert_letter_of_keyword` should have been previously called at least once before `acm_insert_end_of_keyword` is called.
-// The `value` will be retrieved by a subsequent call to `acm_get_match`.
-// If the `value` feed to the machine is not statically allocated until the machine is releases (with `acm_release`),
-// - `value` must be dynamically allocated.
-// - a destructor `dtor` must be provided.
-// - `value` will be automatically deallocated by the machine.
-// - if `value` is allocated by a single call to `malloc`, `free` is a suitable destructor.
-// The keyword is given a unique internal rank in the machine.
-// Returns 1 if the same keyword had not already been previously inserted or had not already an associated value.
-// Otherwise, returns 0 and the passed value won't be managed by the machine and should be handled by the caller.
-int acm_insert_end_of_keyword (ACState **state, void *value, void (*dtor) (void *));
+// acm_insert_letter_of_keyword must have been previously called at least once before acm_insert_end_of_keyword is called.
+// The value fed to the machine can be allocated statically; automatically pr dynamically, as long as it persists until the machine is releases with acm_release.
+// If value is dynamically allocated:
+// - a destructor dtor must be provided (if value is allocated by a single call to malloc, free is a suitable destructor.)
+// - if acm_insert_end_of_keyword returns 0,
+//   - value could later be retrieved by a subsequent call to acm_get_match;
+//   - value will be automatically deallocated by the machine at release (with a call to acm_release);
+// - otherwise, the passed `value` won't be managed by the machine and should be handled and free'd by the caller.
+// The keyword is given a unique internal rank in the machine that will later be returned by calls to acm_get_match.
+// Returns 0 if the keyword has not been previously inserted yet or has not already an associated value. Otherwise, returns the previously associated value.
+void *acm_insert_end_of_keyword (ACState **state, void *value, void (*dtor) (void *));
 
 // A state msut have been initialised with `acm_initiate` before the first call to `acm_match`.
 // A `letter` must be provided.

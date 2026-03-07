@@ -279,7 +279,7 @@ acm_create (EQ_TYPE eq, void *eq_arg, DESTROY_TYPE dtor) {
 
 static void *ACM_KEYWORD_SEPARATOR = &ACM_KEYWORD_SEPARATOR;
 
-static int
+static void *
 acm_insert_keyword (ACState **state /* Iterator */, void *letter, void *value, void (*dtor) (void *)) {
   /* Aho-Corasick Algorithm 2: for all a such that g(0, a) = fail do g(0, a) <- 0 */
   /* This statement is aimed to set the following property (here called the Aho-Corasick LOOP_0 property): */
@@ -320,11 +320,10 @@ acm_insert_keyword (ACState **state /* Iterator */, void *letter, void *value, v
         machine->reconstruct = 2; /* f(s) must be recomputed */
     }
     /* Set the keyword associated value. */
-    int ret = 0;
-    if ((*state)->value == 0 && (*state)->value_dtor == 0) {
+    void *ret = (*state)->value; // Previously associated value.
+    if ((*state)->value == 0) {
       (*state)->value = value;
       (*state)->value_dtor = dtor;
-      ret = 1;
     }
     *state = machine->state_0; /* [state 0] */
     mtx_unlock (&machine->lock);
@@ -352,7 +351,7 @@ acm_insert_keyword (ACState **state /* Iterator */, void *letter, void *value, v
     if (machine->destroy)
       machine->destroy ((void *)letter); // letter deallocation
     mtx_unlock (&machine->lock);
-    return 1;
+    return 0;
   }
 
   /* [g(state, a[j]) is not defined (= fail)] */
@@ -376,7 +375,7 @@ acm_insert_keyword (ACState **state /* Iterator */, void *letter, void *value, v
   *state = newstate;
   machine->size++;
   mtx_unlock (&machine->lock);
-  return 1;
+  return 0;
 }
 
 void
@@ -385,7 +384,7 @@ acm_insert_letter_of_keyword (ACState **state, void *letter) {
   acm_insert_keyword (state, letter, 0, 0);
 }
 
-int
+void *
 acm_insert_end_of_keyword (ACState **state, void *value, void (*dtor) (void *)) {
   ACM_ASSERT (state && *state, "");
   return acm_insert_keyword (state, ACM_KEYWORD_SEPARATOR, value, dtor);

@@ -113,25 +113,36 @@ void acm_insert_letter_of_keyword (ACState **state, void *letter);
   - Call `acm_insert_end_of_keyword`. A definition associated to the word can be passed as second argument.
 
 ```c
-int acm_insert_end_of_keyword (ACState **state, void *value, void (*dtor) (void *));
+void *acm_insert_end_of_keyword (ACState **state, void *value, void (*dtor) (void *));
 ```
 
 > [!NOTE]
 > `acm_insert_letter_of_keyword` must have been previously called at least once before `acm_insert_end_of_keyword` is called.
 >
-> If the `value` fed to the machine is not statically allocated until the machine is releases (with `acm_release`),
+> The `value` fed to the machine can be allocated statically; automatically pr dynamically, as long as it persists until the machine is releases with `acm_release`.
 >
-> - `value` must be dynamically allocated.
-> - a destructor `dtor` must be provided.
-> - `value` will be automatically deallocated by the machine.
-> - if `value` is allocated by a single call to `malloc`, `free` is a suitable destructor.
+> If `value` is dynamically allocated:
 >
-> The keyword is given a unique internal rank in the machine that will be later returned by calls to `acm_get_match`.
+> - a destructor `dtor` must be provided (if `value` is allocated by a single call to `malloc`, `free` is a suitable destructor.);
+> - if `acm_insert_end_of_keyword` returns `0`,
+>   - `value` could later be retrieved by a subsequent call to `acm_get_match`;
+>   - `value` will be automatically deallocated by the machine at release (with a call to `acm_release`);
+> - otherwise, the passed `value` won't be managed by the machine and should be handled and free'd by the caller. For instance by:
+
+```c
+  void *prev;
+  if (( prev = acm_insert_end_of_keyword (&state, value, destructor)))
+  {
+    *prev = appender (prev, value);    // Handled by a user defined appender.
+    destructor (value);                // Deallocated by the caller.
+  }
+```
+
 >
-> Returns `1` if the same keyword had not already been previously inserted or had not already an associated value.
-> The `value` will be later retrieved by a subsequent call to `acm_get_match`.
+> The keyword is given a unique internal rank in the machine that will later be returned by calls to `acm_get_match`.
 >
-> Otherwise, returns `0` and the passed `value` won't be managed by the machine and should be handled by the caller.
+> Returns `0` if the keyword has not been previously inserted yet or has not already an associated value.
+> Otherwise, returns the previously associated value.
 
 
 ## Scan a text for words of the dictionary
