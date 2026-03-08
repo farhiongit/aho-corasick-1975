@@ -266,34 +266,34 @@ void acm_foreach_keyword (ACMachine *machine, void (*operator) (MatchHolder, voi
 
 # Implementation
 
-Compared to the implementation proposed by Aho and Corasick, this one adds several original enhancements (not seen anywhere else):
+Compared to the implementation proposed by Aho and Corasick, this one adds several original enhancements:
 
 1. First of all, it does not make any assumption on the size of the alphabet used.
-Particularly, unlike most implementations, the alphabet is not limited to 256 signs of type `char`.
-For instance, if the type of signs is defined as `long long int` rather than the usual `char`,
-then the number of possible signs would be 18446744073709551616 !
+   Particularly, unlike most implementations, the alphabet is not limited to 256 signs of type `char`.
+   For instance, if the type of signs is defined as `long long int` rather than the usual `char`,
+   then the number of possible signs would be 18446744073709551616 !
 
-For this to be possible, the three algorithms of the original paper have been ajusted:
+   For this to be possible, the three algorithms of the original paper have been ajusted:
 
-- The assertion "for all a such that g(0, a) = `fail` do g(0, a) <- 0" in the Aho-Corasick paper,
-  at the end of algorithm 2 can not be fulfilled because it would require to set g(0, a) for all the values of 'a'
-  in the set of possible values of the alphabet,
-  and thus would require to allocate (if not exhaust) a lot of memory.
-- Therefore, rather than being assigned to 0, g(0, a) is kept equal to `fail` (i.e. g(0, a) is kept undefined) for all 'a'
-  not being the first sign (g(0, a)) of a registered keyword.
-- Nevertheless, for the state machine to work properly, it must behave as if g(0, a) would be equal to 0 whenever g(0, a) = fail
-  after algorithm 2 has ended: thus, algorithms 1 and 3 (called after algorithm 2) must be adapted accordingly
-  (modifications are tagged with [1], [2] and [3] in the code):
+   - The assertion "for all a such that g(0, a) = `fail` do g(0, a) <- 0" in the Aho-Corasick paper,
+     at the end of algorithm 2 can not be fulfilled because it would require to set g(0, a) for all the values of 'a'
+     in the set of possible values of the alphabet,
+     and thus would require to allocate (if not exhaust) a lot of memory.
+   - Therefore, rather than being assigned to 0, g(0, a) is kept equal to `fail` (i.e. g(0, a) is kept undefined) for all 'a'
+     not being the first sign (g(0, a)) of a registered keyword.
+   - Nevertheless, for the state machine to work properly, it must behave as if g(0, a) would be equal to 0 whenever g(0, a) = fail
+     after algorithm 2 has ended: thus, algorithms 1 and 3 (called after algorithm 2) must be adapted accordingly
+     (modifications are tagged with [1], [2] and [3] in the code):
 
-  - [1] g(0, a) = (resp. !=) 0 must be replaced by: g(0, a) = (resp. !=) fail
-  - [2] g(state, a) = fail must be replaced by: g(state, a) = fail and state != 0
-  - [3] s <- g(state, a) must be replaced by: if g(state, a) != fail then s <- g(state, a) else s <- 0
+     - [1] g(0, a) = (resp. !=) 0 must be replaced by: g(0, a) = (resp. !=) fail
+     - [2] g(state, a) = fail must be replaced by: g(state, a) = fail and state != 0
+     - [3] s <- g(state, a) must be replaced by: if g(state, a) != fail then s <- g(state, a) else s <- 0
 
 2. To reduce the memory footprint, the implementation does not store output keywords associated to states.
    Instead, it reconstructs the matching keywords by traversing the branch of the tree backward.
    (Attributes `previous` and `is_matching` are added the the state object ACState, see code of `acm_get_match`).
 3. It permits to search for keywords even though all keywords have not been registered yet.
-   In other words, a new keyword can be registered with iterative calls to `acm_insert_letter_of_keyword` alternatively or concurrently with calls to `acm_match`
+   In other words, a new keyword can be registered with iterative calls to `acm_insert_letter_of_keyword` and `acm_insert_end_of_keyword` alternatively or concurrently with calls to `acm_match`
    without disrupting the current match search.
    To achieve this, failure states are reconstructed after every registration of a new keyword
    (see `acm_insert_keyword` which alternates calls to algorithms 2 and 3.)
@@ -301,13 +301,13 @@ For this to be possible, the three algorithms of the original paper have been aj
    This rank is afterwards returned by `acm_get_match` and can be used, for a given state machine, as a unique identifier of a keyword.
 5. It can associate user allocated and defined values to registered keywords,
    and retrieve them together with the found keywords:
-  - two arguments are passed to `acm_insert_end_of_keyword` calls: a pointer to a previously allocated value,
-    and a pointer to function for deallocation of the associated value. This function will be called when the state machine will be release
-    by `acm_release`.
-  - a fourth argument is passed to `acm_get_match` calls: the address of a pointer to an associated value.
-    The pointer to associated value is modified by `acm_get_match` to the address of the value associated to the keyword.
+   - two arguments are passed to `acm_insert_end_of_keyword` calls: a pointer to a previously allocated value,
+     and a pointer to function for deallocation of the associated value. This function will be called when the state machine will be release
+     by `acm_release`.
+   - a fourth argument is passed to `acm_get_match` calls: the address of a pointer to an associated value.
+     The pointer to associated value is modified by `acm_get_match` to the address of the value associated to the keyword.
 6. It extends the state machine in order to be used as well as an indexed dictionary of keywords:
-  - `acm_foreach_keyword()` applies a user defined operator to each keyword of the state machine.
+   - `acm_foreach_keyword()` applies a user defined operator to each keyword of the state machine.
 7. All functions are thread-safe. Therefore, a given shared Aho-Corasick machine can be used by multiple threads concurrently to insert keywords or to scan different texts for matching keywords.
 8. It is short (about 500 effective lines of code.)
 9. Last but not least, it is very fast. On my slow HD and slow CPU old computer, it takes 0.92 seconds to register 370,099 keywords

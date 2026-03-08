@@ -1,5 +1,4 @@
-/*
- * Copyright 2026 Laurent Farhi
+/* Copyright 2026 Laurent Farhi
  * Contact: lfarhi@sfr.fr
  *
  *  This file is free software: you can redistribute it and/or modify
@@ -27,10 +26,10 @@
       fprintf (stderr, "FATAL ERROR: A prerequisite is not fulfilled in function %s.\n", __func__); \
       fprintf (stderr, "             ");                                                            \
       if ((msg)[0] != 0)                                                                            \
-        fprintf (stderr, "%s\n", ("" msg));                                                         \
+        fprintf (stderr, "%s\n", ("" msg)); /* msg must be a static string */                       \
       else                                                                                          \
         fprintf (stderr, "The condition (%s) is false.\n", #cond);                                  \
-      abort ();                                                                                     \
+      thrd_exit (EXIT_FAILURE);                                                                     \
     }                                                                                               \
   } while (0)
 
@@ -49,46 +48,35 @@ struct _ac_state /* [state s] */
     size_t i_letter; /* Index of the letter in the goto_array */
     /* letter = previous.state->goto_array[previous.i_letter].letter */
     struct _ac_state *state;
-  } previous;                   /* Previous state */
+  } previous;                   /* Previous state (to build the outputs of the matches) */
   struct _ac_state *fail_state; /* [f(s)] is the continuation of a keyword on another branch */
   int is_matching;              /* true if the state matches a keyword. */
-  size_t nb_sequence;           /* Number of matching keywords (Aho-Corasick : size (output (s)) */
+  size_t nb_outputs;            /* Number of matching keywords (Aho-Corasick : size (output (s)) */
   size_t rank;                  /* Rank (0-based) of insertion of a keyword in the machine. */
   size_t id;                    /* state UID */
   void *value;                  /* An optional value associated to a state. */
   void (*value_dtor) (void *);  /* Destructor of the associated value, called at state machine release. */
-  ACMachine *machine;           /* Owner machine the state belongs to */
+  ACMachine *machine;           /* Machine the state belongs to */
 };
 
 struct _ac_machine {
   struct _ac_state *state_0; /* state 0 */
   size_t rank;               /* Number of keywords registered in the machine. */
-  size_t nb_sequence;        /* Number of keywords in the machine. */
-  int reconstruct;
-  size_t size;
+  size_t nb_sequences;       /* Number of keywords in the machine. */
+  size_t reconstruct;        /* Number of new keywords since the last fail-states (re)construction */
+  size_t size;               /* Number of states in the machine. */
   EQ_TYPE eq;
   void *eq_arg;
   DESTROY_TYPE destroy;
-  mtx_t lock;
+  mtx_t token;
 };
 //-----------------------------------------------------------------
 static ACState *
 state_create (void) {
-  ACState *s = malloc (sizeof (*s)); /* [state s] */ // ACState allocation
+  ACState *s = calloc (1, sizeof (*s)); /* [state s] */ // ACState allocation, all attributes set to 0
   ACM_ASSERT (s, "Out of memory.");
-  /* [g(s, a) is undefined (= fail) for all input symbol a] */
-  s->goto_array = 0;
-  s->nb_goto = 0;
-  s->previous.state = 0;
-  s->previous.i_letter = 0;
-  /* Aho-Corasick Algorithm 2: "We assume output(s) is empty when state s is first created." */
-  s->nb_sequence = 0; /* number of outputs in [output(s)] */
-  s->is_matching = 0; /* if 1, indicates that the state is the last node of a registered keyword */
-  s->fail_state = 0;
-  s->rank = 0;
-  s->value = 0;
-  s->value_dtor = 0;
-  s->machine = 0;
+  /* [g(s, a) is undefined (= fail) for all input symbol a] : s->nb_goto = 0, s->goto_array = 0 */
+  /* Aho-Corasick Algorithm 2: "We assume output(s) is empty when state s is first created." : s->nb_outputs = 0 */
   return s;
 }
 
@@ -112,8 +100,8 @@ state_goto (ACState *state, void *letter /* a[i] */) {
     /* After Algorithm 3 has been processed, the only state for which f(state) = 0 is state 0. */
     /* [if g(state, a[i]) = fail and state = 0 then return state 0] */
     /* Aho-Corasick Algorithm: "(except state 0 for which the failure function is not defined)." */
-    if (state->fail_state == 0)
-      return state;
+    if (state == state->machine->state_0)
+      return state; /* fail_state is never used for state_0. */
     /* From here, [state != 0] */
 
     /* [if g(state, a[i]) = fail and state != 0 then state <- f(state) */
@@ -124,34 +112,31 @@ state_goto (ACState *state, void *letter /* a[i] */) {
 static void
 state_reset_output (ACState *r) {
   if (r->is_matching)
-    r->nb_sequence = 1; /* Reset to original output (as in state_goto_update) */
+    r->nb_outputs = 1; /* Reset to original output (as in state_goto_update) */
   else
-    r->nb_sequence = 0;
+    r->nb_outputs = 0;
   struct _ac_next *p = r->goto_array;
   struct _ac_next *end = p + r->nb_goto;
   for (; p < end; p++)
     state_reset_output (p->state);
 }
 
-/* Aho-Corasick Algorithm 3: construction of the failure function. */
+/* Aho-Corasick Algorithm 3: construction of the failure function and outputs. */
 static void
 state_fail_state_construct (ACMachine *machine) {
   ACState *state_0 = machine->state_0; /* [state 0] */
   /* Double-checked locking */
   if (!machine->reconstruct)
     return;
-  mtx_lock (&machine->lock);
+  ACM_ASSERT (mtx_lock (&machine->token) == thrd_success, "");
   if (!machine->reconstruct) {
-    mtx_unlock (&machine->lock);
+    ACM_ASSERT (mtx_unlock (&machine->token) == thrd_success, "");
     return;
   }
 
-  if (machine->reconstruct == 2)
-    state_reset_output (state_0);
+  state_reset_output (state_0);
   /* Aho-Corasick Algorithm: "(except state 0 for which the failure function is not defined)." */
-  state_0->fail_state = 0;
   /* Aho-Corasick Algorithm 3: queue <- empty */
-  /* The first element in the queue will not be processed, therefore it can be added harmlessly. */
   size_t queue_length = 0;
   ACState **queue = 0;
   ACM_ASSERT (queue = malloc (sizeof (*queue) * (machine->size - 1)), "Out of memory.");
@@ -190,12 +175,12 @@ state_fail_state_construct (ACMachine *machine) {
       /*                           [if g(state, a) != fail then] f(s) <- g(state, a) [else f(s) <- 0]    [3] */
       s->fail_state /* f(s) */ = state_goto (state, a);
       /* Aho-Corasick Algorithm 3: output (s) <-output (s) U output (f(s)) */
-      s->nb_sequence += s->fail_state->nb_sequence;
+      s->nb_outputs += s->fail_state->nb_outputs;
     } /* loop on r->goto_array */
   } /* while (queue_read_pos < queue_length) */
   free (queue);
   machine->reconstruct = 0;
-  mtx_unlock (&machine->lock);
+  ACM_ASSERT (mtx_unlock (&machine->token) == thrd_success, "");
 }
 //-----------------------------------------------------------------
 void
@@ -223,7 +208,7 @@ acm_match (ACState **state, void *letter) {
   ACM_ASSERT (state && *state && letter, "");
   ACMachine *machine = (*state)->machine;
   state_fail_state_construct (machine);
-  return (*state = state_goto (*state, letter))->nb_sequence;
+  return (*state = state_goto (*state, letter))->nb_outputs;
 }
 
 /* Aho-Corasick Algorithm 1: Pattern matching machine - print output (state) [ith element] */
@@ -231,12 +216,14 @@ size_t
 acm_get_match (const ACState *state, size_t index, MatchHolder *matcher, void **value) {
   /* Aho-Corasick Algorithm 1: if output(state) [ith element] */
   ACM_ASSERT (state, "");
-  ACM_ASSERT (index < state->nb_sequence, "Index out of bounds");
+  ACM_ASSERT (state != state->machine->state_0, "acm_match should be called first.");
+  ACM_ASSERT (index < state->nb_outputs, "Index out of bounds.");
   size_t i = 0;
-  // Starting from state, search for the index-th matching keyword:
-  for (; state; state = state->fail_state, i++ /* skip to the next failing state */) {
+  // Starting from state, search for the index-th matching keyword in the "failing states" chain:
+  for (; state; state = state->fail_state, i++ /* skip to the next failing state (next matching keyword) */) {
+    /* state != state->machine->state_0, since index < state->nb_outputs */
     /* Look for the first state in the "failing states" chain which matches a keyword. */
-    while (!state->is_matching && state->fail_state)
+    while (!state->is_matching)
       state = state->fail_state;
     if (i == index)
       break;
@@ -270,27 +257,19 @@ acm_eq_default (const void *a, const void *b, void *eq_arg) {
 }
 EQ_TYPE ACM_EQ_DEFAULT = acm_eq_default;
 
-static void
-machine_init (ACMachine *machine, ACState *state_0, EQ_TYPE eq, void *eq_arg, DESTROY_TYPE dtor) {
-  machine->reconstruct = 1; /* f(s) is undefined and has not been computed yet */
-  machine->size = 1;
-  machine->state_0 = state_0;
-  state_0->machine = machine;
-  machine->rank = machine->nb_sequence = 0;
-  machine->eq = eq;
-  machine->eq_arg = eq_arg;
-  machine->destroy = dtor;
-  mtx_init (&machine->lock, mtx_plain);
-}
-
 ACMachine *
 acm_create (EQ_TYPE eq, void *eq_arg, DESTROY_TYPE dtor) {
   ACM_ASSERT (eq, "An equality operator should be provided.");
-  ACMachine *machine = malloc (sizeof (*machine)); // ACMachine allocation
+  ACMachine *machine = calloc (1, sizeof (*machine)); // ACMachine allocation, all attributes set to 0.
   ACM_ASSERT (machine, "Out of memory.");
   /* Aho-Corasick Algorithm 2: newstate <- 0 */
   /* Create state 0. */
-  machine_init (machine, state_create (), eq, eq_arg, dtor);
+  machine->size = 1;
+  (machine->state_0 = state_create ())->machine = machine;
+  machine->eq = eq;
+  machine->eq_arg = eq_arg;
+  machine->destroy = dtor;
+  ACM_ASSERT (mtx_init (&machine->token, mtx_plain) == thrd_success, "");
   return machine;
 }
 
@@ -326,7 +305,7 @@ void
 acm_insert_letter_of_keyword (ACState **state, void *letter) {
   ACM_ASSERT (state && *state && letter, "");
   ACMachine *machine = (*state)->machine;
-  mtx_lock (&machine->lock);
+  ACM_ASSERT (mtx_lock (&machine->token) == thrd_success, "");
   ACState *next = 0;
   /* Aho-Corasick Algorithm 2: "g(s, l) = fail if l is undefined or if g(s, l) has not been defined." */
   /* Loop on all symbols a for which g(state, a) is defined. */
@@ -345,7 +324,7 @@ acm_insert_letter_of_keyword (ACState **state, void *letter) {
     /* Aho-Corasick Algorithm 2: j <- j + 1 */
     if (machine->destroy)
       machine->destroy ((void *)letter); // letter deallocation
-    mtx_unlock (&machine->lock);
+    ACM_ASSERT (mtx_unlock (&machine->token) == thrd_success, "");
     return;
   }
 
@@ -369,25 +348,25 @@ acm_insert_letter_of_keyword (ACState **state, void *letter) {
   /* Aho-Corasick Algorithm 2: state <- newstate */
   *state = newstate;
   machine->size++;
-  mtx_unlock (&machine->lock);
+  ACM_ASSERT (mtx_unlock (&machine->token) == thrd_success, "");
 }
 
 void *
 acm_insert_end_of_keyword (ACState **state, void *value, void (*dtor) (void *)) {
   ACM_ASSERT (state && *state, "");
   ACMachine *machine = (*state)->machine;
-  mtx_lock (&machine->lock);
+  ACM_ASSERT (mtx_lock (&machine->token) == thrd_success, "");
   ACM_ASSERT (*state != machine->state_0, "acm_insert_letter_of_keyword should be called first.");
   if (!(*state)->is_matching) {
     /* Aho-Corasick Algorithm 2: output (state) <- { a[1] a[2] ... a[n] } */
     /* Aho-Corasick Algorithm 2: "We assume output(s) is empty when state s is first created." */
     /* Adding the sequence to the last found state (created or not) */
-    (*state)->is_matching = 1;
-    (*state)->nb_sequence = 1;
-    (*state)->rank = machine->rank++; /* rank is a 0-based index */
-    machine->nb_sequence++;
-    if (!machine->reconstruct)
-      machine->reconstruct = 2; /* f(s) must be recomputed */
+    (*state)->is_matching = 1; // The state is the last node of a registered keyword.
+    (*state)->nb_outputs = 1;
+    (*state)->rank = machine->rank++; // rank is a 0-based index.
+    machine->nb_sequences++;
+    if (!++machine->reconstruct) // Manage overflow.
+      machine->reconstruct = 1;  // f(s) must be recomputed.
   }
   /* Set the keyword associated value. */
   void *ret = (*state)->value; // Previously associated value.
@@ -396,7 +375,7 @@ acm_insert_end_of_keyword (ACState **state, void *value, void (*dtor) (void *)) 
     (*state)->value_dtor = dtor;
   }
   *state = machine->state_0; /* [state 0] */
-  mtx_unlock (&machine->lock);
+  ACM_ASSERT (mtx_unlock (&machine->token) == thrd_success, "");
   return ret;
 }
 
@@ -422,14 +401,14 @@ void
 acm_release (ACMachine *machine) {
   ACM_ASSERT (machine, "");
   state_release (machine->state_0, machine->destroy);
-  mtx_destroy (&machine->lock);
+  mtx_destroy (&machine->token);
   free ((ACMachine *)machine);
 }
 //-----------------------------------------------------------------
 size_t
 acm_nb_keywords (ACMachine *machine) {
   ACM_ASSERT (machine, "");
-  return machine->nb_sequence;
+  return machine->nb_sequences;
 }
 
 static void
@@ -490,7 +469,7 @@ state_print (ACState *state, FILE *stream, int indent, size_t id_state, PRINT_TY
     cur_pos += fprintf (stream, "(%03zu)", state->goto_array[i].state->id);
     if (state->goto_array[i].state->is_matching)
       cur_pos += fprintf (stream, "[#%zu]", state->goto_array[i].state->rank);
-    if (state->goto_array[i].state->fail_state && state->goto_array[i].state->fail_state != state->machine->state_0)
+    if (state->goto_array[i].state->fail_state != state->machine->state_0)
       cur_pos += fprintf (stream, "(-->%03zu)", state->goto_array[i].state->fail_state->id);
     state_print (state->goto_array[i].state, stream, cur_pos, nb_states, printer);
   }
