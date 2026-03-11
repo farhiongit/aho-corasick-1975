@@ -157,6 +157,30 @@ main (void) {
   acm_release (M);
 
   /****************** Second test ************************/
+  clock_t myclock = clock ();
+  M = acm_create (ACM_EQ_DEFAULT, &(size_t){ sizeof (char) }, free);
+  const size_t NB_KEYWORD = 100000;
+  const size_t KEYWORD_LENGTH = 5;
+  state = acm_initiate (M);
+  for (size_t i = 0; i < NB_KEYWORD; i++) {
+    for (size_t j = 0; j < KEYWORD_LENGTH; j++) {
+      char *c = malloc (sizeof (*c));
+      *c = (char)('a' + rand () % 26);
+      acm_insert_letter_of_keyword (&state, c);
+    }
+    acm_insert_end_of_keyword (&state, 0, 0);
+  }
+  printf ("%'zu keywords created in %f s.\n", acm_nb_keywords (M), (double)(clock () - myclock) / CLOCKS_PER_SEC);
+  myclock = clock ();
+  size_t nb_matches = 0;
+  const size_t TEXT_LENGTH = 10000000;
+  state = acm_initiate (M);
+  for (size_t k = 0; k < TEXT_LENGTH; k++)
+    nb_matches += acm_match (&state, &(char){ (char)('a' + rand () % 26) });
+  acm_release (M);
+  printf ("%'zu matches found in a text of %'zu characters in %f s.\n", nb_matches, TEXT_LENGTH, (double)(clock () - myclock) / CLOCKS_PER_SEC);
+
+  /****************** Third test ************************/
   // This test counts the number of time the words in the English dictionary ("words") appear
   // in the Woolf's book Mrs Dalloway ("mrs_dalloway.txt").
   // The dictionary is built up incrementally from the novel and not list of words.
@@ -171,7 +195,7 @@ main (void) {
   if (stream == 0)
     exit (EXIT_FAILURE);
 
-  clock_t myclock = clock ();
+  myclock = clock ();
   // 7. Initialise a state with `acm_initiate (machine)`
   state = acm_initiate (M);
   // 8. Inject symbols of the text, one at a time.
