@@ -22,9 +22,9 @@
 
 typedef struct
 {
-  void **letters; /* An array of pointers to symbols */
-  size_t length;  /* Length of the array */
-  size_t rank;    /* Rank of the registered keyword */
+  const void **letters; /* An array of pointers to symbols */
+  size_t length;        /* Length of the array */
+  size_t rank;          /* Rank of the registered keyword */
 } MatchHolder;
 
 typedef struct _ac_state ACState;
@@ -66,7 +66,7 @@ void *acm_insert_end_of_keyword (ACState **state, void *value, void (*dtor) (voi
 // A state msut have been initialised with `acm_initiate` before the first call to `acm_match`.
 // A `letter` must be provided.
 // Returns the number of matches found.
-size_t acm_match (ACState **state, void *letter);
+size_t acm_match (ACState **state, const void *letter);
 
 // A `MatchHolder` can be used to retrieve several matches (with `acm_get_match`) of different match searches (with `acm_match`).
 // a `MatchHolder` must be release by a subsequent call to `acm_match_release` after use.
@@ -96,5 +96,6 @@ void acm_release (ACMachine *machine);
 // For debugging purpose.
 typedef int (*PRINT_TYPE) (FILE *, const void *letter);
 void acm_print (ACMachine *machine, FILE *stream, PRINT_TYPE printer);
+extern const int ACM_INCREMENTAL_STRING_MATCHING; // # If set, incremental string matching (Meyer, 1985) is used. Otherwise, original Aho-Corasick algorithm is used (NMEYER_85 defined at compile time).
 
 #endif

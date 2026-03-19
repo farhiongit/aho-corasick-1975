@@ -44,6 +44,8 @@ This project offers an efficient [implementation](#implementation) of the Aho-Co
 - The interface is minimal, complete and easy to use.
 - The implementation has low memory footprint and is fast.
 
+The implementation is also enhanced by the concise [Incremental String Matching](https://se.inf.ethz.ch/~meyer/publications/string/string_matching.pdf) proposal by Meyer in 1985.
+
 Hope this helps. Let me know !
 
 # Usage
@@ -306,12 +308,18 @@ Compared to the implementation proposed by Aho and Corasick, this one adds sever
      by `acm_release`.
    - a fourth argument is passed to `acm_get_match` calls: the address of a pointer to an associated value.
      The pointer to associated value is modified by `acm_get_match` to the address of the value associated to the keyword.
-6. It extends the state machine in order to be used as well as an indexed dictionary of keywords:
-   - `acm_foreach_keyword()` applies a user defined operator to each keyword of the state machine.
-7. All functions are thread-safe. Therefore, a given shared Aho-Corasick machine can be used by multiple threads concurrently to insert keywords or to scan different texts for matching keywords.
-8. It is short (about 500 effective lines of code.)
-9. Last but not least, it is very fast. On my slow HD and slow CPU old computer, it takes 0.92 seconds to register 370,099 keywords
+6. All functions are thread-safe. Therefore, a given shared Aho-Corasick machine can be used by multiple threads concurrently to insert keywords or to scan different texts for matching keywords.
+7. It is short (about 500 effective lines of code.)
+8. Last but not least, it is very fast. On my slow HD and slow CPU old computer, it takes 0.92 seconds to register 370,099 keywords
    with a total of 3,864,776 characters, and 0.12 seconds to find (and count occurencies of) those keywords in a text of 376,617 characters.
+
+Step 3 uses:
+
+- either (when the macro `NMEYER_85` is defined at compile time of `aho_corasick.c`) a full reconstruction of the failure states (as proposed by Aho and Corasick in their paper) before the next match search ;
+- or (by default) an incremental reconstruction of the failure states (as proposed by B. Meyer in his paper
+  [Incremental String Matching](https://se.inf.ethz.ch/~meyer/publications/string/string_matching.pdf), 1985) after a new keyword is entered
+  with one correction to make `Complete_failure`  also correctly compute `F[T[n,c]]` (set to state `0`) for the initial state `n` equal to state `0` (this is required by `Enter_child`).
+  This alternative makes use of the [minimaps](https://github.com/farhiongit/minimaps) library.
 
 # Example
 

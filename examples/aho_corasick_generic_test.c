@@ -4,6 +4,7 @@
 #include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <time.h>
 #include <wchar.h>
 #include <wctype.h>
@@ -62,18 +63,17 @@ alphaeq (const void *k, const void *t, void *eq_arg) {
 int
 main (void) {
   setlocale (LC_ALL, "");
-
-  /****************** First test ************************/
+  printf ("Incremental string matching (Meyer, 1985) in %suse.\n", ACM_INCREMENTAL_STRING_MATCHING ? "" : "NOT ");
+  printf ("/****************** First test ************************/\n");
   // This test constructs and plays with the graph from the original paper of Aho-Corasick.
   // The text where keywords are searched for.
-  static wchar_t text[] = L"He found his pencil, but she could not find hers (Hi! Ushers !!)";
+  static wchar_t text[] = L"He found his pencil, but she could not find hers (Hi! Ushers !! --abcdefgh--)";
 
   // 4. Initialise a state machine of type ACMachine (T) using ACM_create (T):
   ACMachine *M = acm_create (ACM_EQ_DEFAULT, &(size_t){ sizeof (*text) } /* creates a automatic variable on the fly */, 0 /* letters are automatically allocated */);
   assert (acm_match (&(ACState *){ acm_initiate (M) }, &(wchar_t){ L'a' }) == 0); // No keyword in the dictionary yet.
 
   // Declares all the keywords
-  // "hers" appears twice and will not be registered twice, not replacing the first registration.
 #define LIST_OF_KEYWORDS \
   X (L"he", 1, 0)        \
   X (L"she", 1, 1)       \
@@ -87,8 +87,20 @@ main (void) {
   X (L"hers", 0, 14)     \
   X (L"hen", 1, 10)      \
   X (L"hen", 0, 21)      \
-  X (L"pen", 1, 12)      \
-  X (L"pen", 0, 25)
+  X (L"bcdef", 1, 12)    \
+  X (L"pen", 1, 13)      \
+  X (L"cdefg", 1, 14)    \
+  X (L"pen", 0, 28)      \
+  X (L"bcd", 0, 24)      \
+  X (L"abc", 1, 17)      \
+  X (L"abcd", 1, 18)     \
+  X (L"abcde", 0, 26)    \
+  X (L"bcde", 1, 20)     \
+  X (L"cde", 1, 21)      \
+  X (L"cd", 1, 22)       \
+  X (L"bc", 1, 23)       \
+  X (L"u", 1, 24)        \
+  X (L"uu", 1, 25)
 
   ACState *state = acm_initiate (M);
 #define X(...) +1
@@ -114,9 +126,9 @@ main (void) {
 #undef X
 
   printf (" [%zu]\n", acm_nb_keywords (M));
-  acm_print (M, stdout, print_wchar_t);
   acm_foreach_keyword (M, print_match);
   printf (" [%zu]\n", acm_nb_keywords (M));
+  acm_print (M, stdout, print_wchar_t);
 
   print_keyword (text, wcslen (text));
   printf ("\n");
@@ -156,31 +168,34 @@ main (void) {
   acm_matcher_release (&match);
   acm_release (M);
 
-  /****************** Second test ************************/
-  clock_t myclock = clock ();
-  M = acm_create (ACM_EQ_DEFAULT, &(size_t){ sizeof (char) }, free);
-  const size_t NB_KEYWORD = 100000;
+  printf ("/****************** Second test ************************/\n");
+  const size_t NB_INCEREMENTS = 10;
+  const size_t NB_KEYWORDS = 100000;
   const size_t KEYWORD_LENGTH = 5;
-  state = acm_initiate (M);
-  for (size_t i = 0; i < NB_KEYWORD; i++) {
-    for (size_t j = 0; j < KEYWORD_LENGTH; j++) {
-      char *c = malloc (sizeof (*c));
-      *c = (char)('a' + rand () % 26);
-      acm_insert_letter_of_keyword (&state, c);
+  const size_t TEXT_LENGTH = 1000000;
+  char ALPHABET[] = "abcdefghijklmnopqrstuvwxyz";
+  clock_t myclock = clock ();
+  M = acm_create (ACM_EQ_DEFAULT, &(size_t){ sizeof (char) }, 0);
+  ACState *ts = acm_initiate (M); // Initialise once.
+  ACState *ks = acm_initiate (M); // Initialise once.
+  size_t nb_keywords = 0;
+  for (size_t l = 0; l < NB_INCEREMENTS; l++) {
+    for (size_t i = 0; i < NB_KEYWORDS; i++) {
+      for (size_t j = 0; j < KEYWORD_LENGTH; j++)
+        acm_insert_letter_of_keyword (&ks, &ALPHABET[(size_t)rand () % strlen (ALPHABET)]);
+      acm_insert_end_of_keyword (&ks, 0, 0);
     }
-    acm_insert_end_of_keyword (&state, 0, 0);
+    printf ("[%'zu] %'zu new keywords inserted in %f s.\n", l + 1, acm_nb_keywords (M) - nb_keywords, (double)(clock () - myclock) / CLOCKS_PER_SEC);
+    nb_keywords = acm_nb_keywords (M);
+    myclock = clock ();
+    size_t nb_matches = 0;
+    for (size_t k = 0; k < TEXT_LENGTH; k++)
+      nb_matches += acm_match (&ts, &ALPHABET[(size_t)rand () % strlen (ALPHABET)]);
+    printf ("[%'zu] %'zu matches found in a text of %'zu characters in %f s.\n", l + 1, nb_matches, TEXT_LENGTH, (double)(clock () - myclock) / CLOCKS_PER_SEC);
   }
-  printf ("%'zu keywords created in %f s.\n", acm_nb_keywords (M), (double)(clock () - myclock) / CLOCKS_PER_SEC);
-  myclock = clock ();
-  size_t nb_matches = 0;
-  const size_t TEXT_LENGTH = 10000000;
-  state = acm_initiate (M);
-  for (size_t k = 0; k < TEXT_LENGTH; k++)
-    nb_matches += acm_match (&state, &(char){ (char)('a' + rand () % 26) });
   acm_release (M);
-  printf ("%'zu matches found in a text of %'zu characters in %f s.\n", nb_matches, TEXT_LENGTH, (double)(clock () - myclock) / CLOCKS_PER_SEC);
 
-  /****************** Third test ************************/
+  printf ("/****************** Third test ************************/\n");
   // This test counts the number of time the words in the English dictionary ("words") appear
   // in the Woolf's book Mrs Dalloway ("mrs_dalloway.txt").
   // The dictionary is built up incrementally from the novel and not list of words.
@@ -247,7 +262,7 @@ main (void) {
       line[1] = L'\0';
     }
   } // for (wint_t wc; (wc = fgetwc (stream)) != WEOF;)
-  printf ("\nElapsed CPU time for scanning text for keywords: %f s.\n", (double)(clock () - myclock) / CLOCKS_PER_SEC);
+  printf ("Elapsed CPU time for scanning text for keywords: %f s.\n", (double)(clock () - myclock) / CLOCKS_PER_SEC);
   fclose (stream);
 
   // Get the number of registered keywords.
