@@ -99,9 +99,9 @@ ACState *acm_initiate (ACMachine *machine);
 
 ### Add words in the dictionary
 
-- Then, for each word compose of a sequence of sign,
+Then, for each word compose of a sequence of sign,
 
-  - Send each sign, one after the other, in sequence, with successive calls to `acm_insert_letter_of_keyword`.
+- Send each sign, one after the other, in sequence, with successive calls to `acm_insert_letter_of_keyword`.
 
 ```c
 void acm_insert_letter_of_keyword (ACState **state, void *letter);
@@ -112,7 +112,7 @@ void acm_insert_letter_of_keyword (ACState **state, void *letter);
 > A `letter` must be provided. It is a pointer to an allocated sign that must persist until the machine is release with (`acm_release`).
 > If it was allocated dynamically, it will be automatically deallocated by the machine using the destructor previously passed to `acm_create`.
 
-  - Call `acm_insert_end_of_keyword`.
+- Call `acm_insert_end_of_keyword`.
 
 ```c
 void *acm_insert_end_of_keyword (ACState **state, void *value, void (*dtor) (void *));
@@ -120,14 +120,15 @@ void *acm_insert_end_of_keyword (ACState **state, void *value, void (*dtor) (voi
 
 > [!NOTE]
 > `acm_insert_letter_of_keyword` must have been previously called at least once before `acm_insert_end_of_keyword` is called.
->
+
+A user-defined value, passed as second argument `value`, can be associated to the keyword.
+
+Returns `0` if the keyword has not been previously inserted yet or has not already an associated value.
+Otherwise, returns the associated value of a previous call to `acm_insert_letter_of_keyword` for the same keyword.
+
 > The keyword is given a unique internal rank in the machine that will later be returned by calls to `acm_get_match`.
->
-> Returns `0` if the keyword has not been previously inserted yet or has not already an associated value.
-> Otherwise, returns the previously associated value.
->
-> A user-defined value, passed as second argument `value`, can be associated to the keyword.
-> This `value` fed to the machine can be allocated statically, automatically or dynamically, as long as it persists until the machine is releases with `acm_release`.
+
+> The `value` fed to the machine can be allocated statically, automatically or dynamically, as long as it persists until the machine is releases with `acm_release`.
 >
 > If `value` is dynamically allocated:
 >
@@ -182,8 +183,9 @@ size_t acm_match (ACState **state, void *letter);
 > A `letter` must be provided. It is a pointer to a sign that must persist until to call to `acm_match` has returned.
 > Returns the number of matches found.
 
-  - If one or several matches are found by `acm_match` while reading the text, `acm_match` will return a non-zero value of the number of matches found.
-  - Loop on these matches with a call to `acm_get_match` for each match.
+If one or several matches are found by `acm_match` while reading the text, `acm_match` will return a non-zero value of the number of matches found.
+
+- Loop on these matches with a call to `acm_get_match` for each match.
 
 ```c
 size_t acm_get_match (const ACState *state, size_t index, MatchHolder *matcher, void **value);
