@@ -126,8 +126,10 @@ A user-defined value, passed as second argument `value`, can be associated to th
 Returns `0` if the keyword has not been previously inserted yet or has not already an associated value.
 Otherwise, returns the associated value of a previous call to `acm_insert_letter_of_keyword` for the same keyword.
 
+> [!NOTE]
 > The keyword is given a unique internal rank in the machine that will later be returned by calls to `acm_get_match`.
 
+> [!NOTE]
 > The `value` fed to the machine can be allocated statically, automatically or dynamically, as long as it persists until the machine is releases with `acm_release`.
 >
 > If `value` is dynamically allocated:
