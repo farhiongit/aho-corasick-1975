@@ -1,50 +1,55 @@
-A small, documented, easy to use implementation of the Aho-Corasick algorithm.
+A small, documented, easy to use implementation of the Aho-Corasick and Meyer algorithms.
 ----------------------------------
 
 ![alt text](dictionary.jpeg "A fully indexed dictionary")
 
+# Concept
+
 An Aho-Corasick State Machine allows to implement a fully indexed dictionary of words.
 A word or pattern is to be considered here in its general meaning, that is a sequence of signs or symbols of a given user defined alphabet (set of symbols).
 
-Once the dictionary has been defined with a list of words, it can be used to search for those words in a text composed of a sequence of signs.
+Once the dictionary has been defined with a list of words, it can be used to efficiently search for all of those words in a text composed of a sequence of signs.
 
 The dictionary is [used](#usage) in two steps:
 
 1. Register words in the dictionary, and optionally values associated to words.
-2. Read a text and compare it to words in the dictionary.
+2. Scan a text once to compare it to words in the dictionary.
 
-The algorithm proposed by Aho and Corasick in a paper of 1975 is efficient when the alphabet contains a limited number of signs and words are composed of several of those signs.
+The algorithm proposed by Aho and Corasick in a paper of 1975 is efficient when words are composed of several of signs from of a limited alphabet.
 
-> [!IMPORTANT]
+> [!NOTE]
 > If the dictionary is populated with words of only one sign from a large or unbound alphabet, a [traditional map](https://github.com/farhiongit/minimaps) should be preferred.
-
-> [!TIP]
-> This is a recommended generic implementation of the algorithm, that applies to any type of signs (not only `char`, it could also be a complex structure as long as an equality operator exists for it).
-> There is a template version of the same algorithm [here](./template).
 
 # License
 
 This library is distributed under the terms of the GNU *Lesser* General Public License, version 3 (see [COPYING](COPYING) and [COPYING.LESSER](COPYING.LESSER).
 
-Therefore, you should give prominent notice, with each copy of your files using the library (modified or not), that the library is used in it and that the library and its use are covered by this license, accompanied with a copy of it and the copyright notice.
+Therefore, you should give prominent notice, with each copy of your files using the library (modified or not), that the library is used in it and that the library and its use are covered by this license,
+accompanied with a copy of it and the copyright notice (L. Farhi, 2026).
 
-# Introduction
+# Motivation
 
-This project offers an efficient [implementation](#implementation) of the Aho-Corasick algorithm which shows several enhancements:
+This project offers an efficient [implementation](#implementation) of:
 
-- It faithfully and accurately sticks, step by step, to the pseudo-code given in the original paper from Aho and Corasick
-  (btw exquisitely clear and well written, see Aho, Alfred V.; Corasick, Margaret J. (June 1975).
-  "[Efficient string matching: An aid to bibliographic search](https://dl.acm.org/doi/10.1145/360825.360855)".
-  Communications of the ACM. 18 (6): 333–340.)
-- The code is commented and annotated with excerpts from the original text of Aho and Corasick.
-- The original algorithm is refactored so that it can used iteratively and not be constrained by a given type of container for words.
+1. the original **Aho-Corasick** algorithm from Aho and Corasick
+  (btw exquisitely clear and well written, see Aho, Alfred V.; Corasick, Margaret J.,
+  "[Efficient string matching: An aid to bibliographic search](https://dl.acm.org/doi/10.1145/360825.360855)",
+  Communications of the ACM. 18 (6): 333–340., June 1975) ;
+2. supplemented by the modified algorithm from **Meyer**
+  (Meyer, B., [Incremental String Matching](https://se.inf.ethz.ch/~meyer/publications/string/string_matching.pdf), Information Processing Letters 21 (1985): 219-227).
+
+The implementation offers several enhancements to the original proposals:
+
 - It is generic in the sense that it works for any kind of alphabet (of any type) and not only for `char`.
 - It works with alphabets of any number of signs (and not limited to 26 or 256).
-- The Aho Corasick state machine is stable: new keywords can be registered (`acm_insert_letter_of_keyword`) while scanning is already in progress (`acm_match`).
+- The logic is refactored so that it can used iteratively so as not be constrained by any given type of container for words.
 - The interface is minimal, complete and easy to use.
 - The implementation has low memory footprint and is fast.
 
-The implementation is also enhanced by the concise [Incremental String Matching](https://se.inf.ethz.ch/~meyer/publications/string/string_matching.pdf) proposal by Meyer in 1985.
+The code
+
+- sticks, step by step, to the pseudo-code given in the original papers ;
+- is commented and annotated with excerpts from the original text of Aho, Corasick and Meyer.
 
 Hope this helps. Let me know !
 
@@ -82,8 +87,8 @@ ACMachine *acm_create (EQ_TYPE eq, void *eq_arg, DESTROY_TYPE dtor);
 > `acm_release` must be subsequently called when the machine is not needed anymore.
 
 > [!TIP]
-> A handy default equality operator `ACM_EQ_DEFAULT` can be used for a simple lexical comparison (based on `memcmp`).
-> `&(size_t){ sizeof (` *T* `)` must then be passed as second argument, where *T* is the type of the signs.
+> A handy default equality operator `ACM_EQ_DEFAULT` (based on `memcmp`) can be used for a simple lexical comparison.
+> `&(size_t){ sizeof (` *T* `) }` might then be passed as second argument of `acm_create`, where *T* is the type of the signs.
 
 ## Create the dictionary with words
 
@@ -279,7 +284,7 @@ Compared to the implementation proposed by Aho and Corasick, this one adds sever
    For instance, if the type of signs is defined as `long long int` rather than the usual `char`,
    then the number of possible signs would be 18446744073709551616 !
 
-   For this to be possible, the three algorithms of the original paper have been ajusted:
+   For this to be possible, the three algorithms of the original paper have been adjusted:
 
    - The assertion "for all a such that g(0, a) = `fail` do g(0, a) <- 0" in the Aho-Corasick paper,
      at the end of algorithm 2 can not be fulfilled because it would require to set g(0, a) for all the values of 'a'
@@ -296,8 +301,8 @@ Compared to the implementation proposed by Aho and Corasick, this one adds sever
      - [3] s <- g(state, a) must be replaced by: if g(state, a) != fail then s <- g(state, a) else s <- 0
 
 2. To reduce the memory footprint, the implementation does not store output keywords associated to states.
-   Instead, it reconstructs the matching keywords by traversing the branch of the tree backward.
-   (Attributes `previous` and `is_matching` are added the the state object ACState, see code of `acm_get_match`).
+   Instead, it reconstructs the matching keywords by traversing the fail states and then the branch of the tree backward.
+   (Attributes `previous` and `is_end_of_keyword` are added the the state object ACState, see code of `acm_get_match`).
 3. It permits to search for keywords even though all keywords have not been registered yet.
    In other words, a new keyword can be registered with iterative calls to `acm_insert_letter_of_keyword` and `acm_insert_end_of_keyword` alternatively or concurrently with calls to `acm_match`
    without disrupting the current match search.
@@ -313,17 +318,17 @@ Compared to the implementation proposed by Aho and Corasick, this one adds sever
    - a fourth argument is passed to `acm_get_match` calls: the address of a pointer to an associated value.
      The pointer to associated value is modified by `acm_get_match` to the address of the value associated to the keyword.
 6. All functions are thread-safe. Therefore, a given shared Aho-Corasick machine can be used by multiple threads concurrently to insert keywords or to scan different texts for matching keywords.
-7. It is short (about 500 effective lines of code.)
+7. It is short (400 effective lines of code.)
 8. Last but not least, it is very fast. On my slow HD and slow CPU old computer, it takes 0.92 seconds to register 370,099 keywords
    with a total of 3,864,776 characters, and 0.12 seconds to find (and count occurencies of) those keywords in a text of 376,617 characters.
 
 Step 3 uses:
 
-- either (when the macro `NMEYER_85` is defined at compile time of `aho_corasick.c`) a full reconstruction of the failure states (as proposed by Aho and Corasick in their paper) before the next match search ;
-- or (by default) an incremental reconstruction of the failure states (as proposed by B. Meyer in his paper
-  [Incremental String Matching](https://se.inf.ethz.ch/~meyer/publications/string/string_matching.pdf), 1985) after a new keyword is entered
-  with one correction to make `Complete_failure`  also correctly compute `F[T[n,c]]` (set to state `0`) for the initial state `n` equal to state `0` (this is required by `Enter_child`).
-  This alternative makes use of the [minimaps](https://github.com/farhiongit/minimaps) library.
+- either, by default, an incremental reconstruction of the failure states (as proposed by B. Meyer in his paper) each time a new keyword is entered, with:
+  - one correction to make `Complete_failure` also correctly compute `F[T[n,c]]` (set to state `0`) for the initial state `n` equal to state `0` (this is required by `Enter_child`) ;
+  - the use of the [minimaps](https://github.com/farhiongit/minimaps) library.
+- or, when the macro `NMEYER_85` is defined at compile time of `aho_corasick.c`, a full reconstruction of the failure states (as proposed by Aho and Corasick in their paper) before a match search
+  (the Aho Corasick state machine is made stable: new keywords can be registered (`acm_insert_letter_of_keyword`) while scanning is already in progress (`acm_match`)) ;
 
 # Example
 
