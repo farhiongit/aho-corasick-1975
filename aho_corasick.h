@@ -66,7 +66,7 @@ void *acm_insert_end_of_keyword (ACState **state, void *value, void (*dtor) (voi
 // A state msut have been initialised with `acm_initiate` before the first call to `acm_match`.
 // A `letter` must be provided.
 // Returns the number of matches found.
-size_t acm_match (ACState **state, const void *letter);
+size_t acm_match (const ACState **state, const void *letter);
 
 // A `MatchHolder` can be used to retrieve several matches (with `acm_get_match`) of different match searches (with `acm_match`).
 // a `MatchHolder` must be release by a subsequent call to `acm_match_release` after use.
@@ -85,10 +85,10 @@ size_t acm_get_match (const ACState *state, size_t index, MatchHolder *matcher, 
 void acm_matcher_release (MatchHolder *matcher);
 
 // A machine must have been initialised by a previous call to `acm_create`.
-size_t acm_nb_keywords (ACMachine *machine);
+size_t acm_nb_keywords (const ACMachine *machine);
 
 // A machine must have been initialised by a previous call to `acm_create`.
-void acm_foreach_keyword (ACMachine *machine, void (*operator) (MatchHolder, void *value));
+void acm_foreach_keyword (const ACMachine *machine, void (*operator) (MatchHolder, void *value));
 
 // The machine must have been initialised by a previous call to `acm_create`.
 void acm_release (ACMachine *machine);

@@ -46,13 +46,13 @@ struct _ac_state /* [state s] */
   } *transitions;                /* next states in the tree of the goto function */
   /* A link to the previous states */
   struct _prev {
-    void *letter;               /* [a symbol] : transition from the previous state */
-    struct _ac_state *state;    /* Reference to the previous state */
-  } previous;                   /* Previous state (used for building the outputs of the matches) */
-  struct _ac_state *fail_state; /* [f(s)] is a reference to a state (on another branch) which is the continuation of a keyword with the longest prefix */
-  int is_end_of_keyword;        /* true if the state matches a keyword. */
-  size_t nb_outputs;            /* Number of matching keywords (Aho-Corasick : size (output (s)) */
-  size_t rank;                  /* Rank (0-based) of insertion of a keyword in the machine. */
+    const void *letter;               /* [a symbol] : transition from the previous state */
+    const struct _ac_state *state;    /* Reference to the previous state */
+  } previous;                         /* Previous state (used for building the outputs of the matches) */
+  const struct _ac_state *fail_state; /* [f(s)] is a reference to a state (on another branch) which is the continuation of a keyword with the longest prefix */
+  int is_end_of_keyword;              /* true if the state matches a keyword. */
+  size_t nb_outputs;                  /* Number of matching keywords (Aho-Corasick : size (output (s)) */
+  size_t rank;                        /* Rank (0-based) of insertion of a keyword in the machine. */
   struct _def {
     void *value;           /* An optional value associated to a keyword (is_end_of_keyword == true). */
     void (*dtor) (void *); /* Destructor of the associated value, called at state machine release. */
@@ -150,8 +150,8 @@ acm_initiate (ACMachine *machine) {
   return machine->state_0;
 }
 
-static ACState *
-state_goto (ACState *state, const void *letter /* a[i] */) {
+static const ACState *
+state_goto (const ACState *state, const void *letter /* a[i] */) {
   /* Aho-Corasick Algorithm 1: while g(state, a[i]) = fail [and state != 0] do state <- f(state)           [2] */
   /*                           [if g(state, a[i]) != fail then] state <- g(state, a[i]) [else state <- 0]  [3] */
   /*                           [The function returns state] */
@@ -421,7 +421,7 @@ acm_matcher_release (MatchHolder *matcher) {
 
 /* Aho-Corasick Algorithm 1: Pattern matching machine - if output (state) != empty */
 size_t
-acm_match (ACState **state, const void *letter) {
+acm_match (const ACState **state, const void *letter) {
   /* N.B.: In Aho-Corasick, algorithm 3 is executed after all keywords have been inserted */
   /*       in the goto graph one after the other by algorithm 2. */
   /*       As a slight enhancement: the fail state chains are rebuilt from scratch when needed, */
@@ -477,7 +477,7 @@ acm_get_match (const ACState *state, size_t index, MatchHolder *matcher, void **
 }
 //-----------------------------------------------------------------
 size_t
-acm_nb_keywords (ACMachine *machine) {
+acm_nb_keywords (const ACMachine *machine) {
   ACM_ASSERT (machine, "Invalid null machine.");
   return machine->nb_sequences;
 }
@@ -500,7 +500,7 @@ foreach_keyword (const ACState *state, const void ***letters, size_t *max_length
 }
 
 void
-acm_foreach_keyword (ACMachine *machine, void (*operator) (MatchHolder, void *)) {
+acm_foreach_keyword (const ACMachine *machine, void (*operator) (MatchHolder, void *)) {
   ACM_ASSERT (machine, "Invalid null machine.");
   if (!operator)
     return;

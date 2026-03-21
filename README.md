@@ -60,12 +60,8 @@ The usage of the Aho-Corasick dictionary is straight forward.
 Here is a full example explained below.
 ```c
 #include "aho_corasick.h"
-#include <string.h>
-
 int
 main (void) {
-  const char *text = "To ushers: he found his pencil, but she could not find hers.";
-  printf ("%s\n", text);
   char *words[] = { "he", "she", "his", "hers" };
   ACMachine *machine = acm_create (ACM_EQ_DEFAULT, &(size_t){ sizeof (char) }, 0);
   ACState *state = acm_initiate (machine);
@@ -74,12 +70,14 @@ main (void) {
       acm_insert_letter_of_keyword (&state, p);
     acm_insert_end_of_keyword (&state, 0, 0);
   }
+  const char *text = "To ushers: he found his pencil, but she could not find hers.";
+  printf ("%s\n", text);
   MatchHolder matcher;
   acm_matcher_init (&matcher);
-  state = acm_initiate (machine);
-  for (size_t i = 0; i < strlen (text); i++)
-    for (size_t j = acm_match (&state, &text[i]); j > 0; j--) {
-      acm_get_match (state, j - 1, &matcher, 0);
+  const ACState *cst_state = acm_initiate (machine);
+  for (size_t i = 0; text[i]; i++)
+    for (size_t j = acm_match (&cst_state, &text[i]); j > 0; j--) {
+      acm_get_match (cst_state, j - 1, &matcher, 0);
       printf (" %zu:", i + 2 - matcher.length);
       for (size_t k = 0; k < matcher.length; k++)
         printf ("%c", *(const char *)matcher.letters[k]);
@@ -129,7 +127,7 @@ ACMachine *acm_create (EQ_TYPE eq, void *eq_arg, DESTROY_TYPE dtor);
 
 To fill the dictionary with words :
 
-- Call first `acm_initiate` once for all.
+- Call first `acm_initiate` once for all to initialise a internal state.
 
 ```c
 ACState *acm_initiate (ACMachine *machine);
@@ -203,7 +201,7 @@ void acm_matcher_init (MatchHolder *matcher);
 > A same `MatchHolder` can be used to retrieve several matches (with `acm_get_match`) from different match searches (with `acm_match`).
 > a `MatchHolder` must be release by a subsequent call to `acm_match_release` after use.
 
-- Call `acm_initiate` once for each text to scan.
+- Call `acm_initiate` once for each text to scan to initialise a constant internal state.
 
 > [!NOTE]
 > The very same previously used to feed the dictionary with words.
@@ -215,7 +213,7 @@ Then,
 - make successive calls to `acm_match` for each sign of the text, in sequence, from beginning to end of the text.
 
 ```c
-size_t acm_match (ACState **state, void *letter);
+size_t acm_match (const ACState **state, void *letter);
 ```
 
 Returns the number of matches found.
@@ -232,13 +230,13 @@ If one or several matches are found by `acm_match` while reading the text, `acm_
 size_t acm_get_match (const ACState *state, size_t index, MatchHolder *matcher, void **value);
 ```
 
-The content of a matcher is:
+A matcher is a structure which content is:
 ```c
 {
   const void **letters; /* An array of pointers to symbols */
   size_t length;        /* Length of the array */
   size_t rank;          /* Rank of the registered keyword */
-} MatchHolder;
+}
 ```
 
 > [!NOTE]
@@ -283,12 +281,12 @@ void acm_release (ACMachine *machine);
 
 ### Get the number of keywords defined in the dictionary
 ```c
-size_t acm_nb_keywords (ACMachine *machine);
+size_t acm_nb_keywords (const ACMachine *machine);
 ```
 
 ### Lopp on the defined keywords of the dictionary
 ```c
-void acm_foreach_keyword (ACMachine *machine, void (*operator) (MatchHolder, void *value));
+void acm_foreach_keyword (const ACMachine *machine, void (*operator) (MatchHolder, void *value));
 ```
 
 > [!NOTE]

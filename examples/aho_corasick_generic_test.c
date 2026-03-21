@@ -63,7 +63,7 @@ alphaeq (const void *k, const void *t, void *eq_arg) {
 int
 main (void) {
   setlocale (LC_ALL, "");
-  printf ("Incremental string matching (Meyer, 1985) in %suse.\n", ACM_INCREMENTAL_STRING_MATCHING ? "" : "NOT ");
+  printf ("Incremental string matching (Meyer, 1985) %sin use.\n", ACM_INCREMENTAL_STRING_MATCHING ? "" : "NOT ");
   printf ("/****************** First test ************************/\n");
   // This test constructs and plays with the graph from the original paper of Aho-Corasick.
   // The text where keywords are searched for.
@@ -71,7 +71,7 @@ main (void) {
 
   // 4. Initialise a state machine of type ACMachine (T) using ACM_create (T):
   ACMachine *M = acm_create (ACM_EQ_DEFAULT, &(size_t){ sizeof (*text) } /* creates a automatic variable on the fly */, 0 /* letters are automatically allocated */);
-  assert (acm_match (&(ACState *){ acm_initiate (M) }, &(wchar_t){ L'a' }) == 0); // No keyword in the dictionary yet.
+  assert (acm_match (&(const ACState *){ acm_initiate (M) }, &(wchar_t){ L'a' }) == 0); // No keyword in the dictionary yet.
 
   // Declares all the keywords
 #define LIST_OF_KEYWORDS \
@@ -139,17 +139,17 @@ main (void) {
 
   // 7. Initialise a state with `acm_initiate (machine)`
   current_pos = 0;
-  state = acm_initiate (M);
+  const ACState *cst_state = acm_initiate (M);
   for (size_t i = 0; i < wcslen (text); i++) {
     // 8. Inject symbols of the text, one at a time.
-    size_t nb_matches = acm_match (&state, &text[i]);
+    size_t nb_matches = acm_match (&cst_state, &text[i]);
     // 9. After each insertion of a symbol, check the returned value to know
     //    if the last inserted symbols match at least one keyword.
 
     for (size_t j = 0; j < nb_matches; j++) {
       // 10. If matches were found, retrieve them for each match.
       void *pul;
-      size_t rank = acm_get_match (state, j, &match, &pul);
+      size_t rank = acm_get_match (cst_state, j, &match, &pul);
       assert (rank == match.rank);
 
       if (current_pos > (int)i + 1 - (int)match.length) {
@@ -176,8 +176,8 @@ main (void) {
   char ALPHABET[] = "abcdefghijklmnopqrstuvwxyz";
   clock_t myclock = clock ();
   M = acm_create (ACM_EQ_DEFAULT, &(size_t){ sizeof (char) }, 0);
-  ACState *ts = acm_initiate (M); // Initialise once.
-  ACState *ks = acm_initiate (M); // Initialise once.
+  ACState *ks = acm_initiate (M);       // Initialise once.
+  const ACState *ts = acm_initiate (M); // Initialise once.
   size_t nb_keywords = 0;
   for (size_t l = 0; l < NB_INCEREMENTS; l++) {
     for (size_t i = 0; i < NB_KEYWORDS; i++) {
@@ -185,13 +185,13 @@ main (void) {
         acm_insert_letter_of_keyword (&ks, &ALPHABET[(size_t)rand () % strlen (ALPHABET)]);
       acm_insert_end_of_keyword (&ks, 0, 0);
     }
-    printf ("[%'zu] %'zu new keywords inserted in %f s.\n", l + 1, acm_nb_keywords (M) - nb_keywords, (double)(clock () - myclock) / CLOCKS_PER_SEC);
+    printf ("[%'zu] %'zu new keywords added in %f s.\n", l + 1, acm_nb_keywords (M) - nb_keywords, (double)(clock () - myclock) / CLOCKS_PER_SEC);
     nb_keywords = acm_nb_keywords (M);
     myclock = clock ();
     size_t nb_matches = 0;
     for (size_t k = 0; k < TEXT_LENGTH; k++)
       nb_matches += acm_match (&ts, &ALPHABET[(size_t)rand () % strlen (ALPHABET)]);
-    printf ("[%'zu] %'zu matches found in a text of %'zu characters in %f s.\n", l + 1, nb_matches, TEXT_LENGTH, (double)(clock () - myclock) / CLOCKS_PER_SEC);
+    printf ("[%'zu] %'zu matches found (amongst %'zu keywords) in a text of %'zu characters in %f s.\n", l + 1, nb_matches, nb_keywords, TEXT_LENGTH, (double)(clock () - myclock) / CLOCKS_PER_SEC);
   }
   acm_release (M);
 
@@ -212,9 +212,9 @@ main (void) {
 
   myclock = clock ();
   // 7. Initialise a state with `acm_initiate (machine)`
-  state = acm_initiate (M);
+  cst_state = acm_initiate (M);
   // 8. Inject symbols of the text, one at a time.
-  acm_match (&state, &(wchar_t){ L' ' });
+  acm_match (&cst_state, &(wchar_t){ L' ' });
   line[0] = L' ';
   line[1] = 0;
   for (wint_t wc; (wc = fgetwc (stream)) != WEOF;) {
@@ -224,7 +224,7 @@ main (void) {
       wc = towlower (wc);
     // 8. Inject symbols of the text, one at a time.
     // 9. After each insertion of a symbol, check the returned value to know if the last inserted symbols match at least one keyword.
-    size_t nb = acm_match (&state, &wc);
+    size_t nb = acm_match (&cst_state, &wc);
     size_t len = wcsnlen (line, sizeof (line) / sizeof (*line) - 1);
     line[len] = (wchar_t)wc;
     line[len + 1] = L'\0';
@@ -235,7 +235,7 @@ main (void) {
 
         // 10. If matches were found, retrieve them for each match.
         //     An optional fourth argument will point to the pointer to the value associated with the matching keyword.
-        acm_get_match (state, j, 0, &v);
+        acm_get_match (cst_state, j, 0, &v);
         // Increment the value associated to the keyword.
         (*(size_t *)v)++;
       }
