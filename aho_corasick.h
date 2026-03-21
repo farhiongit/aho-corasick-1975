@@ -32,7 +32,7 @@ typedef struct _ac_machine ACMachine;
 
 typedef int (*EQ_TYPE) (const void *letter_a, const void *letter_b, void *eq_arg);
 typedef void (*DESTROY_TYPE) (void *letter); // Compatible with the signature of free.
-extern EQ_TYPE ACM_EQ_DEFAULT;               // Default equality operator (!memcmp). eq_arg MUST be a pointer to the size of a letter, &(size_t){ sizeof (T) }, where T is the type of the letters.
+extern const EQ_TYPE ACM_EQ_DEFAULT;         // Default equality operator (!memcmp). eq_arg MUST be a pointer to the size of a letter, &(size_t){ sizeof (T) }, where T is the type of the letters.
 
 // An equality operator `eq` must be provided. The optional argument `eq_arg` will be passed to each call to `eq`.
 // If the letters fed to the machine are not statically allocated until the machine is releases (with `acm_release`),

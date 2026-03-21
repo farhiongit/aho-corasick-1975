@@ -120,7 +120,7 @@ static int
 eq_default (const void *a, const void *b, void *eq_arg) {
   return !memcmp (a, b, *(size_t *)eq_arg);
 }
-EQ_TYPE ACM_EQ_DEFAULT = eq_default;
+const EQ_TYPE ACM_EQ_DEFAULT = eq_default;
 
 ACMachine *
 acm_create (EQ_TYPE eq, void *eq_arg, DESTROY_TYPE dtor) {

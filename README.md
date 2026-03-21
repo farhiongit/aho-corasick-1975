@@ -57,7 +57,40 @@ Hope this helps. Let me know !
 
 The usage of the Aho-Corasick dictionary is straight forward.
 
-You can look at an [example](./examples/aho_corasick_generic_test.c) while you read.
+Here is a full example explained below.
+```c
+#include "aho_corasick.h"
+#include <string.h>
+
+int
+main (void) {
+  const char *text = "To ushers: he found his pencil, but she could not find hers.";
+  printf ("%s\n", text);
+  char *words[] = { "he", "she", "his", "hers" };
+  ACMachine *machine = acm_create (ACM_EQ_DEFAULT, &(size_t){ sizeof (char) }, 0);
+  ACState *state = acm_initiate (machine);
+  for (size_t i = 0; i < sizeof (words) / sizeof (*words); i++) {
+    for (char *p = words[i]; *p; p++)
+      acm_insert_letter_of_keyword (&state, p);
+    acm_insert_end_of_keyword (&state, 0, 0);
+  }
+  MatchHolder matcher;
+  acm_matcher_init (&matcher);
+  state = acm_initiate (machine);
+  for (size_t i = 0; i < strlen (text); i++)
+    for (size_t j = acm_match (&state, &text[i]); j > 0; j--) {
+      acm_get_match (state, j - 1, &matcher, 0);
+      printf (" %zu:", i + 2 - matcher.length);
+      for (size_t k = 0; k < matcher.length; k++)
+        printf ("%c", *(const char *)matcher.letters[k]);
+    }
+  printf ("\n");
+  acm_matcher_release (&matcher);
+  acm_release (machine);
+}
+```
+
+You can also look at an [example](./examples/aho_corasick_generic_test.c) while you read.
 
 ## Declare a dictionary
 
@@ -90,7 +123,7 @@ ACMachine *acm_create (EQ_TYPE eq, void *eq_arg, DESTROY_TYPE dtor);
 > A handy default equality operator `ACM_EQ_DEFAULT` (based on `memcmp`) can be used for a simple lexical comparison.
 > `&(size_t){ sizeof (` *T* `) }` might then be passed as second argument of `acm_create`, where *T* is the type of the signs.
 
-## Create the dictionary with words
+## Fill the dictionary with words
 
 ### Initialise
 
@@ -160,11 +193,6 @@ Otherwise, returns the associated value of a previous call to `acm_insert_letter
 
 To search for the words of the dictionary in a text composed of a sequence of signs :
 
-- Call first `acm_initiate` once for each text to scan.
-
-> [!NOTE]
-> The very same previously used to feed the dictionary with words.
-
 - Initialise a matcher with `acm_matcher_init`.
 
 ```c
@@ -172,8 +200,13 @@ void acm_matcher_init (MatchHolder *matcher);
 ```
 
 > [!NOTE]
-> A `MatchHolder` can be used to retrieve several matches (with `acm_get_match`) of different match searches (with `acm_match`).
+> A same `MatchHolder` can be used to retrieve several matches (with `acm_get_match`) from different match searches (with `acm_match`).
 > a `MatchHolder` must be release by a subsequent call to `acm_match_release` after use.
+
+- Call `acm_initiate` once for each text to scan.
+
+> [!NOTE]
+> The very same previously used to feed the dictionary with words.
 
 ### Search for words and retrieve the found words
 
@@ -185,10 +218,11 @@ Then,
 size_t acm_match (ACState **state, void *letter);
 ```
 
+Returns the number of matches found.
+
 > [!NOTE]
 > A state msut have been initialised with `acm_initiate` before the first call to `acm_match`.
 > A `letter` must be provided. It is a pointer to a sign that must persist until to call to `acm_match` has returned.
-> Returns the number of matches found.
 
 If one or several matches are found by `acm_match` while reading the text, `acm_match` will return a non-zero value of the number of matches found.
 
@@ -198,17 +232,29 @@ If one or several matches are found by `acm_match` while reading the text, `acm_
 size_t acm_get_match (const ACState *state, size_t index, MatchHolder *matcher, void **value);
 ```
 
+The content of a matcher is:
+```c
+{
+  const void **letters; /* An array of pointers to symbols */
+  size_t length;        /* Length of the array */
+  size_t rank;          /* Rank of the registered keyword */
+} MatchHolder;
+```
+
 > [!NOTE]
 > `state` must the one used by a previous call to `acm_match`.
-> The index must be lower than the number of matches found by a previous call to `acm_match`.
-> If `match` is not null,
-> - it must have been initialised by a previous call to `acm_match_init` before use.
-> - it will be filled with the found match (with a keyword defined by a previous call to `acm_insert_end_of_keyword`).
-> If `value` is not null, `*value` will be set to the value passed to a previous call to `acm_insert_end_of_keyword`.
-> Returns the unique internal rank of the found keyword, as given by `acm_insert_end_of_keyword`.
+> The index (starting from `0`) must be lower than the number of matches found by the previous call to `acm_match`.
+
+If `match` is not null,
+- it must have been initialised by a previous call to `acm_match_init` before use.
+- it will be filled with the found match (with a keyword defined by a previous call to `acm_insert_end_of_keyword`).
+
+If `value` is not null, `*value` will be set to the value passed to a previous call to `acm_insert_end_of_keyword`.
+
+Returns the unique internal rank of the found keyword, as given by `acm_insert_end_of_keyword`.
 
 > [!TIP]
-> [Adding words](#add-words-in-the-dictionary) to the dictionary and [searching](#search-for-words-and-retrieve-the-found-words) can be realised consecutively, alternatively or concurrently (by different threads).
+> [Adding words](#add-words-in-the-dictionary) to the dictionary and [searching](#search-for-words-and-retrieve-the-found-words) can be processed consecutively, alternatively or concurrently (by different threads).
 
 - Release the resources used by the matcher with `acm_matcher_release`.
 
