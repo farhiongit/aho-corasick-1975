@@ -209,8 +209,8 @@ complete_inverse_one_ifs (void *data, void *op_arg, int *remove) {
       // Remove previous failure value of x'.
       ACM_ASSERT (map_find_key (xprime->fail_state->inverse_fail_states, &xprime, MAP_REMOVE_ALL, 0, 0, 0) == 1, ""); // IF[f[x'] = IF[f[x'] - {x'}
       // Install new one [failure value].
-      xprime->fail_state = transition->state;                                                                                      // f[x'] = n'
-      ACM_ASSERT (map_insert_data (transition->state /* n' */->inverse_fail_states, &pt->state /* p->state is persistent */), ""); // IF[n'] = IF[n'] + {x'}
+      xprime->fail_state = transition->state;                                                                                                 // f[x'] = n'
+      ACM_ASSERT (map_insert_data (transition->state /* n' */->inverse_fail_states, &pt->state /* p->state is persistent and stable */), ""); // IF[n'] = IF[n'] + {x'}
       transition_found = 1;
       break;
     }
@@ -240,17 +240,17 @@ enter_child (ACState *n, void *c) {
   nprime->id = n->machine->nb_states; /* state UID */
   n->machine->nb_states++;
 #ifndef NMEYER_85
-  /* T[n, c] = nprime */
+  /* T[n, c] = n' */
   /* Meyer 85 : "Build the f function incrementally, as new strings are entered into T.
                  [...] the longest proper suffix of n' = T[n, c] in the tree must be of the form T[m, c] for some proper suffix m of n,
                  When a new node n' = T[n, c] is entered, the value of f[x'] must be changed for some existing nodes if and only if n' is the longest proper suffix of the string associated x'.
                  [...] we must keep a record IF of the inverse function of f." */
-  complete_fail_state (n, nprime, c); // Compute f[nprime]
+  complete_fail_state (n, nprime, c); // Compute f[n']
   ACM_ASSERT (nprime->fail_state && nprime->fail_state->inverse_fail_states, "");
   ACM_ASSERT (map_insert_data (nprime->fail_state->inverse_fail_states, &n->transitions->state /* persistent and steady */), ""); // Update IF for m' = f[n']
-  // Complete_inverse (n, nprime, c) : for x in IF[n], do complete_inverse_one_ifs (x, nprime, c)
+  // Complete_inverse (n, nprime, c) : for x in IF[n], do complete_inverse_one_ifs (x, n', c)
   // Meyer 85 : "Compute IF[n'] and change to n' the corresponding values of f."
-  map_traverse (/* for y in IF[n], n = lps (y) */ n->inverse_fail_states, complete_inverse_one_ifs, n->transitions /* nprime, c */, 0, 0);
+  map_traverse (/* for y in IF[n], n = lps (y) */ n->inverse_fail_states, complete_inverse_one_ifs, n->transitions /* n', c */, 0, 0);
 #endif
   return nprime;
 }
