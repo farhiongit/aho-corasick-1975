@@ -27,7 +27,7 @@ This library is distributed under the terms of the GNU *Lesser* General Public L
 Therefore, you should give prominent notice, with each copy of your files using the library (modified or not), that the library is used in it and that the library and its use are covered by this license,
 accompanied with a copy of it and the copyright notice (L. Farhi, 2026).
 
-# Motivation
+# Motivations
 
 This project offers an efficient [implementation](#implementation) of:
 
@@ -41,7 +41,7 @@ This project offers an efficient [implementation](#implementation) of:
 The implementation offers several enhancements to the original proposals:
 
 - It is generic in the sense that it works for any kind of alphabet (of any type) and not only for `char`.
-- It works with alphabets of any number of signs (and not limited to 26 or 256).
+- It works with alphabets of any number of signs (and not limited to 26 or 256). The alphabet need not be ordered. It only requires an equality operator.
 - The logic is refactored so that it can used iteratively so as not be constrained by any given type of container for words.
 - The interface is minimal, complete and easy to use.
 - The implementation has low memory footprint and is fast.
@@ -163,9 +163,6 @@ Returns `0` if the keyword has not been previously inserted yet or has not alrea
 Otherwise, returns the associated value of a previous call to `acm_insert_letter_of_keyword` for the same keyword.
 
 > [!NOTE]
-> The keyword is given a unique internal rank in the machine that will later be returned by calls to `acm_get_match`.
-
-> [!NOTE]
 > The `value` fed to the machine can be allocated statically, automatically or dynamically, as long as it persists until the machine is releases with `acm_release`.
 >
 > If `value` is dynamically allocated:
@@ -227,7 +224,7 @@ If one or several matches are found by `acm_match` while reading the text, `acm_
 - Loop on these matches with a call to `acm_get_match` for each match.
 
 ```c
-size_t acm_get_match (const ACState *state, size_t index, MatchHolder *matcher, void **value);
+void acm_get_match (const ACState *state, size_t index, MatchHolder *matcher, void **value);
 ```
 
 A matcher is a structure which content is:
@@ -235,7 +232,6 @@ A matcher is a structure which content is:
 {
   const void **letters; /* An array of pointers to symbols */
   size_t length;        /* Length of the array */
-  size_t rank;          /* Rank of the registered keyword */
 }
 ```
 
@@ -248,8 +244,6 @@ If `match` is not null,
 - it will be filled with the found match (with a keyword defined by a previous call to `acm_insert_end_of_keyword`).
 
 If `value` is not null, `*value` will be set to the value passed to a previous call to `acm_insert_end_of_keyword`.
-
-Returns the unique internal rank of the found keyword, as given by `acm_insert_end_of_keyword`.
 
 > [!TIP]
 > [Adding words](#add-words-in-the-dictionary) to the dictionary and [searching](#search-for-words-and-retrieve-the-found-words) can be processed consecutively, alternatively or concurrently (by different threads).
@@ -352,18 +346,16 @@ Compared to the implementation proposed by Aho and Corasick, this one adds sever
    without disrupting the current match search.
    To achieve this, failure states are reconstructed after every registration of a new keyword
    (see `acm_insert_keyword` which alternates calls to algorithms 2 and 3.)
-4. It keeps track of the rank of each registered keyword.
-   This rank is afterwards returned by `acm_get_match` and can be used, for a given state machine, as a unique identifier of a keyword.
-5. It can associate user allocated and defined values to registered keywords,
+4. It can associate user allocated and defined values to registered keywords,
    and retrieve them together with the found keywords:
    - two arguments are passed to `acm_insert_end_of_keyword` calls: a pointer to a previously allocated value,
      and a pointer to function for deallocation of the associated value. This function will be called when the state machine will be release
      by `acm_release`.
    - a fourth argument is passed to `acm_get_match` calls: the address of a pointer to an associated value.
      The pointer to associated value is modified by `acm_get_match` to the address of the value associated to the keyword.
-6. All functions are thread-safe. Therefore, a given shared Aho-Corasick machine can be used by multiple threads concurrently to insert keywords or to scan different texts for matching keywords.
-7. It is short (400 effective lines of code.)
-8. Last but not least, it is very fast. On my slow HD and slow CPU old computer, it takes 0.92 seconds to register 370,099 keywords
+5. All functions are thread-safe. Therefore, a given shared Aho-Corasick machine can be used by multiple threads concurrently to insert keywords or to scan different texts for matching keywords.
+6. It is short (400 effective lines of code.)
+7. Last but not least, it is very fast. On my slow HD and slow CPU old computer, it takes 0.92 seconds to register 370,099 keywords
    with a total of 3,864,776 characters, and 0.12 seconds to find (and count occurencies of) those keywords in a text of 376,617 characters.
 
 Step 3 uses:

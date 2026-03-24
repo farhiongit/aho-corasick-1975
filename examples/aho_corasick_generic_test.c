@@ -34,7 +34,6 @@ print_match (MatchHolder match, void *value) {
       current_pos += printf ("%lc", *(const wint_t *)match.letters[k]);
 
     current_pos += printf ("'");
-    current_pos += printf ("[#%zu]", match.rank);
     if (value) {
       current_pos += printf ("=");
       current_pos += printf ("%zu", *(size_t *)value);
@@ -149,8 +148,7 @@ main (void) {
     for (size_t j = 0; j < nb_matches; j++) {
       // 10. If matches were found, retrieve them for each match.
       void *pul;
-      size_t rank = acm_get_match (cst_state, j, &match, &pul);
-      assert (rank == match.rank);
+      acm_get_match (cst_state, j, &match, &pul);
 
       if (current_pos > (int)i + 1 - (int)match.length) {
         current_pos = 0;

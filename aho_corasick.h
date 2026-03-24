@@ -24,7 +24,6 @@ typedef struct
 {
   const void **letters; /* An array of pointers to symbols */
   size_t length;        /* Length of the array */
-  size_t rank;          /* Rank of the registered keyword */
 } MatchHolder;
 
 typedef struct _ac_state ACState;
@@ -78,8 +77,7 @@ void acm_matcher_init (MatchHolder *matcher);
 // - it must have been initialised by a previous call to `acm_match_init` before use.
 // - it will be filled with the found match (with a keyword defined by a previous call to `acm_insert_end_of_keyword`).
 // If `value` is not null, `*value` will be set to the value passed to a previous call to `acm_insert_end_of_keyword`.
-// Returns the unique internal rank of the found keyword.
-size_t acm_get_match (const ACState *state, size_t index, MatchHolder *matcher, void **value);
+void acm_get_match (const ACState *state, size_t index, MatchHolder *matcher, void **value);
 
 // The matcher must have been initialised by a previous call to `acm_match_init`.
 void acm_matcher_release (MatchHolder *matcher);
