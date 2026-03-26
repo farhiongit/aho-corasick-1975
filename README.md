@@ -62,9 +62,9 @@ Here is a full example explained below.
 #include "aho_corasick.h"
 int
 main (void) {
-  char *words[] = { "he", "she", "his", "hers" };
   ACMachine *machine = acm_create (ACM_EQ_DEFAULT, &(size_t){ sizeof (char) }, 0);
   ACState *state = acm_initiate (machine);
+  char *words[] = { "he", "she", "his", "hers" };
   for (size_t i = 0; i < sizeof (words) / sizeof (*words); i++) {
     for (char *p = words[i]; *p; p++)
       acm_insert_letter_of_keyword (&state, p);
@@ -87,6 +87,11 @@ main (void) {
   acm_release (machine);
 }
 ```
+It yelds
+```
+To ushers: he found his pencil, but she could not find hers.
+ 6:he 5:she 6:hers 12:he 21:his 38:he 37:she 56:he 56:hers
+```
 
 You can also look at an [example](./examples/aho_corasick_generic_test.c) while you read.
 
@@ -95,17 +100,17 @@ You can also look at an [example](./examples/aho_corasick_generic_test.c) while 
 Create and returns a new state machine with `acm_create`.
 
 ```c
-typedef int (*EQ_TYPE) (const void *letter_a, const void *letter_b, void *eq_arg);
+typedef int (*EQ_TYPE) (const void *letter_a, const void *letter_b, const void *eq_arg);
 typedef void (*DESTROY_TYPE) (void *letter); // Compatible with the signature of free.
 
 ACMachine *acm_create (EQ_TYPE eq, void *eq_arg, DESTROY_TYPE dtor);
 ```
 
-- The first argument is the equality operator for the signs that will be used by the dictionary.
-- The second optional argument will be passed to the equality operator when used by the machine.
+- The first argument is the equality operator for the signs that will be used by the dictionary. `eq` should return `0` if the two arguments `*letter_a` and `*letter_b` are *not* equal, non-zero otherwise.
+- The second optional argument `eq_arg` will be passed to the equality operator `eq` when called by the machine.
 
 > [!NOTE]
-> An equality operator `eq` must be provided. The optional argument `eq_arg` will be passed to each call to `eq`.
+> An equality operator `eq` must be provided.
 >
 > If the signs fed to the machine are automatically or statically allocated (until the machine is releases with `acm_release`), then `0` must be passed as `dtor`.
 >
@@ -118,7 +123,7 @@ ACMachine *acm_create (EQ_TYPE eq, void *eq_arg, DESTROY_TYPE dtor);
 > `acm_release` must be subsequently called when the machine is not needed anymore.
 
 > [!TIP]
-> A handy default equality operator `ACM_EQ_DEFAULT` (based on `memcmp`) can be used for a simple lexical comparison.
+> A handy default equality operator `ACM_EQ_DEFAULT` (based on `memcmp`) can be used for a simple lexical comparison of a simple type or structure (without dynamic size).
 > `&(size_t){ sizeof (` *T* `) }` might then be passed as second argument of `acm_create`, where *T* is the type of the signs.
 
 ## Fill the dictionary with words
@@ -367,6 +372,8 @@ Step 3 uses:
   (the Aho Corasick state machine is made stable: new keywords can be registered (`acm_insert_letter_of_keyword`) while scanning is already in progress (`acm_match`)) ;
 
 # Example
+
+Type `make` to run the example.
 
 - [`examples/aho_corasick_generic_test.c`](./examples/aho_corasick_generic_test.c) gives a complete and commented example.
 - The novel Mrs Dalloway of Virgina Woolf  [`mrs_dalloway.txt`](./examples/mrs_dalloway.txt) serves as an input file used by the example.

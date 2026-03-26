@@ -29,7 +29,7 @@ typedef struct
 typedef struct _ac_state ACState;
 typedef struct _ac_machine ACMachine;
 
-typedef int (*EQ_TYPE) (const void *letter_a, const void *letter_b, void *eq_arg);
+typedef int (*EQ_TYPE) (const void *letter_a, const void *letter_b, const void *eq_arg);
 typedef void (*DESTROY_TYPE) (void *letter); // Compatible with the signature of free.
 extern const EQ_TYPE ACM_EQ_DEFAULT;         // Default equality operator (!memcmp). eq_arg MUST be a pointer to the size of a letter, &(size_t){ sizeof (T) }, where T is the type of the letters.
 

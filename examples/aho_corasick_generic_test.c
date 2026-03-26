@@ -46,17 +46,9 @@ print_match (MatchHolder match, void *value) {
 // 3. Optionally, user defined operators can be specified.
 // User defined case insensitive comparison:
 static int
-walphaeq (wchar_t k, wchar_t t) {
-  if (!iswalpha ((wint_t)k) || !iswalpha ((wint_t)t))
-    return (k == t);
-  else
-    return (wchar_t)towlower ((wint_t)k) == (wchar_t)towlower ((wint_t)t);
-}
-
-static int
-alphaeq (const void *k, const void *t, void *eq_arg) {
+alphaeq (const void *k, const void *t, const void *eq_arg) {
   (void)eq_arg;
-  return walphaeq (*(const wchar_t *)k, *(const wchar_t *)t);
+  return (wchar_t)towlower (*(const wint_t *)k) == (wchar_t)towlower (*(const wint_t *)t);
 }
 
 int
@@ -69,7 +61,7 @@ main (void) {
   static wchar_t text[] = L"He found his pencil, but she could not find hers (Hi! Ushers !! --abcdefgh--)";
 
   // 4. Initialise a state machine of type ACMachine (T) using ACM_create (T):
-  ACMachine *M = acm_create (ACM_EQ_DEFAULT, &(size_t){ sizeof (*text) } /* creates a automatic variable on the fly */, 0 /* letters are automatically allocated */);
+  ACMachine *M = acm_create (alphaeq, 0, 0 /* letters are automatically allocated */);
   assert (acm_match (&(const ACState *){ acm_initiate (M) }, &(wchar_t){ L'a' }) == 0); // No keyword in the dictionary yet.
 
   // Declares all the keywords
@@ -184,12 +176,13 @@ main (void) {
       acm_insert_end_of_keyword (&ks, 0, 0);
     }
     printf ("[%'zu] %'zu new keywords added in %f s.\n", l + 1, acm_nb_keywords (M) - nb_keywords, (double)(clock () - myclock) / CLOCKS_PER_SEC);
-    nb_keywords = acm_nb_keywords (M);
     myclock = clock ();
+    nb_keywords = acm_nb_keywords (M);
     size_t nb_matches = 0;
     for (size_t k = 0; k < TEXT_LENGTH; k++)
       nb_matches += acm_match (&ts, &ALPHABET[(size_t)rand () % strlen (ALPHABET)]);
     printf ("[%'zu] %'zu matches found (amongst %'zu keywords) in a text of %'zu characters in %f s.\n", l + 1, nb_matches, nb_keywords, TEXT_LENGTH, (double)(clock () - myclock) / CLOCKS_PER_SEC);
+    myclock = clock ();
   }
   acm_release (M);
 
