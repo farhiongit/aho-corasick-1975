@@ -87,7 +87,7 @@ main (void) {
   acm_release (machine);
 }
 ```
-It yelds
+It yields
 ```
 To ushers: he found his pencil, but she could not find hers.
  6:he 5:she 6:hers 12:he 21:his 38:he 37:she 56:he 56:hers
