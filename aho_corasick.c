@@ -395,7 +395,7 @@ state_fail_state_construct (ACMachine *machine) {
     queue_read_pos++;
     /* Aho-Corasick Algorithm 3: for each a such that s != 0 [fail], where s <- g(0, a) do   [1] */
     /* Aho-Corasick Algorithm 3: for each a such that s != fail, where s <- g(r, a) */
-    for (struct _ac_transition *p = r->transitions; p; p = p->next) /* loop on r->transitions */
+    for (struct _ac_transition *p = r->transitions; p; p = p->next) /* loop on transitions */
     {
       ACState *s = p->value.state; /* [s <- g(r, a)] */
       void *a = p->value.letter;
@@ -404,7 +404,7 @@ state_fail_state_construct (ACMachine *machine) {
       queue[queue_length - 1] = s; /* s */
       s->nb_outputs = s->is_end_of_keyword ? 1 /* Re-entrant: reset to original output (as in acm_insert_end_of_keyword) */ : 0;
       complete_fail_state (r, s, a);
-    } /* loop on r->transitions */
+    }
   } /* while (queue_read_pos < queue_length) */
   free (queue);
   machine->reconstruct = 0;
@@ -514,8 +514,8 @@ acm_foreach_keyword (const ACMachine *machine, void (*operator) (MatchHolder, vo
 }
 //-----------------------------------------------------------------
 static void
-state_print (ACState *state, FILE *stream, int indent, PRINT_TYPE printer) {
-  static int cur_pos = 0;
+state_print (ACState *state, FILE *stream, int *pcursor, int indent, PRINT_TYPE printer) {
+  int cur_pos = *pcursor;
   ACM_ASSERT (!state->is_end_of_keyword || state->nb_outputs, "Keyword without defined output.");
   ACM_ASSERT (state == state->machine->state_0 ? state->fail_state == 0 : state->fail_state != 0, "Incorrect fail state.");
   for (struct _ac_transitions *pt = state->transitions; pt; pt = pt->next) {
@@ -545,7 +545,8 @@ state_print (ACState *state, FILE *stream, int indent, PRINT_TYPE printer) {
       cur_pos += fprintf (stream, "[+%zu]", next.value.state->nb_outputs); // # of matching
     if (next.value.state->fail_state != state->machine->state_0)
       cur_pos += fprintf (stream, "(v %03zu)", next.value.state->fail_state->id); // Fail state #
-    state_print (next.value.state, stream, cur_pos, printer);
+    *pcursor = cur_pos;
+    state_print (next.value.state, stream, pcursor, cur_pos, printer);
   } // for (struct _ac_transitions *pt = state->transitions; pt; pt = pt->next)
 }
 
@@ -557,7 +558,7 @@ acm_print (ACMachine *machine, FILE *stream, PRINT_TYPE printer) {
 #endif
   if (stream) {
     fprintf (stream, "\n");
-    state_print (machine->state_0, stream, 0, printer);
+    state_print (machine->state_0, stream, &(int){ 0 }, 0, printer);
     fprintf (stream, "\n");
   }
 }

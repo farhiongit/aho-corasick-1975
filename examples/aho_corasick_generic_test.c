@@ -48,7 +48,7 @@ print_match (MatchHolder match, void *value) {
 static int
 alphaeq (const void *k, const void *t, const void *eq_arg) {
   (void)eq_arg;
-  return (wchar_t)towlower (*(const wint_t *)k) == (wchar_t)towlower (*(const wint_t *)t);
+  return towlower (*(const wint_t *)k) == towlower (*(const wint_t *)t);
 }
 
 int
