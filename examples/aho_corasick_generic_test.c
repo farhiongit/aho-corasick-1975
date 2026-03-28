@@ -46,9 +46,11 @@ print_match (MatchHolder match, void *value) {
 // 3. Optionally, user defined operators can be specified.
 // User defined case insensitive comparison:
 static int
-alphaeq (const void *k, const void *t, const void *eq_arg) {
+alphaneq (const void *k, const void *t, const void *eq_arg) {
   (void)eq_arg;
-  return towlower (*(const wint_t *)k) == towlower (*(const wint_t *)t);
+  wint_t lk = towlower (*(const wint_t *)k);
+  wint_t lt = towlower (*(const wint_t *)t);
+  return lk > lt ? 1 : (lk < lt ? -1 : 0);
 }
 
 int
@@ -61,7 +63,7 @@ main (void) {
   static wchar_t text[] = L"He found his pencil, but she could not find hers (Hi! Ushers !! --abcdefgh--)";
 
   // 4. Initialise a state machine of type ACMachine (T) using ACM_create (T):
-  ACMachine *M = acm_create (alphaeq, 0, 0 /* letters are automatically allocated */);
+  ACMachine *M = acm_create (alphaneq, 0, 0 /* letters are automatically allocated */);
   assert (acm_match (&(const ACState *){ acm_initiate (M) }, &(wchar_t){ L'a' }) == 0); // No keyword in the dictionary yet.
 
   // Declares all the keywords
@@ -165,7 +167,7 @@ main (void) {
   const size_t TEXT_LENGTH = 1000000;
   char ALPHABET[] = "abcdefghijklmnopqrstuvwxyz";
   clock_t myclock = clock ();
-  M = acm_create (ACM_EQ_DEFAULT, &(size_t){ sizeof (char) }, 0);
+  M = acm_create (ACM_CMP_DEFAULT, &(size_t){ sizeof (char) }, 0);
   ACState *ks = acm_initiate (M);       // Initialise once.
   const ACState *ts = acm_initiate (M); // Initialise once.
   size_t nb_keywords = 0;
@@ -195,7 +197,7 @@ main (void) {
   wchar_t line[100] = L" "; // keywords start with ' '
 
   // 4. Initialise a state machine with a user defined equality operator.
-  M = acm_create (alphaeq, 0, free /* letters are dynamically allocated */);
+  M = acm_create (alphaneq, 0, free /* letters are dynamically allocated */);
 
   stream = fopen ("mrs_dalloway.txt", "r");
   if (stream == 0)
@@ -257,7 +259,7 @@ main (void) {
   fclose (stream);
 
   // Get the number of registered keywords.
-  printf ("[%zu] keywords registered.\n", acm_nb_keywords (M));
+  printf ("%zu keywords registered.\n", acm_nb_keywords (M));
   // Applies a function on each registered keyword (display keywords and their associated value.)
   acm_foreach_keyword (M, print_match);
 

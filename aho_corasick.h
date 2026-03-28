@@ -29,18 +29,19 @@ typedef struct
 typedef struct _ac_state ACState;
 typedef struct _ac_machine ACMachine;
 
-typedef int (*EQ_TYPE) (const void *letter_a, const void *letter_b, const void *eq_arg);
+typedef int (*CMP_TYPE) (const void *letter_a, const void *letter_b, const void *eq_arg);
 typedef void (*DESTROY_TYPE) (void *letter); // Compatible with the signature of free.
-extern const EQ_TYPE ACM_EQ_DEFAULT;         // Default equality operator (!memcmp). eq_arg MUST be a pointer to the size of a letter, &(size_t){ sizeof (T) }, where T is the type of the letters.
+extern const CMP_TYPE ACM_CMP_DEFAULT;       // Default comparison function (memcmp). cmp_arg MUST be a pointer to the size of a letter, &(size_t){ sizeof (T) }, where T is the type of the letters.
 
-// An equality operator `eq` must be provided. The optional argument `eq_arg` will be passed to each call to `eq`.
+// A comparison function `cmp` must be provided. The optional argument `cmp_arg` will be passed to each call to `cmp`.
+// The comparison function `cmp` must return an integer less than, equal to, or greater than zero if the first argument is considered to be respectively less than, equal to, or greater than the second.
 // If the letters fed to the machine are not statically allocated until the machine is releases (with `acm_release`),
 // - letters must be dynamically allocated before each call to `acm_insert_letter_of_keyword`.
 // - a destructor `dtor` must be provided.
 // - letters will be automatically deallocated by the machine.
 // - if letters are allocated by a single call to `malloc`, `free` is a suitable destructor.
 // `acm_release` must be subsequently called when the machine is not needed anymore.
-ACMachine *acm_create (EQ_TYPE eq, void *eq_arg, DESTROY_TYPE dtor);
+ACMachine *acm_create (CMP_TYPE cmp, void *cmp_arg, DESTROY_TYPE dtor);
 
 // Initialise a state that must be passed to the first call to `acm_insert_letter_of_keyword` or to the first call to `acm_match`.
 ACState *acm_initiate (ACMachine *machine);

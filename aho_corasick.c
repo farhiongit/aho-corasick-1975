@@ -44,10 +44,7 @@ struct _ac_transition {
 struct _ac_state /* [state s] */
 {
   /* Transitions to the next states */
-  struct _ac_transitions {
-    struct _ac_transition value;  /* Next state */
-    struct _ac_transitions *next; /* Linked list (stable on insertion, unordered on letter, searchable on letter) of transitions from a state */
-  } *transitions;                 /* Next states in the tree of the goto function */
+  map * /* of struct _ac_transitions */ transitions; /* Next states in the tree of the goto function */
   /* A link to the previous states */
   struct _prev {
     const void *letter;               /* [a symbol] : transition from the previous state */
@@ -74,9 +71,9 @@ struct _ac_machine {
   size_t nb_states;          /* Number of states in the machine. */
   struct _ops {
     struct {
-      EQ_TYPE f;
+      CMP_TYPE f;
       void *arg;
-    } eq; /* Equality operator between two letters */
+    } cmp; /* Equality operator between two letters */
     struct {
       DESTROY_TYPE f;
     } destroy; /* Destructor of a letter */
@@ -84,8 +81,14 @@ struct _ac_machine {
   mtx_t token;
 };
 //-----------------------------------------------------------------
+static const void *
+transition_get_key (void *data) {
+  struct _ac_transition *n = data;
+  return n->letter;
+}
+
 static ACState *
-state_create (void) {
+state_create (ACMachine *machine) {
   ACState *s = calloc (1, sizeof (*s)); // [state s] ACState allocation, all attributes set to 0
   ACM_ASSERT (s, "Out of memory.");
   /* [g(s, a) is undefined (= fail) for all input symbol a] : s->transitions = 0 */
@@ -94,20 +97,28 @@ state_create (void) {
   static const size_t inverse_fail_states_size = sizeof (ACState *);                                                     // Static persistent value.
   ACM_ASSERT (s->inverse_fail_states = map_create (0, MAP_GENERIC_CMP, &inverse_fail_states_size, 1), "Out of memory."); // s->inverse_fail_states will manage pointers to ACState.
 #endif
+  s->machine = machine;
+  s->transitions = map_create (transition_get_key, machine->operators.cmp.f, machine->operators.cmp.arg, 1);
   return s;
+}
+
+static void state_release (ACState *state);
+static int
+transition_release (void *data, void *op_arg, int *remove) {
+  struct _ac_transition *t = data;
+  (void)op_arg;
+  if (t->state->machine->operators.destroy.f)
+    t->state->machine->operators.destroy.f (t->letter); // letter deallocation
+  state_release (t->state);
+  free (t);
+  return (*remove = 1); // Remove and continue.
 }
 
 static void
 state_release (ACState *state) {
   /* Release transitions and letters */
-  struct _ac_transitions *n;
-  for (struct _ac_transitions *p = state->transitions; p; p = n) {
-    n = p->next;
-    state_release (p->value.state);
-    if (state->machine->operators.destroy.f)
-      state->machine->operators.destroy.f (p->value.letter); // letter deallocation
-    free (p);
-  }
+  map_traverse (state->transitions, transition_release, 0, 0, 0);
+  map_destroy (state->transitions);
   /* Release associated value */
   if (state->definition.dtor)
     state->definition.dtor (state->definition.value);
@@ -120,20 +131,20 @@ state_release (ACState *state) {
 }
 //-----------------------------------------------------------------
 static int
-eq_default (const void *a, const void *b, const void *eq_arg) {
-  return !memcmp (a, b, *(const size_t *)eq_arg);
+cmp_default (const void *a, const void *b, const void *cmp_arg) {
+  return memcmp (a, b, *(const size_t *)cmp_arg);
 }
-const EQ_TYPE ACM_EQ_DEFAULT = eq_default;
+const CMP_TYPE ACM_CMP_DEFAULT = cmp_default;
 
 ACMachine *
-acm_create (EQ_TYPE eq, void *eq_arg, DESTROY_TYPE dtor) {
-  ACM_ASSERT (eq, "An equality operator should be provided.");
+acm_create (CMP_TYPE cmp, void *cmp_arg, DESTROY_TYPE dtor) {
+  ACM_ASSERT (cmp, "A comparison function should be provided.");
   ACMachine *machine = calloc (1, sizeof (*machine)); // ACMachine allocation, all attributes set to 0.
   ACM_ASSERT (machine, "Out of memory.");
   /* Aho-Corasick Algorithm 2: newstate <- 0 */
   /* Create state 0. */
-  machine->operators = (struct _ops){ .eq = { .f = eq, .arg = eq_arg }, .destroy = { .f = dtor } };
-  (machine->state_0 = state_create ())->machine = machine;
+  machine->operators = (struct _ops){ .cmp = { .f = cmp, .arg = cmp_arg }, .destroy = { .f = dtor } };
+  machine->state_0 = state_create (machine);
   machine->nb_states++;
   ACM_ASSERT (mtx_init (&machine->token, mtx_plain) == thrd_success, "Out of memory.");
   return machine;
@@ -160,9 +171,9 @@ state_goto (const ACState *state, const void *letter /* a[i] */) {
   /*                           [The function returns state] */
   while (1) {
     /* [if g(state, a[i]) != fail then return g(state, a[i])] */
-    for (struct _ac_transitions *p = state->transitions; p; p = p->next)
-      if (state->machine->operators.eq.f (p->value.letter, letter, state->machine->operators.eq.arg))
-        return p->value.state;
+    struct _ac_transition *n = 0;
+    if (map_find_key (state->transitions, letter, MAP_GET_ONE, &n, 0, 0))
+      return n->state;
     /* From here, [g(state, a[i]) = fail] */
 
     /* Algorithms 1 cannot consider that g(0, a) never fails because property LOOP_0 has not been implemented. */
@@ -207,12 +218,9 @@ complete_inverse_one_ifs (void *data, void *op_arg, int *remove) {
   struct _ac_transition *transition = op_arg /* n', c */;
 
   ACState **xprime = 0;
-  for (struct _ac_transitions *pt = x->transitions /* T[x, ...] */; pt /* T[x, letter */; pt = pt->next) // For each transition labelled letter in T[x, ...]
-    if (x->machine->operators.eq.f (pt->value.letter, transition->letter /* c */, x->machine->operators.eq.arg)) /* it exists T[x, letter] for which c = letter --> T[x, c] is defined */ {
-      xprime = &pt->value.state; // x' = T[x, c] (&pt->value.state is persistent and stable)
-      break;
-    }
-
+  struct _ac_transition *n = 0;
+  if (map_find_key (x->transitions, transition->letter, MAP_GET_ONE, &n, 0, 0)) /* There is T[x, letter] for which c = letter, i.e. T[x, c] is defined */
+    xprime = &n->state;                                                         // x' = T[x, c] (&pt->value.state is persistent and stable)
   if (xprime) {
     // Remove previous failure value of x'.
     ACM_ASSERT (map_find_key ((*xprime)->fail_state->inverse_fail_states, xprime, MAP_REMOVE_ALL, 0, 0, 0) == 1, ""); // IF[f[x'] = IF[f[x'] - {x'}
@@ -225,27 +233,23 @@ complete_inverse_one_ifs (void *data, void *op_arg, int *remove) {
     // Complete_inverse (x, n', c) : for y in IF[x], do complete_inverse_one_ifs (y, n', c)
     map_traverse (/* for y in IF[x], x = lps(y) */ x->inverse_fail_states, complete_inverse_one_ifs, transition /* n', c */, 0, 0); // Try recursively with nodes having x as proper suffix.
 
-  return 1;
+  return 1; // Continue.
 }
 #endif
 //-----------------------------------------------------------------
 static ACState *
 enter_child (ACState *n, void *c) {
   /* Creation of a new state */
-  ACState *nprime = state_create (); // New state
-  struct _ac_transition *pt = 0;
-  struct _ac_transitions *tr = calloc (1, sizeof (*tr));
-  ACM_ASSERT (tr, "Out of memory.");
+  ACState *nprime = state_create (n->machine);       // New state
+  struct _ac_transition *pt = malloc (sizeof (*pt)); /* persistent and steady */
+  ACM_ASSERT (pt, "Out of memory.");
+  *pt = (struct _ac_transition){ .state = nprime, .letter = c }; // *c is supposed to be persistent until acm_release is called.
   /* Aho-Corasick Algorithm 2: g(n, a[p]) <- nprime */
-  *tr = (struct _ac_transitions){ .value = { .state = nprime, .letter = c }, .next = n->transitions }; // *c is supposed to be persistent until acm_release is called.
-  n->transitions = tr;
-  pt = &n->transitions->value; /* persistent and steady */
+  ACM_ASSERT (map_insert_data (n->transitions, pt), "Out of memory.");
   /* Backward link: previous(nprime, a[p]) <- n */
   nprime->previous = (struct _prev){ .state = n, .letter = c };
-  nprime->machine = n->machine;
   nprime->id = n->machine->nb_states; /* state UID */
   n->machine->nb_states++;
-  (void)pt;
 #ifndef NMEYER_85
   /* T[n, c] = n' */
   /* Meyer 85 : "Build the f function incrementally, as new strings are entered into T.
@@ -292,12 +296,9 @@ acm_insert_letter_of_keyword (ACState **state, void *letter) {
   ACState *next = 0;
   /* Aho-Corasick Algorithm 2: "g(s, l) = fail if l is undefined or if g(s, l) has not been defined." */
   /* Loop on all symbols a for which g(state, a) is defined. */
-  for (struct _ac_transitions *p = (*state)->transitions; p; p = p->next)
-    if (machine->operators.eq.f (p->value.letter, letter, machine->operators.eq.arg)) {
-      /* [if g(state, a[j]) is defined] */
-      next = p->value.state;
-      break;
-    }
+  struct _ac_transition *n = 0;
+  if (map_find_key ((*state)->transitions, letter, MAP_GET_ONE, &n, 0, 0)) /* There is T[x, letter] for which c = letter, i.e. T[x, c] is defined */
+    next = n->state;
   /* [if g(state, a[j]) is defined (!= fail)] */
   if (next) { // the letter is already in the machine and need not be inserted twice.
     /* Aho-Corasick Algorithm 2: state <- g(state, a[j]) */
@@ -328,7 +329,7 @@ enter_output_one_ifs (void *x, void *op_arg, int *remove) {
   (void)remove;
   /* Meyer 85 : "enter_output becomes recursive. */
   enter_output (*(ACState **)x);
-  return 1;
+  return 1; // Continue.
 }
 #endif
 
@@ -369,6 +370,25 @@ acm_insert_end_of_keyword (ACState **state, void *value, void (*dtor) (void *)) 
 //-----------------------------------------------------------------
 #ifdef NMEYER_85
 /* Aho-Corasick Algorithm 3: construction of the failure function and outputs using a FIFO  and a BFS algorithm (re-entrant). */
+struct transition_fail_state_construct_args {
+  ACState *r, **queue;
+  size_t *queue_length;
+};
+static int
+transition_fail_state_construct (void *data, void *op_arg, int *remove) {
+  (void)remove;
+  struct _ac_transition *t = data;
+  struct transition_fail_state_construct_args args = *(struct transition_fail_state_construct_args *)op_arg;
+  ACState *s = t->state; /* [s <- g(r, a)] */
+  void *a = t->letter;
+  /* Aho-Corasick Algorithm 3: queue <- queue U {s} */
+  (*args.queue_length)++;
+  args.queue[*args.queue_length - 1] = s; /* s */
+  s->nb_outputs = s->is_end_of_keyword ? 1 /* Re-entrant: reset to original output (as in acm_insert_end_of_keyword) */ : 0;
+  complete_fail_state (args.r, s, a);
+  return 1; // Continue;
+}
+
 static void
 state_fail_state_construct (ACMachine *machine) {
   /* Double-checked locking */
@@ -395,16 +415,7 @@ state_fail_state_construct (ACMachine *machine) {
     queue_read_pos++;
     /* Aho-Corasick Algorithm 3: for each a such that s != 0 [fail], where s <- g(0, a) do   [1] */
     /* Aho-Corasick Algorithm 3: for each a such that s != fail, where s <- g(r, a) */
-    for (struct _ac_transition *p = r->transitions; p; p = p->next) /* loop on transitions */
-    {
-      ACState *s = p->value.state; /* [s <- g(r, a)] */
-      void *a = p->value.letter;
-      /* Aho-Corasick Algorithm 3: queue <- queue U {s} */
-      queue_length++;
-      queue[queue_length - 1] = s; /* s */
-      s->nb_outputs = s->is_end_of_keyword ? 1 /* Re-entrant: reset to original output (as in acm_insert_end_of_keyword) */ : 0;
-      complete_fail_state (r, s, a);
-    }
+    map_traverse (r->transitions, transition_fail_state_construct, &(struct transition_fail_state_construct_args){ r, queue, &queue_length }, 0, 0); /* loop on transitions */
   } /* while (queue_read_pos < queue_length) */
   free (queue);
   machine->reconstruct = 0;
@@ -484,21 +495,35 @@ acm_nb_keywords (const ACMachine *machine) {
   return machine->nb_sequences;
 }
 
+static void foreach_keyword (const ACState *state, const void ***letters, size_t *max_length, size_t depth, void (*operator) (MatchHolder, void *));
+struct foreach_transition_args {
+  const void ***letters;
+  size_t *max_length;
+  size_t depth;
+  void (*operator) (MatchHolder, void *);
+};
+static int
+foreach_transition (void *data, void *op_arg, int *remove) {
+  (void)remove;
+  struct _ac_transition *t = data;
+  struct foreach_transition_args args = *(struct foreach_transition_args *)op_arg;
+  if (args.depth >= *args.max_length) {
+    *args.max_length = args.depth + 1;
+    *args.letters = realloc (*args.letters, *args.max_length * sizeof (**args.letters)); // letters allocation
+    ACM_ASSERT (*args.letters, "Out of memory.");
+  }
+  (*args.letters)[args.depth] = t->letter;
+  foreach_keyword (t->state, args.letters, args.max_length, args.depth + 1, args.operator);
+  return 1; // Continue.
+}
+
 static void
 foreach_keyword (const ACState *state, const void ***letters, size_t *max_length, size_t depth, void (*operator) (MatchHolder, void *)) {
   if (state->is_end_of_keyword && depth) {
     MatchHolder k = { .letters = *letters, .length = depth };
     (*operator) (k, state->definition.value);
   }
-  for (struct _ac_transitions *p = state->transitions; p; p = p->next) {
-    if (depth >= *max_length) {
-      *max_length = depth + 1;
-      *letters = realloc (*letters, *max_length * sizeof (**letters)); // letters allocation
-      ACM_ASSERT (*letters, "Out of memory.");
-    }
-    (*letters)[depth] = p->value.letter;
-    foreach_keyword (p->value.state, letters, max_length, depth + 1, operator);
-  }
+  map_traverse (state->transitions, foreach_transition, &(struct foreach_transition_args){ letters, max_length, depth, operator }, 0, 0);
 }
 
 void
@@ -513,41 +538,54 @@ acm_foreach_keyword (const ACMachine *machine, void (*operator) (MatchHolder, vo
   free (letters); // letters deallocation
 }
 //-----------------------------------------------------------------
+static void state_print (ACState *state, FILE *stream, int *pcursor, int indent, PRINT_TYPE printer);
+struct transition_print_args {
+  ACState *state;
+  FILE *stream;
+  int *pcursor;
+  int indent;
+  PRINT_TYPE printer;
+};
+static int
+transition_print (void *data, void *op_arg, int *remove) {
+  (void)remove;
+  struct _ac_transition *tr = data;
+  struct transition_print_args args = *(struct transition_print_args *)op_arg;
+  if (args.indent < *args.pcursor) {
+    *args.pcursor = 0;
+    fprintf (args.stream, "\n");
+    if (args.indent) {
+      for (int t = 0; t < args.indent - 1; t++)
+        *args.pcursor += fprintf (args.stream, " ");
+      *args.pcursor += fprintf (args.stream, "L");
+    }
+  } else if (args.indent > *args.pcursor)
+    for (int t = 0; t < args.indent - *args.pcursor; t++)
+      *args.pcursor += fprintf (args.stream, " ");
+
+  if (args.state == args.state->machine->state_0)
+    *args.pcursor += fprintf (args.stream, "(%03zu)", args.state->id); // Initial state #
+  *args.pcursor += fprintf (args.stream, "---");
+
+  ACM_ASSERT (tr->state->previous.state == args.state && tr->state->previous.letter == tr->letter, "Incorrect previous state.");
+  if (args.printer)
+    *args.pcursor += args.printer (args.stream, tr->letter); // Transition "letter"
+  *args.pcursor += fprintf (args.stream, "-->");
+  *args.pcursor += fprintf (args.stream, "(%03zu)", tr->state->id); // Final state #
+  if (tr->state->is_end_of_keyword)
+    *args.pcursor += fprintf (args.stream, "[+%zu]", tr->state->nb_outputs); // # of matching
+  if (tr->state->fail_state != args.state->machine->state_0)
+    *args.pcursor += fprintf (args.stream, "(v %03zu)", tr->state->fail_state->id); // Fail state #
+  *args.pcursor = *args.pcursor;
+  state_print (tr->state, args.stream, args.pcursor, *args.pcursor, args.printer);
+  return 1; // Continue.
+}
+
 static void
 state_print (ACState *state, FILE *stream, int *pcursor, int indent, PRINT_TYPE printer) {
-  int cur_pos = *pcursor;
   ACM_ASSERT (!state->is_end_of_keyword || state->nb_outputs, "Keyword without defined output.");
   ACM_ASSERT (state == state->machine->state_0 ? state->fail_state == 0 : state->fail_state != 0, "Incorrect fail state.");
-  for (struct _ac_transitions *pt = state->transitions; pt; pt = pt->next) {
-    if (indent < cur_pos) {
-      cur_pos = 0;
-      fprintf (stream, "\n");
-      if (indent) {
-        for (int t = 0; t < indent - 1; t++)
-          cur_pos += fprintf (stream, " ");
-        cur_pos += fprintf (stream, "L");
-      }
-    } else if (indent > cur_pos)
-      for (int t = 0; t < indent - cur_pos; t++)
-        cur_pos += fprintf (stream, " ");
-
-    if (state == state->machine->state_0)
-      cur_pos += fprintf (stream, "(%03zu)", state->id); // Initial state #
-    cur_pos += fprintf (stream, "---");
-
-    struct _ac_transitions next = *pt;
-    ACM_ASSERT (next.value.state->previous.state == state && next.value.state->previous.letter == next.value.letter, "Incorrect previous state.");
-    if (printer)
-      cur_pos += printer (stream, next.value.letter); // Transition "letter"
-    cur_pos += fprintf (stream, "-->");
-    cur_pos += fprintf (stream, "(%03zu)", next.value.state->id); // Final state #
-    if (next.value.state->is_end_of_keyword)
-      cur_pos += fprintf (stream, "[+%zu]", next.value.state->nb_outputs); // # of matching
-    if (next.value.state->fail_state != state->machine->state_0)
-      cur_pos += fprintf (stream, "(v %03zu)", next.value.state->fail_state->id); // Fail state #
-    *pcursor = cur_pos;
-    state_print (next.value.state, stream, pcursor, cur_pos, printer);
-  } // for (struct _ac_transitions *pt = state->transitions; pt; pt = pt->next)
+  map_traverse (state->transitions, transition_print, &(struct transition_print_args){ state, stream, pcursor, indent, printer }, 0, 0);
 }
 
 void

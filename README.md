@@ -41,7 +41,7 @@ This project offers an efficient [implementation](#implementation) of:
 The implementation offers several enhancements to the original proposals:
 
 - It is generic in the sense that it works for any kind of alphabet (of any type) and not only for `char`.
-- It works with alphabets of any number of signs (and not limited to 26 or 256). The alphabet need not be ordered. It only requires an equality operator.
+- It works with alphabets of any number of signs (and not limited to 26 or 256). The alphabet needs to be ordered. It requires a comparison operator.
 - The logic is refactored so that it can used iteratively so as not be constrained by any given type of container for words.
 - The interface is minimal, complete and easy to use.
 - The implementation has low memory footprint and is fast.
@@ -62,7 +62,7 @@ Here is a full example explained below.
 #include "aho_corasick.h"
 int
 main (void) {
-  ACMachine *machine = acm_create (ACM_EQ_DEFAULT, &(size_t){ sizeof (char) }, 0);
+  ACMachine *machine = acm_create (ACM_CMP_DEFAULT, &(size_t){ sizeof (char) }, 0);
   ACState *state = acm_initiate (machine);
   char *words[] = { "he", "she", "his", "hers" };
   for (size_t i = 0; i < sizeof (words) / sizeof (*words); i++) {
@@ -100,17 +100,18 @@ You can also look at an [example](./examples/aho_corasick_generic_test.c) while 
 Create and returns a new state machine with `acm_create`.
 
 ```c
-typedef int (*EQ_TYPE) (const void *letter_a, const void *letter_b, const void *eq_arg);
+typedef int (*CMP_TYPE) (const void *letter_a, const void *letter_b, const void *eq_arg);
 typedef void (*DESTROY_TYPE) (void *letter); // Compatible with the signature of free.
 
-ACMachine *acm_create (EQ_TYPE eq, void *eq_arg, DESTROY_TYPE dtor);
+ACMachine *acm_create (CMP_TYPE cmp, void *cmp_arg, DESTROY_TYPE dtor);
 ```
 
-- The first argument is the equality operator for the signs that will be used by the dictionary. `eq` should return `0` if the two arguments `*letter_a` and `*letter_b` are *not* equal, non-zero otherwise.
-- The second optional argument `eq_arg` will be passed to the equality operator `eq` when called by the machine.
+- The first argument is a comparison function `cmp` for the signs that will be used by the dictionary.
+  The comparison function `cmp` must return an integer less than, equal to, or greater than zero if the first argument is considered to be respectively less than, equal to, or greater than the second.
+- The second optional argument `cmp_arg` will be passed to the comparison function `cmp` when called by the machine.
 
 > [!NOTE]
-> An equality operator `eq` must be provided.
+> An comparison function `cmp` must be provided.
 >
 > If the signs fed to the machine are automatically or statically allocated (until the machine is releases with `acm_release`), then `0` must be passed as `dtor`.
 >
@@ -123,7 +124,7 @@ ACMachine *acm_create (EQ_TYPE eq, void *eq_arg, DESTROY_TYPE dtor);
 > `acm_release` must be subsequently called when the machine is not needed anymore.
 
 > [!TIP]
-> A handy default equality operator `ACM_EQ_DEFAULT` (based on `memcmp`) can be used for a simple lexical comparison of a simple type or structure (without dynamic size).
+> A handy default comparison function `ACM_CMP_DEFAULT` (based on `memcmp`) can be used for a simple lexical comparison of a simple type or structure (of fixed size).
 > `&(size_t){ sizeof (` *T* `) }` might then be passed as second argument of `acm_create`, where *T* is the type of the signs.
 
 ## Fill the dictionary with words
@@ -365,11 +366,12 @@ Compared to the implementation proposed by Aho and Corasick, this one adds sever
 
 Step 3 uses:
 
-- either, by default, an incremental reconstruction of the failure states (as proposed by B. Meyer in his paper) each time a new keyword is entered, with:
-  - one correction to make `Complete_failure` also correctly compute `F[T[n,c]]` (set to state `0`) for the initial state `n` equal to state `0` (this is required by `Enter_child`) ;
-  - the use of the [minimaps](https://github.com/farhiongit/minimaps) library.
+- either, by default, an incremental reconstruction of the failure states (as proposed by B. Meyer in his paper) each time a new keyword is entered, with
+  one correction to make `Complete_failure` also correctly compute `F[T[n,c]]` (set to state `0`) for the initial state `n` equal to state `0` (this is required by `Enter_child`) ;
 - or, when the macro `NMEYER_85` is defined at compile time of `aho_corasick.c`, a full reconstruction of the failure states (as proposed by Aho and Corasick in their paper) before a match search
   (the Aho Corasick state machine is made stable: new keywords can be registered (`acm_insert_letter_of_keyword`) while scanning is already in progress (`acm_match`)) ;
+
+The implementation makes use of sets and maps provided by the [minimaps](https://github.com/farhiongit/minimaps) library.
 
 # Example
 

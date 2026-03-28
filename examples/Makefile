@@ -1,7 +1,7 @@
 CPPFLAGS += -I..
 CFLAGS += -O3
 #CFLAGS += -g
-DIRMAPS = ../../minimaps
+DIRMAPS = ../../minimaps  # see https://github.com/farhiongit/minimaps
 #TOOL = valgrind --leak-check=full
 #TOOL = ddd
 
@@ -10,7 +10,7 @@ all: aho_corasick_generic_test
 
 .INTERMEDIATE: ../aho_corasick.o
 # When NMEYER_85 is defined, the incremental string matching (Meyer, 1985) is not used. The original Aho-Corasick algorithm is used.
-#../aho_corasick.o: CPPFLAGS += -DNMEYER_85
+../aho_corasick.o: CPPFLAGS += -DNMEYER_85
 ../aho_corasick.o: CPPFLAGS += -I$(DIRMAPS)
 ../aho_corasick.o: CFLAGS += -std=c11
 
