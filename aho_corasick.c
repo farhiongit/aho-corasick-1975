@@ -98,6 +98,7 @@ state_create (ACMachine *machine) {
   ACM_ASSERT (s->inverse_fail_states = map_create (0, MAP_GENERIC_CMP, &inverse_fail_states_size, 1), "Out of memory."); // s->inverse_fail_states will manage pointers to ACState.
 #endif
   s->machine = machine;
+  s->id = machine->nb_states++; /* state UID */
   s->transitions = map_create (transition_get_key, machine->operators.cmp.f, machine->operators.cmp.arg, 1);
   return s;
 }
@@ -145,7 +146,6 @@ acm_create (CMP_TYPE cmp, void *cmp_arg, DESTROY_TYPE dtor) {
   /* Create state 0. */
   machine->operators = (struct _ops){ .cmp = { .f = cmp, .arg = cmp_arg }, .destroy = { .f = dtor } };
   machine->state_0 = state_create (machine);
-  machine->nb_states++;
   ACM_ASSERT (mtx_init (&machine->token, mtx_plain) == thrd_success, "Out of memory.");
   return machine;
 }
@@ -248,8 +248,6 @@ enter_child (ACState *n, void *c) {
   ACM_ASSERT (map_insert_data (n->transitions, pt), "Out of memory.");
   /* Backward link: previous(nprime, a[p]) <- n */
   nprime->previous = (struct _prev){ .state = n, .letter = c };
-  nprime->id = n->machine->nb_states; /* state UID */
-  n->machine->nb_states++;
 #ifndef NMEYER_85
   /* T[n, c] = n' */
   /* Meyer 85 : "Build the f function incrementally, as new strings are entered into T.
