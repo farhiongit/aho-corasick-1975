@@ -98,8 +98,8 @@ state_create (ACMachine *machine) {
   ACM_ASSERT (s->inverse_fail_states = map_create (0, MAP_GENERIC_CMP, &inverse_fail_states_size, 1), "Out of memory."); // s->inverse_fail_states will manage pointers to ACState.
 #endif
   s->machine = machine;
-  s->id = machine->nb_states++; /* state UID */
-  s->transitions = map_create (transition_get_key, machine->operators.cmp.f, machine->operators.cmp.arg, 1);
+  s->id = machine->nb_states++;                                                                                                             /* state UID */
+  ACM_ASSERT (s->transitions = map_create (transition_get_key, machine->operators.cmp.f, machine->operators.cmp.arg, 1), "Out of memory."); // s->transitions will manage transitions between states.
   return s;
 }
 
@@ -118,15 +118,15 @@ transition_release (void *data, void *op_arg, int *remove) {
 static void
 state_release (ACState *state) {
   /* Release transitions and letters */
-  map_traverse (state->transitions, transition_release, 0, 0, 0);
-  map_destroy (state->transitions);
+  map_traverse (state->transitions, transition_release, 0, 0, 0); // Empty the map.
+  ACM_ASSERT (map_destroy (state->transitions), "");
   /* Release associated value */
   if (state->definition.dtor)
     state->definition.dtor (state->definition.value);
   /* Release state */
 #ifndef NMEYER_85
-  map_traverse (state->inverse_fail_states, MAP_REMOVE_ALL, 0, 0, 0);
-  map_destroy (state->inverse_fail_states);
+  map_traverse (state->inverse_fail_states, MAP_REMOVE_ALL, 0, 0, 0); // Empty the map.
+  ACM_ASSERT (map_destroy (state->inverse_fail_states), "");
 #endif
   free (state);
 }
