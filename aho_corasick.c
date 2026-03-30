@@ -209,25 +209,27 @@ complete_fail_state (ACState *r /* the previous state of s */, ACState *s, const
 
 #ifndef NMEYER_85
 static int
+update_fail_state (void *data, void *op_arg, int *remove) {
+  (void)remove;
+  ACState *nprime = op_arg;
+  ACState **pxprime = &((struct _ac_transition *)data)->state; // x' = T[x, c] (pxprime is persistent and stable)
+  // Remove previous failure value of x'.
+  ACM_ASSERT (map_find_key ((*pxprime)->fail_state->inverse_fail_states, pxprime, MAP_REMOVE_ALL, 0, 0, 0) == 1, ""); // IF[f[x'] = IF[f[x'] - {x'}
+  // Install new one [failure value].
+  (*pxprime)->fail_state = nprime;                                         // f[x'] = n'
+  ACM_ASSERT (map_insert_data (nprime->inverse_fail_states, pxprime), ""); // IF[n'] = IF[n'] + {x'}
+  return 0;                                                                // Break.
+}
+
+static int
 complete_inverse_one_ifs (void *data, void *op_arg, int *remove) {
   /* Meyer 85 : "Recursive precondition: n' is a suffix of nc and T[bA, c] is undefined for any proper suffix bA of n (where n' = Ac)
                  Record n' as new failure value for all x' such that nc = longest proper suffix of x'." */
-  (void)op_arg;
   (void)remove;
   ACState *x = *(ACState **)data; // map of ACState *
   struct _ac_transition *transition = op_arg /* n', c */;
 
-  ACState **xprime = 0;
-  struct _ac_transition *n = 0;
-  if (map_find_key (x->transitions, transition->letter, MAP_GET_ONE, &n, 0, 0)) /* There is T[x, letter] for which c = letter, i.e. T[x, c] is defined */
-    xprime = &n->state;                                                         // x' = T[x, c] (&pt->value.state is persistent and stable)
-  if (xprime) {
-    // Remove previous failure value of x'.
-    ACM_ASSERT (map_find_key ((*xprime)->fail_state->inverse_fail_states, xprime, MAP_REMOVE_ALL, 0, 0, 0) == 1, ""); // IF[f[x'] = IF[f[x'] - {x'}
-    // Install new one [failure value].
-    (*xprime)->fail_state = transition->state;                                                  // f[x'] = n'
-    ACM_ASSERT (map_insert_data (transition->state /* n' */->inverse_fail_states, xprime), ""); // IF[n'] = IF[n'] + {x'}
-  } else                                                                                        /* There is no T[x, letter] for which c = letter --> T[x, c] is undefined */
+  if (!map_find_key (x->transitions, transition->letter, update_fail_state, transition->state /* n' */, 0, 0)) /* There is not T[x, letter] for which c = letter, i.e. T[x, c] is defined */
     /* Meyer 85 : "[...] inductively [...] all proper suffixes of n are accessible through f. */
     /*             enter_child becomes recursive. */
     // Complete_inverse (x, n', c) : for y in IF[x], do complete_inverse_one_ifs (y, n', c)
@@ -257,7 +259,7 @@ enter_child (ACState *n, void *c) {
   complete_fail_state (n, nprime, c); // Compute f[n']
   ACM_ASSERT (pt && nprime->fail_state && nprime->fail_state->inverse_fail_states, "");
   ACM_ASSERT (map_insert_data (nprime->fail_state->inverse_fail_states, &pt->state), ""); // Update IF for m' = f[n']
-  // Complete_inverse (n, nprime, c) : for x in IF[n], do complete_inverse_one_ifs (x, n', c)
+  // Complete_inverse (n, n', c) : for x in IF[n], do complete_inverse_one_ifs (x, n', c)
   // Meyer 85 : "Compute IF[n'] and change to n' the corresponding values of f."
   map_traverse (/* for y in IF[n], n = lps (y) */ n->inverse_fail_states, complete_inverse_one_ifs, pt /* n', c */, 0, 0);
 #endif
