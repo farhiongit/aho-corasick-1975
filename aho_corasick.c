@@ -293,31 +293,25 @@ acm_insert_letter_of_keyword (ACState **state, void *letter) {
   ACM_ASSERT (state && *state && letter, "Invalid null state or letter.");
   ACMachine *machine = (*state)->machine;
   ACM_ASSERT (mtx_lock (&machine->token) == thrd_success, "");
-  ACState *next = 0;
   /* Aho-Corasick Algorithm 2: "g(s, l) = fail if l is undefined or if g(s, l) has not been defined." */
   /* Loop on all symbols a for which g(state, a) is defined. */
   struct _ac_transition *n = 0;
-  if (map_find_key ((*state)->transitions, letter, MAP_GET_ONE, &n, 0, 0)) /* There is T[x, letter] for which c = letter, i.e. T[x, c] is defined */
-    next = n->state;
-  /* [if g(state, a[j]) is defined (!= fail)] */
-  if (next) { // the letter is already in the machine and need not be inserted twice.
+  if (map_find_key ((*state)->transitions, letter, MAP_GET_ONE, &n, 0, 0)) {
+    /* There is T[x, letter] for which c = letter, i.e. T[x, c] is defined */
+    /* [if g(state, a[j]) is defined (!= fail)] */
     /* Aho-Corasick Algorithm 2: state <- g(state, a[j]) */
-    *state = next;
     /* Aho-Corasick Algorithm 2: j <- j + 1 */
+    *state = n->state;
+    // the letter is already in the machine and need not be inserted twice and is destroyed.
     if (machine->operators.destroy.f)
       machine->operators.destroy.f (letter); // letter deallocation
-    ACM_ASSERT (mtx_unlock (&machine->token) == thrd_success, "");
-    return;
-  }
-
-  /* [g(state, a[j]) is not defined (= fail)] */
-  /* Aho-Corasick Algorithm 2: for p <- j until m do */
-  /* Appending states for the new sequence to the final state found */
-  ACState *newstate = enter_child ((*state), letter); // T[state, letter] = newstate
-
-  /* Aho-Corasick Algorithm 2: state <- newstate */
-  /* Aho-Corasick Algorithm 2: newstate <- newstate + 1 */
-  *state = newstate;
+  } else
+    /* [g(state, a[j]) is not defined (= fail)] */
+    /* Aho-Corasick Algorithm 2: for p <- j until m do */
+    /* Appending states for the new sequence to the final state found */
+    /* Aho-Corasick Algorithm 2: state <- newstate */
+    /* Aho-Corasick Algorithm 2: newstate <- newstate + 1 */
+    *state = /* newstate */ enter_child ((*state), letter); // T[state, letter] = newstate
   ACM_ASSERT (mtx_unlock (&machine->token) == thrd_success, "");
 }
 //-----------------------------------------------------------------
