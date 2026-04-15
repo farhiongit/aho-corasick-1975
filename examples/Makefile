@@ -4,6 +4,7 @@ CFLAGS += -O3
 DIRMAPS = ../../minimaps  # see https://github.com/farhiongit/minimaps
 #TOOL = valgrind --leak-check=full
 #TOOL = ddd
+TOOL = time -a
 
 all: aho_corasick_generic_test test
 	LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:$(DIRMAPS) $(TOOL) ./aho_corasick_generic_test
