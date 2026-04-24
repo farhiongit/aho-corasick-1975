@@ -449,10 +449,10 @@ acm_match (const ACState **state, const void *letter) {
 
 /* Aho-Corasick Algorithm 1: Pattern matching machine - print output (state) [ith element] */
 void
-acm_get_match (const ACState *state, size_t index, MatchHolder *matcher, void **value) {
+acm_get_match (const ACState *state, size_t index, MatchHolder *matcher) {
   /* Aho-Corasick Algorithm 1: if output(state) [ith element] */
   ACM_ASSERT (state, "Invalid null state.");
-  ACM_ASSERT (state != state->machine->state_0, "acm_match should be called first.");
+  ACM_ASSERT (state != state->machine->state_0, "acm_match should be called first and acm_matcher_init called on the MatchHolder.");
   ACM_ASSERT (index < state->nb_outputs, "Index out of bounds.");
   size_t i = 0;
   // Starting from state, search for the index-th matching keyword in the "failing states" chain:
@@ -464,7 +464,7 @@ acm_get_match (const ACState *state, size_t index, MatchHolder *matcher, void **
     if (i == index)
       break;
   }
-  /* Argument match could be passed to 0 if only value or rank is needed. */
+  /* Argument match could be passed to 0 if only rank is needed. */
   if (matcher) {
     /* Aho-Corasick Algorithm 1: [print i] */
     /* Aho-Corasick Algorithm 1: print output(state) [ith element] */
@@ -477,10 +477,8 @@ acm_get_match (const ACState *state, size_t index, MatchHolder *matcher, void **
     i = 0;
     for (const ACState *s = state; s && s->previous.state; s = s->previous.state, i++)
       matcher->letters[matcher->length - i - 1] = s->previous.letter;
+    matcher->value = state->definition.value;
   }
-  /* Argument value could passed to 0 if the associated value is not needed. */
-  if (value)
-    *value = state->definition.value;
 }
 //-----------------------------------------------------------------
 size_t
@@ -489,12 +487,12 @@ acm_nb_keywords (const ACMachine *machine) {
   return machine->nb_sequences;
 }
 
-static void foreach_keyword (const ACState *state, const void ***letters, size_t *max_length, size_t depth, void (*operator) (MatchHolder, void *));
+static void foreach_keyword (const ACState *state, const void ***letters, size_t *max_length, size_t depth, void (*operator) (MatchHolder));
 struct foreach_transition_args {
   const void ***letters;
   size_t *max_length;
   size_t depth;
-  void (*operator) (MatchHolder, void *);
+  void (*operator) (MatchHolder);
 };
 static int
 foreach_transition (void *data, void *op_arg, int *remove) {
@@ -512,16 +510,16 @@ foreach_transition (void *data, void *op_arg, int *remove) {
 }
 
 static void
-foreach_keyword (const ACState *state, const void ***letters, size_t *max_length, size_t depth, void (*operator) (MatchHolder, void *)) {
+foreach_keyword (const ACState *state, const void ***letters, size_t *max_length, size_t depth, void (*operator) (MatchHolder)) {
   if (state->is_end_of_keyword && depth) {
-    MatchHolder k = { .letters = *letters, .length = depth };
-    (*operator) (k, state->definition.value);
+    MatchHolder k = { .letters = *letters, .length = depth, .value = state->definition.value };
+    (*operator) (k);
   }
   map_traverse (state->transitions, foreach_transition, &(struct foreach_transition_args){ letters, max_length, depth, operator }, 0, 0);
 }
 
 void
-acm_foreach_keyword (const ACMachine *machine, void (*operator) (MatchHolder, void *)) {
+acm_foreach_keyword (const ACMachine *machine, void (*operator) (MatchHolder)) {
   ACM_ASSERT (machine, "Invalid null machine.");
   if (!operator)
     return;

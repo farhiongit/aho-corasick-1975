@@ -24,6 +24,7 @@ typedef struct
 {
   const void **letters; /* An array of pointers to symbols */
   size_t length;        /* Length of the array */
+  void *value;          /* Value associated with the matched pattern */
 } MatchHolder;
 
 typedef struct _ac_state ACState;
@@ -77,8 +78,7 @@ void acm_matcher_init (MatchHolder *matcher);
 // If `match` is not null,
 // - it must have been initialised by a previous call to `acm_match_init` before use.
 // - it will be filled with the found match (with a keyword defined by a previous call to `acm_insert_end_of_keyword`).
-// If `value` is not null, `*value` will be set to the value passed to a previous call to `acm_insert_end_of_keyword`.
-void acm_get_match (const ACState *state, size_t index, MatchHolder *matcher, void **value);
+void acm_get_match (const ACState *state, size_t index, MatchHolder *matcher);
 
 // The matcher must have been initialised by a previous call to `acm_match_init`.
 void acm_matcher_release (MatchHolder *matcher);
@@ -87,7 +87,7 @@ void acm_matcher_release (MatchHolder *matcher);
 size_t acm_nb_keywords (const ACMachine *machine);
 
 // A machine must have been initialised by a previous call to `acm_create`.
-void acm_foreach_keyword (const ACMachine *machine, void (*operator) (MatchHolder, void *value));
+void acm_foreach_keyword (const ACMachine *machine, void (*operator) (MatchHolder));
 
 // The machine must have been initialised by a previous call to `acm_create`.
 void acm_release (ACMachine *machine);

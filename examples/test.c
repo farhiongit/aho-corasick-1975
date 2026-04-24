@@ -16,7 +16,7 @@ main (void) {
   const ACState *cst_state = acm_initiate (machine);
   for (size_t i = 0; text[i]; i++)
     for (size_t j = acm_match (&cst_state, &text[i]); j > 0; j--) {
-      acm_get_match (cst_state, j - 1, &matcher, 0);
+      acm_get_match (cst_state, j - 1, &matcher);
       printf (" %zu:", i + 2 - matcher.length);
       for (size_t k = 0; k < matcher.length; k++)
         printf ("%c", *(const char *)matcher.letters[k]);

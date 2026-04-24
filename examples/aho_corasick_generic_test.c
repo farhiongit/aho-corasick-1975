@@ -26,7 +26,7 @@ print_wchar_t (FILE *f, const void *wc) {
 }
 
 static void
-print_match (MatchHolder match, void *value) {
+print_match (MatchHolder match) {
   if (match.length) {
     current_pos += printf ("{");
     current_pos += printf ("'");
@@ -34,9 +34,9 @@ print_match (MatchHolder match, void *value) {
       current_pos += printf ("%lc", *(const wint_t *)match.letters[k]);
 
     current_pos += printf ("'");
-    if (value) {
+    if (match.value) {
       current_pos += printf ("=");
-      current_pos += printf ("%zu", *(size_t *)value);
+      current_pos += printf ("%zu", *(size_t *)match.value);
     }
     current_pos += printf ("}");
   }
@@ -144,8 +144,7 @@ main (int argc, char **argv) {
 
       for (size_t j = 0; j < nb_matches; j++) {
         // 10. If matches were found, retrieve them for each match.
-        void *pul;
-        acm_get_match (cs1, j, &m1, &pul);
+        acm_get_match (cs1, j, &m1);
 
         if (current_pos > (int)i + 1 - (int)m1.length) {
           current_pos = 0;
@@ -154,7 +153,7 @@ main (int argc, char **argv) {
         for (int tab = current_pos; tab < (int)i + 1 - (int)m1.length; tab++)
           current_pos += printf (" ");
         // Display matching pattern
-        print_match (m1, pul);
+        print_match (m1);
       }
     }
     printf ("\n");
@@ -184,6 +183,8 @@ main (int argc, char **argv) {
     // 7. Initialise a state with `acm_initiate (machine)`
     const ACState *cs3 = acm_initiate (M3);
     // 8. Inject symbols of the text, one at a time.
+    MatchHolder m3;
+    acm_matcher_init (&m3);
     acm_match (&cs3, &(wchar_t){ L' ' });
     line[0] = L' ';
     line[1] = 0;
@@ -201,13 +202,11 @@ main (int argc, char **argv) {
 
       if (nb) {
         for (size_t j = 0; j < nb; j++) {
-          void *v;
-
           // 10. If matches were found, retrieve them for each match.
           //     An optional fourth argument will point to the pointer to the value associated with the matching keyword.
-          acm_get_match (cs3, j, 0, &v);
+          acm_get_match (cs3, j, &m3);
           // Increment the value associated to the keyword.
-          (*(size_t *)v)++;
+          (*(size_t *)m3.value)++;
         }
         assert (wc == L' ');
         line[0] = L' ';
@@ -232,6 +231,7 @@ main (int argc, char **argv) {
         line[1] = L'\0';
       }
     } // for (wint_t wc; (wc = fgetwc (stream)) != WEOF;)
+    acm_matcher_release (&m3);
     printf ("Elapsed CPU time for scanning text for keywords: %f s.\n", (double)(clock () - myclock) / CLOCKS_PER_SEC);
     fclose (stream);
 

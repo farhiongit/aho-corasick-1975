@@ -77,7 +77,7 @@ main (void) {
   const ACState *cst_state = acm_initiate (machine);
   for (size_t i = 0; text[i]; i++)
     for (size_t j = acm_match (&cst_state, &text[i]); j > 0; j--) {
-      acm_get_match (cst_state, j - 1, &matcher, 0);
+      acm_get_match (cst_state, j - 1, &matcher);
       printf (" %zu:", i + 2 - matcher.length);
       for (size_t k = 0; k < matcher.length; k++)
         printf ("%c", *(const char *)matcher.letters[k]);
@@ -151,7 +151,7 @@ void acm_insert_letter_of_keyword (ACState **state, void *letter);
 
 > [!NOTE]
 > A state must have been initialised with `acm_initiate` before the first call to `acm_insert_letter_of_keyword`.
-> A `letter` must be provided. It is a pointer to an allocated sign that must persist until the machine is release with (`acm_release`).
+> A `letter` must be provided. It is a pointer to an allocated sign that must persist until the machine is release (with `acm_release`).
 > If it was allocated dynamically, it will be automatically deallocated by the machine using the destructor previously passed to `acm_create`.
 
 - Call `acm_insert_end_of_keyword`.
@@ -230,7 +230,7 @@ If one or several matches are found by `acm_match` while reading the text, `acm_
 - Loop on these matches with a call to `acm_get_match` for each match.
 
 ```c
-void acm_get_match (const ACState *state, size_t index, MatchHolder *matcher, void **value);
+void acm_get_match (const ACState *state, size_t index, MatchHolder *matcher);
 ```
 
 A matcher is a structure which content is:
@@ -238,6 +238,7 @@ A matcher is a structure which content is:
 {
   const void **letters; /* An array of pointers to symbols */
   size_t length;        /* Length of the array */
+  void *value;          /* Value associated with the matched pattern */
 }
 ```
 
@@ -248,8 +249,6 @@ A matcher is a structure which content is:
 If `match` is not null,
 - it must have been initialised by a previous call to `acm_match_init` before use.
 - it will be filled with the found match (with a keyword defined by a previous call to `acm_insert_end_of_keyword`).
-
-If `value` is not null, `*value` will be set to the value passed to a previous call to `acm_insert_end_of_keyword`.
 
 > [!TIP]
 > [Adding words](#add-words-in-the-dictionary) to the dictionary and [searching](#search-for-words-and-retrieve-the-found-words) can be processed consecutively, alternatively or concurrently (by different threads).
