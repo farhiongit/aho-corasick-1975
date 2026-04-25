@@ -219,13 +219,11 @@ Then,
 size_t acm_match (const ACState **state, void *letter);
 ```
 
-Returns the number of matches found.
+If one or several matches are found by `acm_match` while reading the text, `acm_match` will return a non-zero value of the number of matches found.
 
 > [!NOTE]
 > A state msut have been initialised with `acm_initiate` before the first call to `acm_match`.
 > A `letter` must be provided. It is a pointer to a sign that must persist until to call to `acm_match` has returned.
-
-If one or several matches are found by `acm_match` while reading the text, `acm_match` will return a non-zero value of the number of matches found.
 
 - Loop on these matches with a call to `acm_get_match` for each match.
 
@@ -266,8 +264,6 @@ void acm_matcher_release (MatchHolder *matcher);
 
 > [!TIP]
 > [Adding words](#add-words-in-the-dictionary) to the dictionary and [searching](#search-for-words-and-retrieve-the-found-words) can be processed consecutively, alternatively or concurrently (by different threads).
-
-> [!NOTE]
 
 ## Destroy the dictionary
 
