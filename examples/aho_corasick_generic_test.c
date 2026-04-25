@@ -46,7 +46,7 @@ print_match (MatchHolder match) {
 // 3. Optionally, user defined operators can be specified.
 // User defined case insensitive comparison:
 static int
-alphaneq (const void *k, const void *t, const void *eq_arg) {
+alphacmp (const void *k, const void *t, const void *eq_arg) {
   (void)eq_arg;
   wint_t lk = towlower (*(const wint_t *)k);
   wint_t lt = towlower (*(const wint_t *)t);
@@ -66,7 +66,7 @@ main (int argc, char **argv) {
     static wchar_t text[] = L"He found his pencil, but she could not find hers (Hi! Ushers !! --abcdefgh--)";
 
     // 4. Initialise a state machine of type ACMachine (T) using ACM_create (T):
-    ACMachine *M1 = acm_create (alphaneq, 0, 0 /* letters are automatically allocated */);
+    ACMachine *M1 = acm_create (alphacmp, 0, 0 /* letters are automatically allocated */);
     assert (acm_match (&(const ACState *){ acm_initiate (M1) }, &(wchar_t){ L'a' }) == 0); // No keyword in the dictionary yet.
 
     // Declares all the keywords
@@ -173,7 +173,7 @@ main (int argc, char **argv) {
     wchar_t line[100] = L" "; // keywords start with ' '
 
     // 4. Initialise a state machine with a user defined equality operator.
-    ACMachine *M3 = acm_create (alphaneq, 0, free /* letters are dynamically allocated */);
+    ACMachine *M3 = acm_create (alphacmp, 0, free /* letters are dynamically allocated */);
 
     stream = fopen ("mrs_dalloway.txt", "r");
     if (stream == 0)

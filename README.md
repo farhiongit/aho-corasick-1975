@@ -243,24 +243,31 @@ A matcher is a structure which content is:
 ```
 
 > [!NOTE]
-> `state` must the one used by a previous call to `acm_match`.
+> `letters` is an array of pointers to already allocated symbols, rather than an array of symbols. Therefore,
+> - a copy-constructor of symbols is not required ;
+> - `*matcher` should not be used after the state-machine has been released by `acm_release`.
+
+If `matcher` is not null it will be filled with the found match (with a keyword defined by a previous call to `acm_insert_end_of_keyword`).
+
+> [!NOTE]
+> `state` must be the one used by a previous call to `acm_match`.
 > The index (starting from `0`) must be lower than the number of matches found by the previous call to `acm_match`.
 
-If `match` is not null,
-- it must have been initialised by a previous call to `acm_match_init` before use.
-- it will be filled with the found match (with a keyword defined by a previous call to `acm_insert_end_of_keyword`).
+> [!NOTE]
+> If `matcher` is not null,
+>
+> - it must be initialised by a call to `acm_match_init` before use ;
+> - it must be released by a call to `acm_matcher_release` after use.
+
+```c
+void acm_matcher_init (MatchHolder *matcher);
+void acm_matcher_release (MatchHolder *matcher);
+```
 
 > [!TIP]
 > [Adding words](#add-words-in-the-dictionary) to the dictionary and [searching](#search-for-words-and-retrieve-the-found-words) can be processed consecutively, alternatively or concurrently (by different threads).
 
-- Release the resources used by the matcher with `acm_matcher_release`.
-
-```c
-void acm_matcher_release (MatchHolder *matcher);
-```
-
 > [!NOTE]
-> The `matcher` must have been initialised by a previous call to `acm_match_init`.
 
 ## Destroy the dictionary
 

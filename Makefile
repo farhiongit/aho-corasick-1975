@@ -1,14 +1,12 @@
-CPPFLAGS += -I..
 CFLAGS += -O3
 CFLAGS+=-fPIC
 DIRMAPS = ../minimaps  # see https://github.com/farhiongit/minimaps
 
-CPPFLAGS += -I$(DIRMAPS)
-LDFLAGS += -L$(DIRMAPS)
-LDLIBS += -lmap
+all: libac75.so
 
-all: libaho_corasick.so
+.INTERMEDIATE: aho_corasick.o
+aho_corasick.o: CPPFLAGS += -I$(DIRMAPS)
 
-lib%.so: LDFLAGS+=-shared
-lib%.so: %.o
+libac75.so: LDFLAGS+=-shared
+libac75.so: aho_corasick.o
 	$(CC) $(LDFLAGS) -o "$@" "$^"
