@@ -115,10 +115,10 @@ ACMachine *acm_create (CMP_TYPE cmp, void *cmp_arg, DESTROY_TYPE dtor);
 >
 > If the signs fed to the machine are automatically or statically allocated (until the machine is releases with `acm_release`), then `0` must be passed as `dtor`.
 >
-> If the signs fed to the machine are not statically allocated until the machine is releases (with `acm_release`),
+> If the signs fed to the machine can not be statically allocated until the machine is releases (with `acm_release`),
 > - signs (and possibly its internals) must be dynamically allocated before each call to `acm_insert_letter_of_keyword`.
 > - a destructor `dtor` must be provided. It must deallocate the sign (and possibly its internals) with as many calls to `free` as calls needed to `malloc` to allocate a sign (see `acm_insert_letter_of_keyword`).
-> - signs will be automatically deallocated by the machine.
+> - signs will be automatically deallocated by the machine by `dtor`.
 > - if signs are allocated by a single call to `malloc`, `free` is a suitable destructor.
 >
 > `acm_release` must be subsequently called when the machine is not needed anymore.
@@ -151,7 +151,7 @@ void acm_insert_letter_of_keyword (ACState **state, void *letter);
 
 > [!NOTE]
 > A state must have been initialised with `acm_initiate` before the first call to `acm_insert_letter_of_keyword`.
-> A `letter` must be provided. It is a pointer to an allocated sign that must persist until the machine is release (with `acm_release`).
+> A `letter` must be provided. It is a pointer to an allocated sign that must persist until the machine is release (with `acm_release`). The `letter` should not be modified after insertion, otherwise undefined behaviour would happen.
 > If it was allocated dynamically, it will be automatically deallocated by the machine using the destructor previously passed to `acm_create`.
 
 - Call `acm_insert_end_of_keyword`.

@@ -302,7 +302,7 @@ acm_insert_letter_of_keyword (ACState **state, void *letter) {
     /* Aho-Corasick Algorithm 2: state <- g(state, a[j]) */
     /* Aho-Corasick Algorithm 2: j <- j + 1 */
     *state = n->state;
-    // the letter is already in the machine and need not be inserted twice and is destroyed.
+    // the letter is already in the machine and must not be inserted twice and is destroyed.
     if (machine->operators.destroy.f)
       machine->operators.destroy.f (letter); // letter deallocation
   } else

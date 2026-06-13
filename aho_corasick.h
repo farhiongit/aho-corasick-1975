@@ -36,10 +36,10 @@ extern const CMP_TYPE ACM_CMP_DEFAULT;       // Default comparison function (mem
 
 // A comparison function `cmp` must be provided. The optional argument `cmp_arg` will be passed to each call to `cmp`.
 // The comparison function `cmp` must return an integer less than, equal to, or greater than zero if the first argument is considered to be respectively less than, equal to, or greater than the second.
-// If the letters fed to the machine are not statically allocated until the machine is releases (with `acm_release`),
+// If the letters fed to the machine can not be statically allocated until the machine is releases (with `acm_release`),
 // - letters must be dynamically allocated before each call to `acm_insert_letter_of_keyword`.
 // - a destructor `dtor` must be provided.
-// - letters will be automatically deallocated by the machine.
+// - letters will be automatically deallocated by the machine by `dtor`.
 // - if letters are allocated by a single call to `malloc`, `free` is a suitable destructor.
 // `acm_release` must be subsequently called when the machine is not needed anymore.
 ACMachine *acm_create (CMP_TYPE cmp, void *cmp_arg, DESTROY_TYPE dtor);
@@ -48,8 +48,8 @@ ACMachine *acm_create (CMP_TYPE cmp, void *cmp_arg, DESTROY_TYPE dtor);
 ACState *acm_initiate (ACMachine *machine);
 
 // A state must have been initialised with `acm_initiate` before the first call to `acm_insert_letter_of_keyword`.
-// A `letter` must be provided.
-// If it was allocated dynamically, it will be automatically deallocated by the machine.
+// A `letter` must be provided. The `letter` should not be modified after insertion, otherwise undefined behaviour would happen.
+// If it was allocated dynamically, it will be automatically deallocated by the machine (therefore, `letter` can not point to a constant value, hence `void *` and no `const void *`).
 void acm_insert_letter_of_keyword (ACState **state, void *letter);
 
 // acm_insert_letter_of_keyword must have been previously called at least once before acm_insert_end_of_keyword is called.

@@ -255,7 +255,7 @@ main (int argc, char **argv) {
     const size_t TEXT_LENGTH = 1000000;
     char ALPHABET[] = "abcdefghijklmnopqrstuvwxyz";
     myclock = clock ();
-    ACMachine *M2 = acm_create (ACM_CMP_DEFAULT, &(size_t){ sizeof (char) }, 0);
+    ACMachine *M2 = acm_create (ACM_CMP_DEFAULT, &(size_t){ sizeof (*ALPHABET) }, 0);
     ACState *s2 = acm_initiate (M2);        // Initialise once.
     const ACState *cs2 = acm_initiate (M2); // Initialise once.
     size_t nb_keywords = 0;
