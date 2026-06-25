@@ -105,9 +105,10 @@ state_create (ACMachine *machine) {
 
 static void state_release (ACState *state);
 static int
-transition_release (void *data, void *op_arg, int *remove) {
+transition_release (void *data, void *op_arg, int *remove, const void *context) {
   struct _ac_transition *t = data;
   (void)op_arg;
+  (void)context;
   if (t->state->machine->operators.destroy.f)
     t->state->machine->operators.destroy.f (t->letter); // letter deallocation
   state_release (t->state);
@@ -209,8 +210,9 @@ complete_fail_state (ACState *r /* the previous state of s */, ACState *s, const
 
 #ifndef NMEYER_85
 static int
-update_fail_state (void *data, void *op_arg, int *remove) {
+update_fail_state (void *data, void *op_arg, int *remove, const void *context) {
   (void)remove;
+  (void)context;
   ACState *nprime = op_arg;
   ACState **pxprime = &((struct _ac_transition *)data)->state; // x' = T[x, c] (pxprime is persistent and stable)
   // Remove previous failure value of x'.
@@ -222,10 +224,11 @@ update_fail_state (void *data, void *op_arg, int *remove) {
 }
 
 static int
-complete_inverse_one_ifs (void *data, void *op_arg, int *remove) {
+complete_inverse_one_ifs (void *data, void *op_arg, int *remove, const void *context) {
   /* Meyer 85 : "Recursive precondition: n' is a suffix of nc and T[bA, c] is undefined for any proper suffix bA of n (where n' = Ac)
                  Record n' as new failure value for all x' such that nc = longest proper suffix of x'." */
   (void)remove;
+  (void)context;
   ACState *x = *(ACState **)data; // map of ACState *
   struct _ac_transition *transition = op_arg /* n', c */;
 
@@ -318,9 +321,10 @@ acm_insert_letter_of_keyword (ACState **state, void *letter) {
 #ifndef NMEYER_85
 static void enter_output (ACState *n);
 static int
-enter_output_one_ifs (void *x, void *op_arg, int *remove) {
+enter_output_one_ifs (void *x, void *op_arg, int *remove, const void *context) {
   (void)op_arg;
   (void)remove;
+  (void)context;
   /* Meyer 85 : "enter_output becomes recursive. */
   enter_output (*(ACState **)x);
   return 1; // Continue.
@@ -495,8 +499,9 @@ struct foreach_transition_args {
   void (*operator) (MatchHolder);
 };
 static int
-foreach_transition (void *data, void *op_arg, int *remove) {
+foreach_transition (void *data, void *op_arg, int *remove, const void *context) {
   (void)remove;
+  (void)context;
   struct _ac_transition *t = data;
   struct foreach_transition_args args = *(struct foreach_transition_args *)op_arg;
   if (args.depth >= *args.max_length) {
@@ -539,8 +544,9 @@ struct transition_print_args {
   PRINT_TYPE printer;
 };
 static int
-transition_print (void *data, void *op_arg, int *remove) {
+transition_print (void *data, void *op_arg, int *remove, const void *context) {
   (void)remove;
+  (void)context;
   struct _ac_transition *tr = data;
   struct transition_print_args args = *(struct transition_print_args *)op_arg;
   if (args.indent < *args.pcursor) {
